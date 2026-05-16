@@ -1,0 +1,89 @@
+/* src/styles/dashboard.css - Estilos específicos del Dashboard */
+
+/* Animaciones personalizadas */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Scrollbar personalizado para listas */
+.max-h-96::-webkit-scrollbar {
+  width: 6px;
+}
+
+.max-h-96::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.max-h-96::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.max-h-96::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animación de carga */
+.animate-spin {
+  animation: spin-slow 1s linear infinite;
+}
+
+/* Estado Loading para botones */
+.btn-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Transiciones suaves */
+.transition-colors {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.transition-shadow {
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.transition-all {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Colores de estado para la barra de transferencias */
+.progress-success {
+  background-color: #10b981;
+}
+
+.progress-warning {
+  background-color: #f59e0b;
+}
+
+.progress-danger {
+  background-color: #ef4444;
+}

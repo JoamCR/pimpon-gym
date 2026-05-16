@@ -1,0 +1,123 @@
+/* src/styles/nutrition.css - Estilos específicos del módulo Nutriología */
+
+/* Grid responsiva para la cola */
+.nutrition-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .nutrition-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tarjeta de cliente con hover */
+.client-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.client-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Fila de evaluación */
+.evaluation-row {
+  border-left: 4px solid #0f3e60;
+  background-color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 0.75rem;
+}
+
+.evaluation-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Editor de días */
+.day-editor {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.day-editor:last-child {
+  border-bottom: none;
+}
+
+/* Entrada de ejercicio */
+.exercise-input {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px auto;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+@media (max-width: 640px) {
+  .exercise-input {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Badges de consulta */
+.badge-free {
+  background-color: #dcfce7;
+  color: #166534;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-paid {
+  background-color: #fee2e2;
+  color: #991b1b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Scrollbar personalizado */
+.max-h-96::-webkit-scrollbar,
+.max-h-72::-webkit-scrollbar {
+  width: 6px;
+}
+
+.max-h-96::-webkit-scrollbar-track,
+.max-h-72::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.max-h-96::-webkit-scrollbar-thumb,
+.max-h-72::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.max-h-96::-webkit-scrollbar-thumb:hover,
+.max-h-72::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animaciones */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-in-out;
+}
