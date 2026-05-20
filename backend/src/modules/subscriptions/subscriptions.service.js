@@ -46,7 +46,12 @@ const getDashboardData = async () => {
       todayAttendanceRecent,
       activeClientsList,
       expiredClients,
-      todayAttendanceAll
+      todayAttendanceAll,
+      totalClientsCount,
+      todayVisitorsCount,
+      renewalsThisMonthCount,
+      cancellationsThisMonthCount,
+      newClientsThisMonthCount
     ] = await Promise.all([
       repository.findExpiringIn3Days(),
       repository.findExpiringToday(),
@@ -56,7 +61,12 @@ const getDashboardData = async () => {
       repository.getTodayAttendanceLastFour(),
       repository.findActiveClients(),
       repository.findExpiredClients(),
-      repository.getTodayAttendanceAll()
+      repository.getTodayAttendanceAll(),
+      repository.countTotalClients(),
+      repository.countTodayVisitors(),
+      repository.countRenewalsThisMonth(),
+      repository.countCancellationsThisMonth(),
+      repository.countNewClientsThisMonth()
     ]);
 
     // Calcular porcentaje de transferencias
@@ -80,7 +90,17 @@ const getDashboardData = async () => {
         total: todayAttendanceCount || 0,
         recent: todayAttendanceRecent || [],
         all: todayAttendanceAll || []
-      }
+      },
+      totalClients: totalClientsCount ? totalClientsCount.length : 0,
+      totalClientsList: totalClientsCount || [],
+      todayVisitors: todayVisitorsCount ? todayVisitorsCount.length : 0,
+      todayVisitorsList: todayVisitorsCount || [],
+      renewalsThisMonth: renewalsThisMonthCount ? renewalsThisMonthCount.length : 0,
+      renewalsThisMonthList: renewalsThisMonthCount || [],
+      cancellationsThisMonth: cancellationsThisMonthCount ? cancellationsThisMonthCount.length : 0,
+      cancellationsThisMonthList: cancellationsThisMonthCount || [],
+      newClientsThisMonth: newClientsThisMonthCount ? newClientsThisMonthCount.length : 0,
+      newClientsThisMonthList: newClientsThisMonthCount || []
     };
   } catch (error) {
     console.error('Error en getDashboardData:', error);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import GymCard from '../components/ui/GymCard';
 import GymButton from '../components/ui/GymButton';
+import { IconBuildingStore, IconKey } from '@tabler/icons-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -74,7 +75,7 @@ export default function Login() {
               />
             </div>
 
-            <GymButton variant="primary" size="lg" loading={loading} icon="🔐" style={{ width: '100%' }}>
+            <GymButton variant="primary" size="lg" loading={loading} icon={<IconKey size={20} />} style={{ width: '100%' }}>
               Ingresar
             </GymButton>
           </form>

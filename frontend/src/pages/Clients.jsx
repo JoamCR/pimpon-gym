@@ -5,6 +5,7 @@ import { useRenewSubscription } from '../hooks/useDashboard';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh } from '@tabler/icons-react';
 
 export default function Clients() {
   const [filterTab, setFilterTab] = useState('monthly');
@@ -137,9 +138,9 @@ export default function Clients() {
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
-      return sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽';
+      return sortConfig.direction === 'asc' ? <IconChevronUp size={16} className="inline ml-1" /> : <IconChevronDown size={16} className="inline ml-1" />;
     }
-    return ' ↕️';
+    return <IconSelector size={16} className="inline ml-1 text-[var(--color-text-muted)]" />;
   };
 
   const handleViewClient = (client) => {
@@ -164,7 +165,7 @@ export default function Clients() {
         amount: parseFloat(renewFormData.amount),
         payment_method: renewFormData.payment_method,
       });
-      toast.success('✅ Suscripción renovada');
+      toast.success('Suscripción renovada');
       setRenewModal(false);
       refetch();
     } catch (error) {
@@ -308,7 +309,7 @@ export default function Clients() {
             <p className="text-[var(--color-text-muted)] mt-2">Filtra, busca y registra nuevos miembros desde una interfaz premium.</p>
           </div>
         </div>
-        <GymButton icon="+" variant="primary" onClick={openModal}>Agregar Cliente</GymButton>
+        <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={openModal}>Agregar Cliente</GymButton>
       </header>
 
       <GymCard title="Clientes registrados" variant="default">
@@ -380,9 +381,9 @@ export default function Clients() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.consecutive_months ?? 0}</td>
-                    <td className="px-4 py-4 space-x-2">
+                    <td className="px-4 py-4 space-x-2 whitespace-nowrap">
                       <GymButton size="xs" variant="secondary" onClick={() => handleViewClient(client)}>Ver</GymButton>
-                      <GymButton size="xs" variant="warning" icon="🔄" onClick={() => handleRenewClient(client)}>Renovar</GymButton>
+                      <GymButton size="xs" variant="warning" icon={<IconRefresh size={14} />} onClick={() => handleRenewClient(client)}>Renovar</GymButton>
                     </td>
                   </tr>
                 )})}

@@ -13,6 +13,7 @@ import {
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { IconClipboardHeart, IconSalad, IconX, IconPlus } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
 const ClientCard = ({ patient, onEvaluate, onPlan }) => {
@@ -38,8 +39,8 @@ const ClientCard = ({ patient, onEvaluate, onPlan }) => {
         {days > 0 && <span className="rounded-full bg-[rgba(226,154,0,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-secondary)]">{days} días</span>}
       </div>
       <div className="flex gap-3">
-        <GymButton size="sm" variant="primary" className="flex-1" onClick={() => onEvaluate(patient)}>📋 Evaluar</GymButton>
-        <GymButton size="sm" variant="secondary" className="flex-1" onClick={() => onPlan(patient)}>📝 Plan</GymButton>
+        <GymButton size="sm" variant="primary" className="flex-1" icon={<IconClipboardHeart size={16} />} onClick={() => onEvaluate(patient)}>Evaluar</GymButton>
+        <GymButton size="sm" variant="secondary" className="flex-1" icon={<IconSalad size={16} />} onClick={() => onPlan(patient)}>Plan</GymButton>
       </div>
     </motion.div>
   );
@@ -137,7 +138,7 @@ const ExerciseDayEditor = ({ day, content, onChange }) => {
               />
             </div>
             <div className="flex items-center justify-end">
-              <GymButton size="sm" variant="danger" icon="✕" onClick={() => handleRemoveExercise(idx)} />
+              <GymButton size="sm" variant="danger" icon={<IconX size={16} />} onClick={() => handleRemoveExercise(idx)} />
             </div>
           </div>
         ))}

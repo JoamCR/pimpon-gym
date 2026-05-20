@@ -1,14 +1,24 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import {
+  IconLayoutDashboard,
+  IconUsers,
+  IconClipboardHeart,
+  IconCheckbox,
+  IconApple,
+  IconChartBar,
+  IconSettings,
+  IconDoorExit
+} from '@tabler/icons-react';
 
 const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { path: '/clients', label: 'Clientes', icon: '👥' },
-  { path: '/patients', label: 'Pacientes', icon: '🩺' },
-  { path: '/attendance', label: 'Asistencia', icon: '✅' },
-  { path: '/nutrition', label: 'Nutrición', icon: '🍎' },
-  { path: '/statistics', label: 'Estadísticas', icon: '📈' },
-  { path: '/config', label: 'Configuración', icon: '⚙️' },
+  { path: '/dashboard', label: 'Dashboard', icon: <IconLayoutDashboard size={20} /> },
+  { path: '/clients', label: 'Clientes', icon: <IconUsers size={20} /> },
+  { path: '/patients', label: 'Pacientes', icon: <IconClipboardHeart size={20} /> },
+  { path: '/attendance', label: 'Asistencia', icon: <IconCheckbox size={20} /> },
+  { path: '/nutrition', label: 'Nutrición', icon: <IconApple size={20} /> },
+  { path: '/statistics', label: 'Estadísticas', icon: <IconChartBar size={20} /> },
+  { path: '/config', label: 'Configuración', icon: <IconSettings size={20} /> },
 ];
 
 export default function Layout() {
@@ -34,7 +44,7 @@ export default function Layout() {
               }
             >
               <div className="flex items-center gap-3">
-                <span className="text-xl">{item.icon}</span>
+                <span className="flex items-center justify-center">{item.icon}</span>
                 <span>{item.label}</span>
               </div>
             </NavLink>
@@ -46,7 +56,7 @@ export default function Layout() {
             className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-orange-300 transition-colors w-full border border-white/10"
             onClick={() => alert('Próximamente: Cerrar Sesión')}
           >
-            <span className="text-xl">🚪</span>
+            <span className="flex items-center justify-center"><IconDoorExit size={20} /></span>
             <span className="font-medium">Cerrar Sesión</span>
           </button>
         </div>

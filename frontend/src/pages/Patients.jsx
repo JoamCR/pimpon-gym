@@ -5,6 +5,7 @@ import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconChevronRight } from '@tabler/icons-react';
 
 export default function Patients() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,7 +187,7 @@ export default function Patients() {
     if (sortConfig.key === key) {
       return sortConfig.direction === 'asc' ? ' 🔼' : ' 🔽';
     }
-    return ' ↕️';
+    return <IconSelector size={16} className="inline" />;
   };
 
   const handleViewPatient = (patient) => {

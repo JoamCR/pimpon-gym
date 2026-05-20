@@ -6,6 +6,7 @@ import { useDashboard, useSendNotification, useRenewSubscription } from '../hook
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { IconChartBar, IconSpeakerphone, IconSend, IconCreditCard, IconCheck, IconAlertTriangle } from '@tabler/icons-react';
 import '../styles/dashboard.css';
 
 const ProgressBar = ({ used, limit, percentage }) => {
@@ -69,7 +70,9 @@ const AttendanceRow = ({ record }) => {
         <p className="font-semibold text-[var(--color-text)]">{record.first_name} {record.last_name}</p>
         <p className="text-sm text-[var(--color-text-muted)]">Entrada: {timeIn} • Método: {record.method}</p>
       </div>
-      <span className="rounded-full bg-[rgba(34,197,94,0.15)] px-3 py-1 text-xs font-semibold text-[var(--color-success)]">✓ Presente</span>
+      <span className="rounded-full bg-[rgba(34,197,94,0.15)] px-3 py-1 text-xs font-semibold text-[var(--color-success)] flex items-center gap-1">
+        <IconCheck size={14} /> Presente
+      </span>
     </motion.div>
   );
 };
@@ -97,6 +100,17 @@ export default function Dashboard() {
   const transferControl = dashboard.transferControl || { used: 0, limit: 30000, remaining: 30000, percentage: 0 };
   const activeCount = dashboard.activeCount || 0;
   const todayAttendance = dashboard.todayAttendance || { total: 0, recent: [], all: [] };
+  
+  const totalClients = dashboard.totalClients || 0;
+  const totalClientsList = dashboard.totalClientsList || [];
+  const todayVisitors = dashboard.todayVisitors || 0;
+  const todayVisitorsList = dashboard.todayVisitorsList || [];
+  const renewalsThisMonth = dashboard.renewalsThisMonth || 0;
+  const renewalsThisMonthList = dashboard.renewalsThisMonthList || [];
+  const cancellationsThisMonth = dashboard.cancellationsThisMonth || 0;
+  const cancellationsThisMonthList = dashboard.cancellationsThisMonthList || [];
+  const newClientsThisMonth = dashboard.newClientsThisMonth || 0;
+  const newClientsThisMonthList = dashboard.newClientsThisMonthList || [];
 
   const handleNotify = (client) => {
     setSelectedClient(client);
@@ -106,7 +120,7 @@ export default function Dashboard() {
   const handleConfirmNotify = async () => {
     try {
       await sendNotification.mutateAsync(selectedClient.id);
-      toast.success('✅ Notificación enviada');
+      toast.success('Notificación enviada');
       setModalNotify(false);
       refetch();
     } catch (error) {
@@ -132,7 +146,7 @@ export default function Dashboard() {
         amount: parseFloat(renewFormData.amount),
         payment_method: renewFormData.payment_method,
       });
-      toast.success('✅ Suscripción renovada');
+      toast.success('Suscripción renovada');
       setModalRenew(false);
       refetch();
     } catch (error) {
@@ -181,13 +195,13 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-3 justify-start md:justify-end">
-          <GymButton icon="📅" variant="secondary" onClick={() => navigate('/statistics')}>Ver Informe</GymButton>
-          <GymButton icon="📢" variant="primary" onClick={() => toast('Funcionalidad de avisos masivos en construcción', { icon: '🚧' })}>Enviar Aviso</GymButton>
+          <GymButton icon={<IconChartBar size={18} />} variant="secondary" onClick={() => navigate('/statistics')}>Ver Informe</GymButton>
+          <GymButton icon={<IconSpeakerphone size={18} />} variant="primary" onClick={() => toast('Funcionalidad de avisos masivos en construcción', { icon: <IconAlertTriangle size={20} /> })}>Enviar Aviso</GymButton>
         </div>
       </section>
 
       {/* Estadísticas compactas interactivas */}
-      <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         <div onClick={() => toggleSection('active')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'active' ? 'ring-2 ring-[var(--color-success)] rounded-[var(--radius-lg)]' : ''}`}>
           <GymCard title="Clientes Activos" subtitle="Hoy" variant="success" className="h-full">
             <div className="text-4xl font-bold text-[var(--color-text)]">{activeCount}</div>
@@ -222,6 +236,41 @@ export default function Dashboard() {
             <p className="text-sm text-[var(--color-text-muted)] mt-2">Entradas al gym hoy.</p>
           </GymCard>
         </div>
+
+        <div onClick={() => toggleSection('totalClients')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'totalClients' ? 'ring-2 ring-[var(--color-secondary)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Clientes Totales" subtitle="Histórico" variant="default" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{totalClients}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Todos los registrados.</p>
+          </GymCard>
+        </div>
+
+        <div onClick={() => toggleSection('todayVisitors')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'todayVisitors' ? 'ring-2 ring-[var(--color-secondary)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Visitantes" subtitle="Día actual" variant="default" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{todayVisitors}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Visitas vendidas hoy.</p>
+          </GymCard>
+        </div>
+
+        <div onClick={() => toggleSection('renewals')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'renewals' ? 'ring-2 ring-[var(--color-success)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Renovaciones" subtitle="Mes actual" variant="success" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{renewalsThisMonth}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Pagos mensuales.</p>
+          </GymCard>
+        </div>
+
+        <div onClick={() => toggleSection('cancellations')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'cancellations' ? 'ring-2 ring-[var(--color-text-muted)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Cancelaciones" subtitle="Mes actual" variant="default" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{cancellationsThisMonth}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Suscripciones expiradas.</p>
+          </GymCard>
+        </div>
+
+        <div onClick={() => toggleSection('newClients')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'newClients' ? 'ring-2 ring-[var(--color-secondary)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Nuevos Clientes" subtitle="Mes actual" variant="default" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{newClientsThisMonth}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Registrados este mes.</p>
+          </GymCard>
+        </div>
       </section>
 
       {/* Panel expansible condicional */}
@@ -240,7 +289,12 @@ export default function Dashboard() {
                 expandedSection === 'expiring3Days' ? 'Clientes que vencen en 3 días' :
                 expandedSection === 'expiringToday' ? 'Clientes que vencen hoy' :
                 expandedSection === 'expired' ? 'Clientes con membresía vencida' :
-                'Registro de Asistencias de hoy'
+                expandedSection === 'attendance' ? 'Registro de Asistencias de hoy' :
+                expandedSection === 'totalClients' ? 'Lista de Clientes Totales' :
+                expandedSection === 'todayVisitors' ? 'Lista de Visitantes de Hoy' :
+                expandedSection === 'renewals' ? 'Renovaciones del Mes' :
+                expandedSection === 'cancellations' ? 'Cancelaciones / Expiraciones del Mes' :
+                expandedSection === 'newClients' ? 'Nuevos Clientes del Mes' : ''
               } 
               variant="default"
             >
@@ -252,22 +306,47 @@ export default function Dashboard() {
 
                 {expandedSection === 'expiring3Days' && expiring3Days.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer en 3 días.</p>}
                 {expandedSection === 'expiring3Days' && expiring3Days.map(client => (
-                  <ClientRow key={client.id} client={client} onAction={handleNotify} actionLabel="Notificar" actionVariant="warning" actionIcon="💬" />
+                  <ClientRow key={client.id} client={client} onAction={handleNotify} actionLabel="Notificar" actionVariant="warning" actionIcon={<IconSend size={18} />} />
                 ))}
 
                 {expandedSection === 'expiringToday' && expiringToday.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer hoy.</p>}
                 {expandedSection === 'expiringToday' && expiringToday.map(client => (
-                  <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon="💳" />
+                  <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
                 ))}
 
                 {expandedSection === 'expired' && expiredClients.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes vencidos.</p>}
                 {expandedSection === 'expired' && expiredClients.map(client => (
-                  <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon="💳" />
+                  <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
                 ))}
 
                 {expandedSection === 'attendance' && todayAttendance.all.length === 0 && <p className="text-[var(--color-text-muted)]">No hay asistencias registradas hoy.</p>}
                 {expandedSection === 'attendance' && todayAttendance.all.map(record => (
                   <AttendanceRow key={record.id} record={record} />
+                ))}
+
+                {expandedSection === 'totalClients' && totalClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes registrados.</p>}
+                {expandedSection === 'totalClients' && totalClientsList.map(client => (
+                  <ClientRow key={client.id} client={client} />
+                ))}
+
+                {expandedSection === 'todayVisitors' && todayVisitorsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay visitantes hoy.</p>}
+                {expandedSection === 'todayVisitors' && todayVisitorsList.map(visitor => (
+                  <ClientRow key={visitor.id} client={{...visitor, plan_name: 'Visita'}} />
+                ))}
+
+                {expandedSection === 'renewals' && renewalsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay renovaciones este mes.</p>}
+                {expandedSection === 'renewals' && renewalsThisMonthList.map(renewal => (
+                  <ClientRow key={renewal.id} client={{...renewal, plan_name: 'Renovación'}} />
+                ))}
+
+                {expandedSection === 'cancellations' && cancellationsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones/expiraciones este mes.</p>}
+                {expandedSection === 'cancellations' && cancellationsThisMonthList.map(cancel => (
+                  <ClientRow key={cancel.id} client={cancel} />
+                ))}
+
+                {expandedSection === 'newClients' && newClientsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes nuevos este mes.</p>}
+                {expandedSection === 'newClients' && newClientsThisMonthList.map(client => (
+                  <ClientRow key={client.id} client={client} />
                 ))}
               </div>
             </GymCard>
@@ -331,8 +410,9 @@ export default function Dashboard() {
           </div>
 
           {renewFormData.payment_method === 'transfer' && transferControl.percentage > 85 && (
-            <div className="rounded-[var(--radius-md)] bg-[rgba(245,158,11,0.12)] border border-[rgba(245,158,11,0.2)] p-3 text-sm text-[var(--color-warning)]">
-              ⚠️ Precaución: Se está acercando al tope de transferencias del mes ({transferControl.percentage}%).
+            <div className="rounded-[var(--radius-md)] bg-[rgba(245,158,11,0.12)] border border-[rgba(245,158,11,0.2)] p-3 text-sm text-[var(--color-warning)] flex items-start gap-2">
+              <IconAlertTriangle size={18} className="mt-0.5 shrink-0" /> 
+              <span>Precaución: Se está acercando al tope de transferencias del mes ({transferControl.percentage}%).</span>
             </div>
           )}
 

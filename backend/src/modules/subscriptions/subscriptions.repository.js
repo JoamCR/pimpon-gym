@@ -19,14 +19,13 @@ const findExpiringIn3Days = async () => {
       c.email,
       p.name as plan_name,
       s.end_date,
-      EXTRACT(DAY FROM s.end_date - CURRENT_DATE) as days_left
+      EXTRACT(DAY FROM s.end_date::timestamp - CURRENT_DATE::timestamp) as days_left
     FROM subscriptions s
     JOIN clients c ON s.client_id = c.id
     JOIN plans p ON s.plan_id = p.id
     WHERE s.status = 'active'
-      AND s.end_date > CURRENT_DATE
-      AND s.end_date <= CURRENT_DATE + INTERVAL '3 days'
-      AND s.end_date > CURRENT_DATE + INTERVAL '0 days'
+      AND s.end_date::date > CURRENT_DATE
+      AND s.end_date::date <= (CURRENT_DATE + INTERVAL '3 days')::date
     ORDER BY s.end_date ASC;
   `;
   
@@ -267,6 +266,113 @@ const getTodayAttendanceAll = async () => {
   }
 };
 
+/**
+ * Obtiene todos los clientes registrados
+ */
+const countTotalClients = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, p.name as plan_name
+    FROM clients c
+    LEFT JOIN plans p ON c.plan_id = p.id
+    ORDER BY c.created_at DESC
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en countTotalClients:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene los visitantes del día actual (pagos de tipo visit)
+ */
+const countTodayVisitors = async () => {
+  const query = `
+    SELECT 
+      p.id, p.amount, p.paid_at, c.first_name, c.last_name, c.phone
+    FROM payments p
+    JOIN clients c ON p.client_id = c.id
+    WHERE p.payment_type = 'visit' 
+      AND p.paid_at::date = CURRENT_DATE
+    ORDER BY p.paid_at DESC
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en countTodayVisitors:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene las renovaciones del mes actual
+ */
+const countRenewalsThisMonth = async () => {
+  const query = `
+    SELECT 
+      p.id, p.amount, p.paid_at, c.first_name, c.last_name, c.phone
+    FROM payments p
+    JOIN clients c ON p.client_id = c.id
+    WHERE p.payment_type = 'monthly' 
+      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
+    ORDER BY p.paid_at DESC
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en countRenewalsThisMonth:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene las cancelaciones/expiraciones del mes actual
+ */
+const countCancellationsThisMonth = async () => {
+  const query = `
+    SELECT 
+      s.id, s.end_date, s.status, c.first_name, c.last_name, c.phone, p.name as plan_name
+    FROM subscriptions s
+    JOIN clients c ON s.client_id = c.id
+    JOIN plans p ON s.plan_id = p.id
+    WHERE (s.status = 'cancelled' OR (s.status = 'expired' AND DATE_TRUNC('month', s.end_date) = DATE_TRUNC('month', CURRENT_DATE)))
+    ORDER BY s.end_date DESC
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en countCancellationsThisMonth:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene los clientes nuevos registrados en el mes actual
+ */
+const countNewClientsThisMonth = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, p.name as plan_name, c.created_at
+    FROM clients c
+    LEFT JOIN plans p ON c.plan_id = p.id
+    WHERE DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+    ORDER BY c.created_at DESC
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en countNewClientsThisMonth:', err);
+    return [];
+  }
+};
+
 module.exports = {
   findExpiringIn3Days,
   findExpiringToday,
@@ -277,4 +383,9 @@ module.exports = {
   getTodayAttendanceLastFour,
   countTodayAttendance,
   getTodayAttendanceAll,
+  countTotalClients,
+  countTodayVisitors,
+  countRenewalsThisMonth,
+  countCancellationsThisMonth,
+  countNewClientsThisMonth,
 };
