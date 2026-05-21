@@ -58,7 +58,7 @@ export function GymButton({
 }
 
 // ── USOS ──────────────────────────────────────────────────────────────────────
-// <GymButton onClick={handleNew} icon="➕">Nuevo Cliente</GymButton>
+// <GymButton onClick={handleNew} icon={<IconPlus />}>Nuevo Cliente</GymButton>
 // <GymButton variant="warning" size="sm" onClick={handleNotify}>Notificar</GymButton>
 // <GymButton variant="danger"  loading={isDeleting}>Eliminar</GymButton>
 // <GymButton variant="ghost"   size="xs">Ver historial</GymButton>
