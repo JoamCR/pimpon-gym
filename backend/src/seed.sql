@@ -52,6 +52,34 @@ BEGIN
     END IF;
 END$$;
 
+-- Ajustar schema de payments para clientes y pacientes
+ALTER TABLE payments
+    ALTER COLUMN client_id DROP NOT NULL;
+ALTER TABLE payments
+    ADD COLUMN IF NOT EXISTS patient_id UUID REFERENCES patients(id) ON DELETE CASCADE;
+ALTER TABLE payments
+    ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50) NOT NULL DEFAULT 'gym';
+DO $$
+BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'payments_entity_type_check'
+    ) THEN
+      ALTER TABLE payments ADD CONSTRAINT payments_entity_type_check CHECK (entity_type IN ('gym', 'consultorio'));
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'payments_entity_link_check'
+    ) THEN
+      ALTER TABLE payments ADD CONSTRAINT payments_entity_link_check CHECK (
+        (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
+        (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
+      );
+    END IF;
+END$$;
+
+-- Ajustar la restricción de payment_type si es necesario
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_payment_type_check;
+ALTER TABLE payments ADD CONSTRAINT payments_payment_type_check CHECK (payment_type IN ('enrollment', 'monthly', 'visit', 'nutrition_consult', 'nutrition_followup'));
+
 -- Limpiar las tablas antes de insertar para que el seed sea repetible
 TRUNCATE audit_log, notifications, exercise_plans, nutrition_records, attendance, transfer_control, payments, subscriptions, patients, clients, plans, app_users RESTART IDENTITY CASCADE;
 

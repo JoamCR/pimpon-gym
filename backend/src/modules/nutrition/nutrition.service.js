@@ -71,14 +71,8 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
     }
 
     if (entity.first_consult_used) {
-      const payment = await repository.findNutritionPaymentOnDate(
-        data,
-        new Date(),
-        dbClient
-      );
-      if (!payment) {
-        throw createError(402, 'Requiere pago previo para segunda consulta nutricional');
-      }
+      // Allow second consultation without prior payment
+      // (Payment validation removed as per new requirement)
     }
 
     const evaluationData = {

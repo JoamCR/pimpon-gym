@@ -61,4 +61,25 @@ export const usePatient = (id) => {
   });
 };
 
+export const useCreatePayment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      const res = await fetch(`${API_URL}/payments`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Error al procesar el pago');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['patients']);
+    }
+  });
+};
+
 export default usePatients;

@@ -91,17 +91,23 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 -- 5. TABLA DE PAGOS
 CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    entity_type VARCHAR(50) NOT NULL DEFAULT 'gym' CHECK (entity_type IN ('gym', 'consultorio')),
     subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
     amount NUMERIC(10, 2) NOT NULL,
     payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('cash', 'transfer', 'card')),
-    payment_type VARCHAR(50) NOT NULL CHECK (payment_type IN ('enrollment', 'monthly', 'visit', 'nutrition_consult')),
+    payment_type VARCHAR(50) NOT NULL CHECK (payment_type IN ('enrollment', 'monthly', 'visit', 'nutrition_consult', 'nutrition_followup')),
     paid_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     registered_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
     notes TEXT,
     is_voided BOOLEAN DEFAULT FALSE,
     voided_at TIMESTAMPTZ,
-    voided_by UUID REFERENCES app_users(id) ON DELETE SET NULL
+    voided_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_payments_entity_type CHECK (
+        (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
+        (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
+    )
 );
 
 -- 6. CONTROL DE TRANSFERENCIAS MENSULARES (Tope 30k)

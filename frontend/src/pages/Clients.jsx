@@ -123,6 +123,11 @@ export default function Clients() {
           aVal = `${a.first_name} ${a.last_name}`.toLowerCase();
           bVal = `${b.first_name} ${b.last_name}`.toLowerCase();
         }
+        
+        if (sortConfig.key === 'end_date') {
+          aVal = a.end_date ? new Date(a.end_date).getTime() : 0;
+          bVal = b.end_date ? new Date(b.end_date).getTime() : 0;
+        }
 
         if (aVal < bVal) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -349,6 +354,9 @@ export default function Clients() {
                   <th className="px-4 py-4 cursor-pointer hover:bg-[rgba(255,255,255,0.05)] transition-colors" onClick={() => handleSort('status')}>
                     Estado {getSortIcon('status')}
                   </th>
+                  <th className="px-4 py-4 cursor-pointer hover:bg-[rgba(255,255,255,0.05)] transition-colors" onClick={() => handleSort('end_date')}>
+                    Vencimiento {getSortIcon('end_date')}
+                  </th>
                   <th className="px-4 py-4 cursor-pointer hover:bg-[rgba(255,255,255,0.05)] transition-colors" onClick={() => handleSort('consecutive_months')}>
                     Meses {getSortIcon('consecutive_months')}
                   </th>
@@ -379,6 +387,9 @@ export default function Clients() {
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${currentStatus === 'active' ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : currentStatus === 'expiring' ? 'bg-[rgba(245,158,11,0.15)] text-[var(--color-warning)]' : 'bg-[rgba(239,68,68,0.15)] text-[var(--color-danger)]'}`}>
                         {currentStatus === 'active' ? 'Activo' : currentStatus === 'expiring' ? 'Por vencer' : 'Vencido'}
                       </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-[var(--color-text)]">
+                      {client.end_date ? new Date(client.end_date).toLocaleDateString('es-MX') : 'N/A'}
                     </td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.consecutive_months ?? 0}</td>
                     <td className="px-4 py-4 space-x-2 whitespace-nowrap">
