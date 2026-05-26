@@ -2,7 +2,6 @@
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import {
-  useNutritionQueue,
   useEvaluationHistory,
   useCreateEvaluation,
   useUpdateEvaluation,
@@ -10,13 +9,14 @@ import {
   useCreateExercisePlan,
   useUpdateExercisePlan,
 } from '../hooks/useNutrition';
+import { usePatients } from '../hooks/usePatients';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { IconClipboardHeart, IconSalad, IconX, IconPlus } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
-const ClientCard = ({ patient, onEvaluate, onPlan }) => {
+const ClientCard = ({ patient, onEvaluate, onPlan, onShowDetails }) => {
   const days = Math.max(0, Math.ceil((new Date(patient.end_date) - new Date()) / (1000 * 60 * 60 * 24)));
 
   return (
@@ -27,15 +27,20 @@ const ClientCard = ({ patient, onEvaluate, onPlan }) => {
     >
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
-          <p className="font-semibold text-[var(--color-text)]">{patient.first_name} {patient.last_name}</p>
-          <p className="text-sm text-[var(--color-text-muted)]">{patient.phone}</p>
+          <p 
+            className="font-semibold text-[var(--color-text)] cursor-pointer hover:text-[var(--color-secondary)] hover:underline transition-colors"
+            onClick={() => onShowDetails(patient)}
+          >
+            {patient.first_name} {patient.last_name}
+          </p>
+          <p className="text-sm text-[var(--color-text-muted)]">{patient.phone || 'Sin teléfono'}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${patient.isFirstConsult ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : 'bg-[rgba(239,68,68,0.15)] text-[var(--color-danger)]'}`}>
-          {patient.consultType}
+          {patient.consultType || 'Regular'}
         </span>
       </div>
       <div className="mb-4 flex flex-wrap gap-2 items-center">
-        <span className="rounded-full bg-[rgba(14,116,144,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-teal)]">{patient.plan_name}</span>
+        <span className="rounded-full bg-[rgba(14,116,144,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-teal)]">{patient.plan_name || 'Sin plan'}</span>
         {days > 0 && <span className="rounded-full bg-[rgba(226,154,0,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-secondary)]">{days} días</span>}
       </div>
       <div className="flex gap-3">
@@ -153,6 +158,7 @@ export default function Nutrition() {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [modalEvaluate, setModalEvaluate] = useState(false);
   const [modalPlan, setModalPlan] = useState(false);
+  const [modalDetails, setModalDetails] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [evaluationTab, setEvaluationTab] = useState('composition'); // 'composition' or 'diet'
   const resetEvaluationForm = () => ({
@@ -185,7 +191,7 @@ export default function Nutrition() {
     notes: '',
   });
 
-  const { data: queueResponse, isLoading: queueLoading } = useNutritionQueue();
+  const { data: patientsResponse, isLoading: queueLoading } = usePatients();
   const { data: evaluationsResponse } = useEvaluationHistory(selectedPatient?.id);
   const { data: plansResponse } = useExercisePlans(selectedPatient?.id);
   const createEvaluation = useCreateEvaluation();
@@ -193,7 +199,7 @@ export default function Nutrition() {
   const createExercisePlan = useCreateExercisePlan();
   const updateExercisePlan = useUpdateExercisePlan();
 
-  const queue = Array.isArray(queueResponse) ? queueResponse : queueResponse?.data || [];
+  const queue = Array.isArray(patientsResponse) ? patientsResponse : patientsResponse?.data || [];
   const history = Array.isArray(evaluationsResponse) ? evaluationsResponse : evaluationsResponse?.data || [];
   const plans = Array.isArray(plansResponse) ? plansResponse : plansResponse?.data || [];
 
@@ -233,6 +239,11 @@ export default function Nutrition() {
     setSelectedEvaluation(null);
     setEditingPlan(null);
     setModalPlan(true);
+  };
+
+  const handleShowDetails = (patient) => {
+    setSelectedPatient(patient);
+    setModalDetails(true);
   };
 
   const handleChangePlanDay = (day, content) => {
@@ -279,16 +290,16 @@ export default function Nutrition() {
         </div>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
-        <GymCard title="Cola de pacientes" subtitle="Últimas llegadas" variant="default">
-          <div className="space-y-4">
+      <div className="grid gap-6 xl:grid-cols-2">
+        <GymCard title="Todos los pacientes" subtitle="Listado general" variant="default">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 2xl:grid-cols-3">
             {queueLoading ? (
-              <p className="text-[var(--color-text-muted)]">Cargando pacientes...</p>
+              <p className="text-[var(--color-text-muted)] col-span-full">Cargando pacientes...</p>
             ) : queue.length === 0 ? (
-              <p className="text-[var(--color-text-muted)]">No hay pacientes en cola.</p>
+              <p className="text-[var(--color-text-muted)] col-span-full">No hay pacientes registrados.</p>
             ) : (
               queue.map((patient) => (
-                <ClientCard key={patient.id} patient={patient} onEvaluate={handleEvaluate} onPlan={handlePlan} />
+                <ClientCard key={patient.id} patient={patient} onEvaluate={handleEvaluate} onPlan={handlePlan} onShowDetails={handleShowDetails} />
               ))
             )}
           </div>
@@ -314,7 +325,7 @@ export default function Nutrition() {
             </div>
           </GymCard>
 
-          <GymCard title="Resumen rápido" variant="gold">
+          <GymCard title="Resumen rápido" variant="default">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-[var(--radius-lg)] bg-[var(--color-card-alt)] p-4">
                 <p className="text-sm text-[var(--color-text-muted)]">Evaluaciones</p>
@@ -474,6 +485,47 @@ export default function Nutrition() {
             <GymButton variant="secondary" onClick={() => setModalPlan(false)}>Cancelar</GymButton>
             <GymButton variant="primary">Generar PDF</GymButton>
             <GymButton variant="success" onClick={handleSavePlan}>Guardar Plan</GymButton>
+          </div>
+        </div>
+      </GymModal>
+
+      <GymModal isOpen={modalDetails} onClose={() => setModalDetails(false)} title={`Detalles de Paciente — ${selectedPatient?.first_name || 'Paciente'}`} width="lg">
+        <div className="space-y-6">
+          <div className="bg-[var(--color-card-alt)] p-4 rounded-[var(--radius-lg)] border border-[var(--color-border)]">
+            <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">Información de Contacto</h3>
+            <p className="text-[var(--color-text-muted)]"><strong>Teléfono:</strong> {selectedPatient?.phone || 'N/A'}</p>
+            <p className="text-[var(--color-text-muted)]"><strong>Email:</strong> {selectedPatient?.email || 'N/A'}</p>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">Historial de Consultas</h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+              {history.length === 0 ? (
+                <p className="text-[var(--color-text-muted)]">No hay consultas registradas para este paciente.</p>
+              ) : (
+                history.map((evaluation) => (
+                  <div key={evaluation.id} className="p-3 border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-surface)]">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-semibold text-[var(--color-text)]">{new Date(evaluation.evaluation_date).toLocaleDateString('es-MX')}</span>
+                      <span className="text-xs px-2 py-1 rounded bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)]">
+                        {evaluation.is_free_consult ? 'Gratis' : 'Regular'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm text-[var(--color-text-muted)]">
+                      <div><span className="font-medium">Peso:</span> {evaluation.weight_kg || '—'} kg</div>
+                      <div><span className="font-medium">Grasa:</span> {evaluation.body_fat_pct || '—'}%</div>
+                      <div>
+                        <span className="font-medium">IMC:</span> {evaluation.height_cm && evaluation.weight_kg ? (evaluation.weight_kg / ((evaluation.height_cm / 100) ** 2)).toFixed(1) : '—'}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          
+          <div className="flex justify-end pt-4 border-t border-[var(--color-border)]">
+            <GymButton variant="secondary" onClick={() => setModalDetails(false)}>Cerrar</GymButton>
           </div>
         </div>
       </GymModal>

@@ -14,27 +14,27 @@ import { motion } from 'framer-motion';
  */
 const variantStyles = {
   default: {
-    border:     'border-[#2b2b2b]',
-    headerBg:   'bg-gradient-to-r from-[var(--color-navy)] via-[#0d0d0d] to-[var(--color-card-alt)]',
-    titleColor: 'text-white',
+    border:     'border-[var(--color-card-border)]',
+    headerBg:   'bg-gradient-to-r from-[var(--color-card-header-bg)] via-[var(--color-card-header-via)] to-[var(--color-card-header-to)]',
+    titleColor: 'text-[var(--color-card-header-text)]',
     accent:     'bg-gradient-to-b from-[var(--color-secondary)] to-[var(--color-accent)]',
   },
   warning: {
-    border:     'border-[#564108]',
-    headerBg:   'bg-[#2e1c07]',
-    titleColor: 'text-white',
+    border:     'border-[var(--color-card-border-warning)]',
+    headerBg:   'bg-[var(--color-card-header-warning)]',
+    titleColor: 'text-[var(--color-card-text-warning)]',
     accent:     'bg-orange-400',
   },
   danger: {
-    border:     'border-[#3f0d12]',
-    headerBg:   'bg-[#3d0f16]',
-    titleColor: 'text-white',
+    border:     'border-[var(--color-card-border-danger)]',
+    headerBg:   'bg-[var(--color-card-header-danger)]',
+    titleColor: 'text-[var(--color-card-text-danger)]',
     accent:     'bg-red-500',
   },
   success: {
-    border:     'border-[#10402b]',
-    headerBg:   'bg-[#102b1f]',
-    titleColor: 'text-white',
+    border:     'border-[var(--color-card-border-success)]',
+    headerBg:   'bg-[var(--color-card-header-success)]',
+    titleColor: 'text-[var(--color-card-text-success)]',
     accent:     'bg-emerald-500',
   },
   gold: {

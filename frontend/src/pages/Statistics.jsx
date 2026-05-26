@@ -57,7 +57,7 @@ export default function Statistics() {
         </div>
 
         <div className="space-y-6">
-          <GymCard title="Rendimiento" subtitle="KPIs críticos" variant="gold">
+          <GymCard title="Rendimiento" subtitle="KPIs críticos" variant="default">
             <div className="space-y-5">
               <div className="rounded-[var(--radius-lg)] bg-[var(--color-card-alt)] p-5">
                 <p className="text-sm text-[var(--color-text-muted)]">Retención</p>

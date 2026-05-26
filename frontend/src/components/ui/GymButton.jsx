@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
  */
 const variants = {
   primary:   'bg-gradient-to-r from-[var(--color-secondary)] to-[var(--color-accent)] text-black shadow-[var(--shadow-btn)] hover:brightness-95',
-  secondary: 'bg-[var(--color-card-alt)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[#1f1f1f]',
+  secondary: 'bg-[var(--color-card-alt)] text-[var(--color-text)] border border-[var(--color-border)] ', /* hover:bg-[#1f1f1f]*/
   danger:    'bg-[var(--color-danger)] text-white hover:bg-[#dc2626] shadow-[0_16px_48px_-28px_rgba(220,38,38,0.8)]',
   warning:   'bg-gradient-to-r from-[#f59e0b] to-[#e29a00] text-slate-950 hover:from-[#e29a00] hover:to-[#ffb84d] shadow-[0_18px_55px_-28px_rgba(226,154,0,0.8)]',
   ghost:     'bg-transparent text-[var(--color-secondary)] hover:bg-white/10',

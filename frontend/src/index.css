@@ -32,6 +32,16 @@
   }
 }
 
+:root.light {
+  --text: #111827;
+  --text-h: #000000;
+  --bg: #f9fafb;
+  --border: #e5e7eb;
+  --code-bg: #f3f4f6;
+  --social-bg: rgba(0, 0, 0, 0.06);
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;

@@ -17,6 +17,25 @@
   --color-text-muted: #A3A3A3;
   --color-border:     #262626;
 
+  /* Card Header Styles */
+  --color-card-header-bg: #0C0C0C;
+  --color-card-header-via: #0d0d0d;
+  --color-card-header-to: var(--color-card-alt);
+  --color-card-header-text: #ffffff;
+  --color-card-border: #2b2b2b;
+
+  --color-card-header-warning: #2e1c07;
+  --color-card-border-warning: #564108;
+  --color-card-text-warning: #ffffff;
+
+  --color-card-header-danger: #3d0f16;
+  --color-card-border-danger: #3f0d12;
+  --color-card-text-danger: #ffffff;
+
+  --color-card-header-success: #102b1f;
+  --color-card-border-success: #10402b;
+  --color-card-text-success: #ffffff;
+
   /* Tipograf�a */
   --font-display: 'Sora', sans-serif;
   --font-body:    'DM Sans', sans-serif;
@@ -45,4 +64,60 @@
   /* Espaciado base 8px */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
   --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+}
+
+:root.light {
+  /* Colores claros, manteniendo la marca naranja */
+  --color-primary:    #ffffff;
+  --color-navy:       #f5f5f5;
+  --color-surface:    #f9fafb;
+  --color-card:       #ffffff;
+  --color-card-alt:   #f3f4f6;
+  --color-text:       #111827;
+  --color-text-muted: #6b7280;
+  --color-border:     #e5e7eb;
+
+  /* Card Header Styles - Light Theme */
+  --color-card-header-bg: #5aa7a7;
+  --color-card-header-via: #4f9696;
+  --color-card-header-to: #438282;
+  --color-card-header-text: #ffffff;
+  --color-card-border: #e5e7eb;
+
+  --color-card-header-warning: #5aa7a7;
+  --color-card-border-warning: #e5e7eb;
+  --color-card-text-warning: #ffffff;
+
+  --color-card-header-danger: #5aa7a7;
+  --color-card-border-danger: #e5e7eb;
+  --color-card-text-danger: #ffffff;
+
+  --color-card-header-success: #5aa7a7;
+  --color-card-border-success: #e5e7eb;
+  --color-card-text-success: #ffffff;
+
+/* Ajustes leves de contraste para el tema claro 
+  --color-card-header-warning: #eae06e;
+  --color-card-border-warning: #6e6834;
+  --color-card-text-warning: #a79900;
+
+  --color-card-header-danger: #d32121cb;
+  --color-card-border-danger: #fca5a5;
+  --color-card-text-danger: #991b1b;
+
+  --color-card-header-success: #dcfce7;
+  --color-card-border-success: #86efac;
+  --color-card-text-success: #166534;
+*/
+  /* Colores de marca y funcionales (mantenemos los mismos o los ajustamos levemente) */
+  --color-secondary:  #e26900;
+  --color-accent:     #df881d;
+  --color-gold:       #E29A00;
+  --color-teal:       #F59E0B;
+  --color-success:    #16a34a;
+  --color-danger:     #dc2626;
+  --color-warning:    #d97706;
+
+  --color-card-foreground: rgba(0,0,0,0.95);
+  --color-backdrop: rgba(0,0,0,0.3);
 }
