@@ -513,26 +513,113 @@ const getSixMonthEligible = async () => {
  */
 const getNutritionStats = async (year, month) => {
   const sql = `
-    SELECT 
-      COUNT(DISTINCT p.id) as total_patients,
-      COUNT(DISTINCT CASE WHEN nr.is_free_consult = true THEN nr.id END) as free_consults,
-      COUNT(DISTINCT CASE WHEN nr.is_free_consult = false THEN nr.id END) as paid_consults,
+    WITH free_patients AS (
+      SELECT DISTINCT nr.patient_id
+      FROM nutrition_records nr
+      WHERE nr.entity_type = 'consultorio'
+        AND nr.is_free_consult = true
+        AND EXTRACT(YEAR FROM nr.evaluation_date) = $1
+        AND EXTRACT(MONTH FROM nr.evaluation_date) = $2
+    ),
+    paid_consults AS (
+      SELECT COUNT(*) as total_paid_consults
+      FROM payments p
+      WHERE p.entity_type = 'consultorio'
+        AND p.payment_type IN ('nutrition_consult', 'nutrition_followup')
+        AND p.is_voided = false
+        AND EXTRACT(YEAR FROM p.paid_at) = $1
+        AND EXTRACT(MONTH FROM p.paid_at) = $2
+    ),
+    converted_clients AS (
+      SELECT DISTINCT nr.patient_id
+      FROM nutrition_records nr
+      JOIN payments p ON nr.patient_id = p.patient_id
+      WHERE nr.entity_type = 'consultorio'
+        AND nr.is_free_consult = true
+        AND p.entity_type = 'consultorio'
+        AND p.payment_type IN ('nutrition_consult', 'nutrition_followup')
+        AND p.is_voided = false
+    ),
+    active_patients AS (
+      SELECT COUNT(*) as total_patients
+      FROM patients
+      WHERE is_active = true
+    )
+    SELECT
+      ap.total_patients,
+      COALESCE((SELECT COUNT(*) FROM free_patients), 0) as free_consults,
+      COALESCE((SELECT total_paid_consults FROM paid_consults), 0) as paid_consults,
       ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN nr.is_free_consult = false THEN nr.id END) / 
-        NULLIF(COUNT(DISTINCT CASE WHEN nr.is_free_consult = true THEN nr.id END), 0), 2
+        100.0 * COALESCE((SELECT COUNT(*) FROM converted_clients), 0) / NULLIF(COALESCE((SELECT COUNT(*) FROM free_patients), 0), 0),
+        2
       ) as free_to_paid_conversion
-    FROM patients p
-    LEFT JOIN nutrition_records nr ON p.id = nr.patient_id 
-      AND nr.entity_type = 'consultorio'
-      AND EXTRACT(YEAR FROM nr.created_at) = $1
-      AND EXTRACT(MONTH FROM nr.created_at) = $2
-    WHERE p.is_active = true
+    FROM active_patients ap
   `;
   try {
     const result = await pool.query(sql, [year, month]);
     return result.rows[0];
   } catch (err) {
     throw createError(500, 'Error obteniendo estadísticas de nutriología');
+  }
+};
+
+/**
+ * getNutritionFreeConsults(): pacientes con consultas gratuitas en Nutriología
+ */
+const getNutritionFreeConsults = async (year, month) => {
+  const sql = `
+    SELECT
+      p.id,
+      p.first_name,
+      p.last_name,
+      p.phone,
+      COUNT(*) as consult_count,
+      MIN(nr.evaluation_date) as first_consult_date
+    FROM nutrition_records nr
+    JOIN patients p ON nr.patient_id = p.id
+    WHERE nr.entity_type = 'consultorio'
+      AND nr.is_free_consult = true
+      AND EXTRACT(YEAR FROM nr.evaluation_date) = $1
+      AND EXTRACT(MONTH FROM nr.evaluation_date) = $2
+    GROUP BY p.id, p.first_name, p.last_name, p.phone
+    ORDER BY first_consult_date DESC
+  `;
+  try {
+    const result = await pool.query(sql, [year, month]);
+    return result.rows;
+  } catch (err) {
+    throw createError(500, 'Error obteniendo consultas gratuitas');
+  }
+};
+
+/**
+ * getNutritionPaidConsults(): pacientes con consultas pagadas en Nutriología
+ */
+const getNutritionPaidConsults = async (year, month) => {
+  const sql = `
+    SELECT
+      pat.id,
+      pat.first_name,
+      pat.last_name,
+      pat.phone,
+      COUNT(*) as consult_count,
+      SUM(p.amount) as total_paid,
+      MAX(p.paid_at) as last_payment_at
+    FROM payments p
+    JOIN patients pat ON p.patient_id = pat.id
+    WHERE p.entity_type = 'consultorio'
+      AND p.payment_type IN ('nutrition_consult', 'nutrition_followup')
+      AND p.is_voided = false
+      AND EXTRACT(YEAR FROM p.paid_at) = $1
+      AND EXTRACT(MONTH FROM p.paid_at) = $2
+    GROUP BY pat.id, pat.first_name, pat.last_name, pat.phone
+    ORDER BY total_paid DESC, last_payment_at DESC
+  `;
+  try {
+    const result = await pool.query(sql, [year, month]);
+    return result.rows;
+  } catch (err) {
+    throw createError(500, 'Error obteniendo consultas pagadas');
   }
 };
 
@@ -612,27 +699,98 @@ const getMonthlyIncomeByMethod = async (year, month) => {
 };
 
 /**
- * 21. getNutritionConversionPaid(): clientes gym que han pagado por segunda consulta (conversión real)
+ * 21. getRetainedClients(): lista de clientes retenidos (6+ meses consecutivos)
+ */
+const getRetainedClients = async () => {
+  const sql = `
+    SELECT
+      c.id,
+      c.first_name,
+      c.last_name,
+      c.phone,
+      p.name as plan_name,
+      c.consecutive_months
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND c.consecutive_months >= 6
+    ORDER BY c.consecutive_months DESC, c.last_name ASC
+  `;
+  try {
+    const result = await pool.query(sql);
+    return result.rows;
+  } catch (err) {
+    throw createError(500, 'Error obteniendo clientes retenidos');
+  }
+};
+
+/**
+ * 22. getMonthlyIncomeDetails(year, month): pagos del gimnasio por cliente
+ */
+const getMonthlyIncomeDetails = async (year, month) => {
+  const sql = `
+    SELECT
+      p.id,
+      p.client_id,
+      c.first_name,
+      c.last_name,
+      c.phone,
+      p.amount,
+      p.payment_method,
+      p.payment_type,
+      p.paid_at
+    FROM payments p
+    LEFT JOIN clients c ON p.client_id = c.id
+    WHERE EXTRACT(YEAR FROM p.paid_at) = $1
+      AND EXTRACT(MONTH FROM p.paid_at) = $2
+      AND p.is_voided = false
+      AND p.entity_type = 'gym'
+    ORDER BY p.paid_at DESC
+  `;
+  try {
+    const result = await pool.query(sql, [year, month]);
+    return result.rows;
+  } catch (err) {
+    throw createError(500, 'Error obteniendo detalles de ingresos');
+  }
+};
+
+/**
+ * 23. getNutritionConversionPaid(): clientes gym que han pagado por segunda consulta (conversión real)
  */
 const getNutritionConversionPaid = async () => {
   const sql = `
     WITH gym_clients AS (
-      SELECT DISTINCT c.id, c.first_name, c.last_name
+      SELECT DISTINCT c.id
       FROM clients c
       JOIN subscriptions s ON c.id = s.client_id
       WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
+    ),
+    free_gym_clients AS (
+      SELECT DISTINCT nr.client_id
+      FROM nutrition_records nr
+      WHERE nr.entity_type = 'gym'
+        AND nr.is_free_consult = true
+        AND nr.client_id IS NOT NULL
+    ),
+    paid_gym_clients AS (
+      SELECT DISTINCT p.client_id
+      FROM payments p
+      WHERE p.entity_type = 'consultorio'
+        AND p.payment_type IN ('nutrition_consult', 'nutrition_followup')
+        AND p.is_voided = false
+        AND p.client_id IS NOT NULL
     )
-    SELECT 
+    SELECT
       COUNT(DISTINCT gc.id) as total_gym_clients,
-      COUNT(DISTINCT CASE WHEN nr.id IS NOT NULL AND nr.is_free_consult = false THEN gc.id END) as with_paid_nutrition,
+      COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM free_gym_clients)
+                            AND gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) as with_paid_nutrition,
       ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN nr.id IS NOT NULL AND nr.is_free_consult = false THEN gc.id END) / 
+        100.0 * COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM free_gym_clients)
+                                      AND gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) / 
         NULLIF(COUNT(DISTINCT gc.id), 0), 2
       ) as conversion_rate
     FROM gym_clients gc
-    LEFT JOIN nutrition_records nr ON gc.id = nr.client_id 
-      AND nr.entity_type = 'gym'
-      AND nr.is_free_consult = false
   `;
   try {
     const result = await pool.query(sql);
@@ -668,7 +826,6 @@ const getAbsentClients = async () => {
         WHERE pay.client_id = c.id
           AND pay.payment_type = 'enrollment'
           AND pay.is_voided = false
-          AND pay.paid_at >= (CURRENT_DATE - INTERVAL '12 months')
       )
       AND NOT EXISTS (
         SELECT 1
@@ -771,21 +928,34 @@ const getNutritionPatientsToClientsConversion = async () => {
  */
 const getNutritionRetentionByThreeMonths = async () => {
   const sql = `
+    WITH consults AS (
+      SELECT patient_id, paid_at as consult_date
+      FROM payments
+      WHERE entity_type = 'consultorio'
+        AND payment_type IN ('nutrition_consult', 'nutrition_followup')
+        AND is_voided = false
+        AND patient_id IS NOT NULL
+      UNION ALL
+      SELECT patient_id, evaluation_date as consult_date
+      FROM nutrition_records
+      WHERE entity_type = 'consultorio'
+        AND patient_id IS NOT NULL
+    ),
+    patient_counts AS (
+      SELECT patient_id, COUNT(*) as total_consults
+      FROM consults
+      GROUP BY patient_id
+    )
     SELECT
       p.id,
       p.first_name,
       p.last_name,
-      COUNT(DISTINCT DATE_TRUNC('month', evaluation_date)) AS months_active,
-      COUNT(*) AS total_consultations,
-      MIN(evaluation_date) AS first_consultation,
-      MAX(evaluation_date) AS last_consultation
-    FROM patients p
-    LEFT JOIN nutrition_records nr ON p.id = nr.patient_id 
-      AND nr.entity_type = 'consultorio'
-    WHERE p.is_active = true
-    GROUP BY p.id, p.first_name, p.last_name
-    HAVING COUNT(*) >= 3
-    ORDER BY total_consultations DESC
+      pc.total_consults,
+      ROUND(100.0 * pc.total_consults / NULLIF((SELECT COUNT(*) FROM patients WHERE is_active = true), 0), 2) as consult_percentage
+    FROM patient_counts pc
+    JOIN patients p ON p.id = pc.patient_id
+    WHERE pc.total_consults >= 3
+    ORDER BY pc.total_consults DESC, p.last_name ASC
   `;
   try {
     const result = await pool.query(sql);
@@ -800,35 +970,41 @@ const getNutritionRetentionByThreeMonths = async () => {
  */
 const getNutritionConsultationDurations = async () => {
   const sql = `
-    WITH patient_duration AS (
-      SELECT
-        p.id,
-        p.first_name,
-        p.last_name,
-        COUNT(*) as total_consultations,
-        COUNT(DISTINCT DATE_TRUNC('month', nr.evaluation_date)) as months_consulting
-      FROM patients p
-      LEFT JOIN nutrition_records nr ON p.id = nr.patient_id 
-        AND nr.entity_type = 'consultorio'
-      WHERE p.is_active = true
-      GROUP BY p.id, p.first_name, p.last_name
+    WITH consult_months AS (
+      SELECT patient_id, DATE_TRUNC('month', paid_at)::date as month
+      FROM payments
+      WHERE entity_type = 'consultorio'
+        AND payment_type IN ('nutrition_consult', 'nutrition_followup')
+        AND is_voided = false
+        AND patient_id IS NOT NULL
+      UNION ALL
+      SELECT patient_id, DATE_TRUNC('month', evaluation_date)::date as month
+      FROM nutrition_records
+      WHERE entity_type = 'consultorio'
+        AND patient_id IS NOT NULL
+    ),
+    patient_months AS (
+      SELECT patient_id, COUNT(DISTINCT month) as months_consulting
+      FROM consult_months
+      GROUP BY patient_id
     )
     SELECT
-      SUM(CASE WHEN months_consulting >= 1 AND total_consultations > 0 THEN 1 ELSE 0 END) as one_month_plus,
-      SUM(CASE WHEN months_consulting >= 2 THEN 1 ELSE 0 END) as two_months_plus,
-      SUM(CASE WHEN months_consulting >= 3 THEN 1 ELSE 0 END) as three_months_plus,
-      (SELECT COUNT(DISTINCT id) FROM patients WHERE is_active = true) as total_patients
-    FROM patient_duration
+      COUNT(*) FILTER (WHERE months_consulting >= 1) as consulted_patients,
+      COUNT(*) FILTER (WHERE months_consulting = 1) as one_month_exact,
+      COUNT(*) FILTER (WHERE months_consulting = 2) as two_months_exact,
+      COUNT(*) FILTER (WHERE months_consulting >= 3) as three_months_plus,
+      (SELECT COUNT(*) FROM patients WHERE is_active = true) as total_patients
+    FROM patient_months
   `;
   try {
     const result = await pool.query(sql);
     const row = result.rows[0];
     return {
-      consulted_at_least_once: row.one_month_plus,
-      one_month_active: row.one_month_plus,
-      two_months_active: row.two_months_plus,
-      three_months_active: row.three_months_plus,
-      total_patients: row.total_patients
+      consulted_patients: parseInt(row.consulted_patients, 10) || 0,
+      one_month_exact: parseInt(row.one_month_exact, 10) || 0,
+      two_months_exact: parseInt(row.two_months_exact, 10) || 0,
+      three_months_plus: parseInt(row.three_months_plus, 10) || 0,
+      total_patients: parseInt(row.total_patients, 10) || 0
     };
   } catch (err) {
     throw createError(500, 'Error obteniendo duraciones de consultas');
@@ -889,6 +1065,10 @@ module.exports = {
   getNutritionStats,
   getNutritionRetention,
   getMonthlyIncomeByMethod,
+  getRetainedClients,
+  getMonthlyIncomeDetails,
+  getNutritionFreeConsults,
+  getNutritionPaidConsults,
   getNutritionConversionPaid,
   getAbsentClients,
   getAlertClients,

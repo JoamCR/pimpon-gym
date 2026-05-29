@@ -221,3 +221,38 @@ export function useNutritionIncomeReal(year, month) {
     staleTime: 5 * 60 * 1000
   });
 }
+
+export function useMonthlyIncomeDetails(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'monthly-income-details', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/monthly-income-details?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}
+
+export function useRetainedClients() {
+  return useQuery({
+    queryKey: ['statistics', 'retained-clients'],
+    queryFn: () => fetchWithAuth('/statistics/retained-clients').then(res => res.data),
+    staleTime: 10 * 60 * 1000
+  });
+}
+
+export function useNutritionFreeConsults(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'nutrition-free-consults', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-free-consults?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}
+
+export function useNutritionPaidConsults(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'nutrition-paid-consults', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-paid-consults?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}

@@ -296,6 +296,48 @@ const getMonthlyIncomeByMethod = async (year, month) => {
   }
 };
 
+const getRetainedClients = async () => {
+  try {
+    return await repository.getRetainedClients();
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener clientes retenidos');
+  }
+};
+
+const getMonthlyIncomeDetails = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getMonthlyIncomeDetails(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener detalles de ingresos');
+  }
+};
+
+const getNutritionFreeConsults = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionFreeConsults(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener consultas gratuitas');
+  }
+};
+
+const getNutritionPaidConsults = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionPaidConsults(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener consultas pagadas');
+  }
+};
+
 const getNutritionConversionPaid = async () => {
   try {
     return await repository.getNutritionConversionPaid();
@@ -390,6 +432,10 @@ module.exports = {
   getNutritionStats,
   getComprehensiveStats,
   getMonthlyIncomeByMethod,
+  getRetainedClients,
+  getMonthlyIncomeDetails,
+  getNutritionFreeConsults,
+  getNutritionPaidConsults,
   getNutritionConversionPaid,
   getAbsentClients,
   getAlertClients,

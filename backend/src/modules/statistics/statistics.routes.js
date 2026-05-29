@@ -171,6 +171,41 @@ async function statisticsRoutes(fastify, options) {
     return { data };
   });
 
+  fastify.get('/monthly-income-details', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getMonthlyIncomeDetails(year, month);
+    return { data };
+  });
+
+  fastify.get('/nutrition-free-consults', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionFreeConsults(year, month);
+    return { data };
+  });
+
+  fastify.get('/nutrition-paid-consults', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionPaidConsults(year, month);
+    return { data };
+  });
+
+  fastify.get('/retained-clients', async (request, reply) => {
+    const data = await service.getRetainedClients();
+    return { data };
+  });
+
   fastify.get('/nutrition-conversion-paid', async (request, reply) => {
     const data = await service.getNutritionConversionPaid();
     return { data };
