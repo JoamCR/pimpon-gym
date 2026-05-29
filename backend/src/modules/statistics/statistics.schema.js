@@ -14,8 +14,13 @@ const minMonthsSchema = z.object({
   minMonths: z.preprocess((val) => (val ? parseInt(val, 10) : 6), z.number().min(1)),
 });
 
+const daysOutSchema = z.object({
+  daysOut: z.preprocess((val) => (val ? parseInt(val, 10) : 30), z.number().min(1)),
+});
+
 module.exports = {
   dateRangeSchema,
   monthYearSchema,
-  minMonthsSchema
+  minMonthsSchema,
+  daysOutSchema
 };

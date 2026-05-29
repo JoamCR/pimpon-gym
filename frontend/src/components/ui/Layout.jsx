@@ -25,14 +25,20 @@ const navItems = [
 
 export default function Layout() {
   const [isLightMode, setIsLightMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      return savedTheme === 'light';
+    }
     return document.documentElement.classList.contains('light');
   });
 
   useEffect(() => {
     if (isLightMode) {
       document.documentElement.classList.add('light');
+      localStorage.setItem('theme', 'light');
     } else {
       document.documentElement.classList.remove('light');
+      localStorage.setItem('theme', 'dark');
     }
   }, [isLightMode]);
 

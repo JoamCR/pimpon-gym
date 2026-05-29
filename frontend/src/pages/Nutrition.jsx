@@ -10,6 +10,7 @@ import {
   useUpdateExercisePlan,
 } from '../hooks/useNutrition';
 import { usePatients } from '../hooks/usePatients';
+import { useClients } from '../hooks/useClients';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
@@ -17,13 +18,15 @@ import { IconClipboardHeart, IconSalad, IconX, IconPlus } from '@tabler/icons-re
 import '../styles/nutrition.css';
 
 const ClientCard = ({ patient, onEvaluate, onPlan, onShowDetails }) => {
-  const days = Math.max(0, Math.ceil((new Date(patient.end_date) - new Date()) / (1000 * 60 * 60 * 24)));
+  const isClient = patient.userType === 'client';
+  const days = isClient && patient.end_date ? Math.max(0, Math.ceil((new Date(patient.end_date) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+  const isFreeConsult = patient.userType === 'patient' && patient.is_free_consult;
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1"
+      className="flex flex-col h-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1"
     >
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
@@ -35,15 +38,15 @@ const ClientCard = ({ patient, onEvaluate, onPlan, onShowDetails }) => {
           </p>
           <p className="text-sm text-[var(--color-text-muted)]">{patient.phone || 'Sin teléfono'}</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${patient.isFirstConsult ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : 'bg-[rgba(239,68,68,0.15)] text-[var(--color-danger)]'}`}>
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold text-center ${isFreeConsult ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : 'bg-[rgba(14,116,144,0.12)] text-[var(--color-teal)]'}`}>
           {patient.consultType || 'Regular'}
         </span>
       </div>
-      <div className="mb-4 flex flex-wrap gap-2 items-center">
+      <div className="mb-4 flex flex-wrap gap-2 items-center flex-grow">
         <span className="rounded-full bg-[rgba(14,116,144,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-teal)]">{patient.plan_name || 'Sin plan'}</span>
         {days > 0 && <span className="rounded-full bg-[rgba(226,154,0,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-secondary)]">{days} días</span>}
       </div>
-      <div className="flex gap-3">
+      <div className="flex gap-3 mt-auto">
         <GymButton size="sm" variant="primary" className="flex-1" icon={<IconClipboardHeart size={16} />} onClick={() => onEvaluate(patient)}>Evaluar</GymButton>
         <GymButton size="sm" variant="secondary" className="flex-1" icon={<IconSalad size={16} />} onClick={() => onPlan(patient)}>Plan</GymButton>
       </div>
@@ -191,7 +194,8 @@ export default function Nutrition() {
     notes: '',
   });
 
-  const { data: patientsResponse, isLoading: queueLoading } = usePatients();
+  const { data: patientsResponse, isLoading: patientsLoading } = usePatients();
+  const { data: clientsResponse, isLoading: clientsLoading } = useClients();
   const { data: evaluationsResponse } = useEvaluationHistory(selectedPatient?.id);
   const { data: plansResponse } = useExercisePlans(selectedPatient?.id);
   const createEvaluation = useCreateEvaluation();
@@ -199,7 +203,15 @@ export default function Nutrition() {
   const createExercisePlan = useCreateExercisePlan();
   const updateExercisePlan = useUpdateExercisePlan();
 
-  const queue = Array.isArray(patientsResponse) ? patientsResponse : patientsResponse?.data || [];
+  const rawPatients = Array.isArray(patientsResponse) ? patientsResponse : patientsResponse?.data || [];
+  const rawClients = Array.isArray(clientsResponse) ? clientsResponse : clientsResponse?.data || [];
+  const queueLoading = patientsLoading || clientsLoading;
+
+  const queue = [
+    ...rawPatients.map(p => ({ ...p, userType: 'patient', consultType: p.is_free_consult ? 'Primera consulta gratis' : 'Consulta regular' })),
+    ...rawClients.map(c => ({ ...c, userType: 'client', consultType: 'Cliente de gimnasio' }))
+  ];
+
   const history = Array.isArray(evaluationsResponse) ? evaluationsResponse : evaluationsResponse?.data || [];
   const plans = Array.isArray(plansResponse) ? plansResponse : plansResponse?.data || [];
 
@@ -290,9 +302,9 @@ export default function Nutrition() {
         </div>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <GymCard title="Todos los pacientes" subtitle="Listado general" variant="default">
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <GymCard className="h-full" title="Cola de Pacientes y Clientes" subtitle="Listado general" variant="default">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {queueLoading ? (
               <p className="text-[var(--color-text-muted)] col-span-full">Cargando pacientes...</p>
             ) : queue.length === 0 ? (
