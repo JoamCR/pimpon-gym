@@ -129,9 +129,15 @@ const getCurrentTransferControl = async () => {
   return await repository.getTransferControl(today);
 };
 
+const getPaymentsHistory = async (entityType, from, to) => {
+  return await repository.getPaymentsHistory(entityType, from, to);
+};
+
 module.exports = {
   registerPayment,
   getClientHistory,
+  getPatientHistory,
   getCutoff,
-  getCurrentTransferControl
+  getCurrentTransferControl,
+  getPaymentsHistory
 };

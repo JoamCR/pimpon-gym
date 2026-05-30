@@ -34,6 +34,13 @@ async function paymentRoutes(fastify, options) {
     return { data: history };
   });
 
+  // GET /api/payments/history -> Historial general de pagos (?entity_type=gym&from=YYYY-MM-DD&to=YYYY-MM-DD)
+  fastify.get('/history', async (request, reply) => {
+    const { entity_type, from, to } = request.query;
+    const history = await service.getPaymentsHistory(entity_type, from, to);
+    return { data: history };
+  });
+
   // GET /api/payments/cutoff -> Corte de caja por fechas (?from=YYYY-MM-DD&to=YYYY-MM-DD)
   fastify.get('/cutoff', async (request, reply) => {
     const { from, to } = request.query;

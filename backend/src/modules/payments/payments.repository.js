@@ -152,11 +152,51 @@ const getCashCutoff = async (from, to) => {
   return rows;
 };
 
+/**
+ * Historial detallado de pagos con filtros
+ */
+const getPaymentsHistory = async (entityType, from, to) => {
+  let sql = `
+    SELECT p.*, 
+           c.first_name as client_first_name, c.last_name as client_last_name,
+           pat.first_name as patient_first_name, pat.last_name as patient_last_name,
+           u.full_name as registered_by_name
+    FROM payments p
+    LEFT JOIN clients c ON p.client_id = c.id
+    LEFT JOIN patients pat ON p.patient_id = pat.id
+    LEFT JOIN app_users u ON p.registered_by = u.id
+    WHERE p.is_voided = false
+  `;
+  const params = [];
+  
+  if (entityType && entityType !== 'all') {
+    params.push(entityType);
+    sql += ` AND p.entity_type = $${params.length}`;
+  }
+  
+  if (from) {
+    params.push(from);
+    sql += ` AND p.paid_at::date >= $${params.length}::date`;
+  }
+  
+  if (to) {
+    params.push(to);
+    sql += ` AND p.paid_at::date <= $${params.length}::date`;
+  }
+  
+  sql += ` ORDER BY p.paid_at DESC`;
+  
+  const { rows } = await query(sql, params);
+  return rows;
+};
+
 module.exports = {
   create,
   findByClient,
+  findByPatient,
   getMonthlyTotal,
   getTransferControl,
   updateTransferControl,
-  getCashCutoff
+  getCashCutoff,
+  getPaymentsHistory
 };

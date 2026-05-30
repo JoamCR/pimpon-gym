@@ -534,3 +534,8 @@ Semana 9: Módulo de Promociones/Campañas + Configuración + responsive tablet
 - NO calcular fidelidad con meses intercalados — solo consecutivos, si hay gap = reset a 0
 - NO mezclar ingresos de inscripción con ingresos de mensualidad en reportes
 - NO omitir el campo entity_type en payments, nutrition_records, exercise_plans
+
+
+
+Para mejorar las tablas com ofianzas y clientes
+Quiero la tabla y los filtros con el diseño estándar tipo 'Zebra' que hicimos en Finanzas y Clientes
