@@ -38,8 +38,8 @@ pimpon-gym/
 │       │   ├── ui/           ← GymCard, GymModal, GymButton (REUTILIZAR SIEMPRE)
 │       │   └── modules/      ← componentes por módulo
 │       ├── pages/
-│       │   ├── gym/          ← páginas del módulo gym
-│       │   └── consultorio/  ← páginas del módulo consultorio
+│       │    
+│       │    
 │       ├── hooks/            ← custom hooks con TanStack Query
 │       ├── stores/           ← Zustand (authStore, configStore)
 │       ├── lib/              ← dbClient.js

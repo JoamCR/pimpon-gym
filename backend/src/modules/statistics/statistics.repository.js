@@ -877,25 +877,23 @@ const getAlertClients = async () => {
 const getNutritionFreeToConversionClients = async () => {
   const sql = `
     SELECT 
-      c.id, c.first_name, c.last_name, c.phone,
-      COUNT(CASE WHEN nr.is_free_consult = true THEN 1 END) as free_consults,
-      COUNT(CASE WHEN nr.is_free_consult = false THEN 1 END) as paid_consults
-    FROM clients c
-    LEFT JOIN nutrition_records nr ON c.id = nr.client_id 
-      AND nr.entity_type = 'gym'
+      p.id, p.first_name, p.last_name, p.phone,
+      (SELECT COUNT(*) FROM nutrition_records WHERE patient_id = p.id AND is_free_consult = true AND entity_type = 'consultorio') as free_consults,
+      (SELECT COUNT(*) FROM payments WHERE patient_id = p.id AND payment_type IN ('nutrition_consult', 'nutrition_followup') AND is_voided = false AND entity_type = 'consultorio') as paid_consults
+    FROM patients p
     WHERE (
-      SELECT COUNT(*) FROM nutrition_records WHERE client_id = c.id AND entity_type = 'gym' AND is_free_consult = true
+      SELECT COUNT(*) FROM nutrition_records WHERE patient_id = p.id AND is_free_consult = true AND entity_type = 'consultorio'
     ) > 0
     AND (
-      SELECT COUNT(*) FROM nutrition_records WHERE client_id = c.id AND entity_type = 'gym' AND is_free_consult = false
+      SELECT COUNT(*) FROM payments WHERE patient_id = p.id AND payment_type IN ('nutrition_consult', 'nutrition_followup') AND is_voided = false AND entity_type = 'consultorio'
     ) > 0
-    GROUP BY c.id, c.first_name, c.last_name, c.phone
+    GROUP BY p.id, p.first_name, p.last_name, p.phone
   `;
   try {
     const result = await pool.query(sql);
     return result.rows;
   } catch (err) {
-    throw createError(500, 'Error obteniendo clientes con conversión gratuita a pago');
+    throw createError(500, 'Error obteniendo pacientes con conversión gratuita a pago');
   }
 };
 
