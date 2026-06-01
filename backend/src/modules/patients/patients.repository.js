@@ -32,6 +32,31 @@ const findById = async (id) => {
   return rows[0] || null;
 };
 
+const findByPhoneOrRfc = async (phone, rfc, dbClient) => {
+  const conditions = [];
+  const params = [];
+  let paramCount = 1;
+
+  if (phone) {
+    conditions.push(`phone = $${paramCount}`);
+    params.push(phone);
+    paramCount++;
+  }
+
+  if (rfc) {
+    conditions.push(`rfc = $${paramCount}`);
+    params.push(rfc);
+    paramCount++;
+  }
+
+  if (conditions.length === 0) return null;
+
+  const sql = `SELECT * FROM patients WHERE ${conditions.join(' OR ')} LIMIT 1`;
+  const executor = dbClient || require('../../lib/database');
+  const { rows } = await executor.query(sql, params);
+  return rows[0] || null;
+};
+
 const create = async (data) => {
   const sql = `
     INSERT INTO patients (
@@ -93,6 +118,7 @@ const update = async (id, data) => {
 module.exports = {
   findAll,
   findById,
+  findByPhoneOrRfc,
   create,
   update
 };

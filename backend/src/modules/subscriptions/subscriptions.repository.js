@@ -11,22 +11,26 @@ const { createError } = require('../../lib/appError');
  */
 const findExpiringIn3Days = async () => {
   const query = `
-    SELECT 
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.phone,
-      c.email,
-      p.name as plan_name,
-      s.end_date,
-      EXTRACT(DAY FROM s.end_date::timestamp - CURRENT_DATE::timestamp) as days_left
-    FROM subscriptions s
-    JOIN clients c ON s.client_id = c.id
-    JOIN plans p ON s.plan_id = p.id
-    WHERE s.status = 'active'
-      AND s.end_date::date > CURRENT_DATE
-      AND s.end_date::date <= (CURRENT_DATE + INTERVAL '3 days')::date
-    ORDER BY s.end_date ASC;
+    SELECT * FROM (
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        c.email,
+        p.name as plan_name,
+        s.end_date,
+        s.status,
+        EXTRACT(DAY FROM s.end_date::timestamp - CURRENT_DATE::timestamp) as days_left
+      FROM subscriptions s
+      JOIN clients c ON s.client_id = c.id
+      JOIN plans p ON s.plan_id = p.id
+      ORDER BY c.id, s.end_date DESC
+    ) latest_subs
+    WHERE status = 'active'
+      AND end_date::date > CURRENT_DATE
+      AND end_date::date <= (CURRENT_DATE + INTERVAL '3 days')::date
+    ORDER BY end_date ASC;
   `;
   
   try {
@@ -44,21 +48,25 @@ const findExpiringIn3Days = async () => {
  */
 const findExpiringToday = async () => {
   const query = `
-    SELECT 
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.phone,
-      c.email,
-      p.name as plan_name,
-      s.end_date,
-      0 as days_left
-    FROM subscriptions s
-    JOIN clients c ON s.client_id = c.id
-    JOIN plans p ON s.plan_id = p.id
-    WHERE s.status = 'active'
-      AND s.end_date::date = CURRENT_DATE
-    ORDER BY s.end_date ASC;
+    SELECT * FROM (
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        c.email,
+        p.name as plan_name,
+        s.end_date,
+        s.status,
+        0 as days_left
+      FROM subscriptions s
+      JOIN clients c ON s.client_id = c.id
+      JOIN plans p ON s.plan_id = p.id
+      ORDER BY c.id, s.end_date DESC
+    ) latest_subs
+    WHERE status = 'active'
+      AND end_date::date = CURRENT_DATE
+    ORDER BY end_date ASC;
   `;
   
   try {
@@ -116,7 +124,7 @@ const getTransferControlCurrentMonth = async () => {
  */
 const countActiveClients = async () => {
   const query = `
-    SELECT COUNT(*) as count
+    SELECT COUNT(DISTINCT client_id) as count
     FROM subscriptions
     WHERE status = 'active'
       AND end_date >= CURRENT_DATE;
@@ -165,20 +173,24 @@ const getTodayAttendanceLastFour = async () => {
  */
 const findActiveClients = async () => {
   const query = `
-    SELECT 
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.phone,
-      c.email,
-      p.name as plan_name,
-      s.end_date
-    FROM subscriptions s
-    JOIN clients c ON s.client_id = c.id
-    JOIN plans p ON s.plan_id = p.id
-    WHERE s.status = 'active'
-      AND s.end_date >= CURRENT_DATE
-    ORDER BY s.end_date ASC;
+    SELECT * FROM (
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        c.email,
+        p.name as plan_name,
+        s.end_date,
+        s.status
+      FROM subscriptions s
+      JOIN clients c ON s.client_id = c.id
+      JOIN plans p ON s.plan_id = p.id
+      ORDER BY c.id, s.end_date DESC
+    ) latest_subs
+    WHERE status = 'active'
+      AND end_date >= CURRENT_DATE
+    ORDER BY end_date ASC;
   `;
   
   try {
@@ -195,19 +207,23 @@ const findActiveClients = async () => {
  */
 const findExpiredClients = async () => {
   const query = `
-    SELECT 
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.phone,
-      c.email,
-      p.name as plan_name,
-      s.end_date
-    FROM subscriptions s
-    JOIN clients c ON s.client_id = c.id
-    JOIN plans p ON s.plan_id = p.id
-    WHERE s.status = 'expired' OR (s.status = 'active' AND s.end_date < CURRENT_DATE)
-    ORDER BY s.end_date DESC;
+    SELECT * FROM (
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        c.email,
+        p.name as plan_name,
+        s.end_date,
+        s.status
+      FROM subscriptions s
+      JOIN clients c ON s.client_id = c.id
+      JOIN plans p ON s.plan_id = p.id
+      ORDER BY c.id, s.end_date DESC
+    ) latest_subs
+    WHERE status = 'expired' OR (status = 'active' AND end_date < CURRENT_DATE)
+    ORDER BY end_date DESC;
   `;
   
   try {

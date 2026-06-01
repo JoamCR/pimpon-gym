@@ -25,6 +25,19 @@ const getById = async (id) => {
  * Maneja lógica de pago de inscripción, tipo de pago y control de transferencias.
  */
 const create = async (data, registeredBy) => {
+  // 0. Validar si ya existe un cliente con el mismo teléfono o RFC antes de abrir la transacción
+  if (data.phone || data.rfc) {
+    const existingClient = await repository.findByPhoneOrRfc(data.phone, data.rfc);
+    if (existingClient) {
+      if (existingClient.phone === data.phone && data.phone) {
+        throw createError(400, 'Este número de teléfono ya está registrado');
+      }
+      if (existingClient.rfc === data.rfc && data.rfc) {
+        throw createError(400, 'Este RFC ya está registrado');
+      }
+    }
+  }
+
   // Obtenemos un cliente de conexión exclusivo para la transacción
   const dbClient = await pool.connect();
   

@@ -274,104 +274,108 @@ export default function Dashboard() {
       </section>
 
       {/* Panel expansible condicional */}
-      <AnimatePresence mode="wait">
-        {expandedSection && (
-          <motion.section
-            key="expanded-section"
-            initial={{ opacity: 0, height: 0, marginTop: 0 }}
-            animate={{ opacity: 1, height: 'auto', marginTop: 24 }}
-            exit={{ opacity: 0, height: 0, marginTop: 0 }}
-            className="overflow-hidden"
-          >
-            <GymCard 
-              title={
-                expandedSection === 'active' ? 'Lista de Clientes Activos' :
-                expandedSection === 'expiring3Days' ? 'Clientes que vencen en 3 días' :
-                expandedSection === 'expiringToday' ? 'Clientes que vencen hoy' :
-                expandedSection === 'expired' ? 'Clientes con membresía vencida' :
-                expandedSection === 'attendance' ? 'Registro de Asistencias de hoy' :
-                expandedSection === 'totalClients' ? 'Lista de Clientes Totales' :
-                expandedSection === 'todayVisitors' ? 'Lista de Visitantes de Hoy' :
-                expandedSection === 'renewals' ? 'Renovaciones del Mes' :
-                expandedSection === 'cancellations' ? 'Cancelaciones / Expiraciones del Mes' :
-                expandedSection === 'newClients' ? 'Nuevos Clientes del Mes' : ''
-              } 
-              variant="default"
-            >
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 mt-4">
-                {expandedSection === 'active' && activeClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes activos.</p>}
-                {expandedSection === 'active' && activeClientsList.map(client => (
-                  <ClientRow key={client.id} client={client} />
-                ))}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 items-start">
+        <div className="lg:col-span-2">
+          <AnimatePresence mode="wait">
+            {expandedSection && (
+              <motion.section
+                key="expanded-section"
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="overflow-hidden"
+              >
+                <GymCard 
+                  title={
+                    expandedSection === 'active' ? 'Lista de Clientes Activos' :
+                    expandedSection === 'expiring3Days' ? 'Clientes que vencen en 3 días' :
+                    expandedSection === 'expiringToday' ? 'Clientes que vencen hoy' :
+                    expandedSection === 'expired' ? 'Clientes con membresía vencida' :
+                    expandedSection === 'attendance' ? 'Registro de Asistencias de hoy' :
+                    expandedSection === 'totalClients' ? 'Lista de Clientes Totales' :
+                    expandedSection === 'todayVisitors' ? 'Lista de Visitantes de Hoy' :
+                    expandedSection === 'renewals' ? 'Renovaciones del Mes' :
+                    expandedSection === 'cancellations' ? 'Cancelaciones / Expiraciones del Mes' :
+                    expandedSection === 'newClients' ? 'Nuevos Clientes del Mes' : ''
+                  } 
+                  variant="default"
+                >
+                  <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 mt-4">
+                    {expandedSection === 'active' && activeClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes activos.</p>}
+                    {expandedSection === 'active' && activeClientsList.map(client => (
+                      <ClientRow key={client.id} client={client} />
+                    ))}
 
-                {expandedSection === 'expiring3Days' && expiring3Days.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer en 3 días.</p>}
-                {expandedSection === 'expiring3Days' && expiring3Days.map(client => (
-                  <ClientRow key={client.id} client={client} onAction={handleNotify} actionLabel="Notificar" actionVariant="warning" actionIcon={<IconSend size={18} />} />
-                ))}
+                    {expandedSection === 'expiring3Days' && expiring3Days.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer en 3 días.</p>}
+                    {expandedSection === 'expiring3Days' && expiring3Days.map(client => (
+                      <ClientRow key={client.id} client={client} onAction={handleNotify} actionLabel="Notificar" actionVariant="warning" actionIcon={<IconSend size={18} />} />
+                    ))}
 
-                {expandedSection === 'expiringToday' && expiringToday.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer hoy.</p>}
-                {expandedSection === 'expiringToday' && expiringToday.map(client => (
-                  <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
-                ))}
+                    {expandedSection === 'expiringToday' && expiringToday.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer hoy.</p>}
+                    {expandedSection === 'expiringToday' && expiringToday.map(client => (
+                      <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
+                    ))}
 
-                {expandedSection === 'expired' && expiredClients.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes vencidos.</p>}
-                {expandedSection === 'expired' && expiredClients.map(client => (
-                  <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
-                ))}
+                    {expandedSection === 'expired' && expiredClients.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes vencidos.</p>}
+                    {expandedSection === 'expired' && expiredClients.map(client => (
+                      <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
+                    ))}
 
-                {expandedSection === 'attendance' && todayAttendance.all.length === 0 && <p className="text-[var(--color-text-muted)]">No hay asistencias registradas hoy.</p>}
-                {expandedSection === 'attendance' && todayAttendance.all.map(record => (
-                  <AttendanceRow key={record.id} record={record} />
-                ))}
+                    {expandedSection === 'attendance' && todayAttendance.all.length === 0 && <p className="text-[var(--color-text-muted)]">No hay asistencias registradas hoy.</p>}
+                    {expandedSection === 'attendance' && todayAttendance.all.map(record => (
+                      <AttendanceRow key={record.id} record={record} />
+                    ))}
 
-                {expandedSection === 'totalClients' && totalClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes registrados.</p>}
-                {expandedSection === 'totalClients' && totalClientsList.map(client => (
-                  <ClientRow key={client.id} client={client} />
-                ))}
+                    {expandedSection === 'totalClients' && totalClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes registrados.</p>}
+                    {expandedSection === 'totalClients' && totalClientsList.map(client => (
+                      <ClientRow key={client.id} client={client} />
+                    ))}
 
-                {expandedSection === 'todayVisitors' && todayVisitorsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay visitantes hoy.</p>}
-                {expandedSection === 'todayVisitors' && todayVisitorsList.map(visitor => (
-                  <ClientRow key={visitor.id} client={{...visitor, plan_name: 'Visita'}} />
-                ))}
+                    {expandedSection === 'todayVisitors' && todayVisitorsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay visitantes hoy.</p>}
+                    {expandedSection === 'todayVisitors' && todayVisitorsList.map(visitor => (
+                      <ClientRow key={visitor.id} client={{...visitor, plan_name: 'Visita'}} />
+                    ))}
 
-                {expandedSection === 'renewals' && renewalsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay renovaciones este mes.</p>}
-                {expandedSection === 'renewals' && renewalsThisMonthList.map(renewal => (
-                  <ClientRow key={renewal.id} client={{...renewal, plan_name: 'Renovación'}} />
-                ))}
+                    {expandedSection === 'renewals' && renewalsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay renovaciones este mes.</p>}
+                    {expandedSection === 'renewals' && renewalsThisMonthList.map(renewal => (
+                      <ClientRow key={renewal.id} client={{...renewal, plan_name: 'Renovación'}} />
+                    ))}
 
-                {expandedSection === 'cancellations' && cancellationsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones/expiraciones este mes.</p>}
-                {expandedSection === 'cancellations' && cancellationsThisMonthList.map(cancel => (
-                  <ClientRow key={cancel.id} client={cancel} />
-                ))}
+                    {expandedSection === 'cancellations' && cancellationsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones/expiraciones este mes.</p>}
+                    {expandedSection === 'cancellations' && cancellationsThisMonthList.map(cancel => (
+                      <ClientRow key={cancel.id} client={cancel} />
+                    ))}
 
-                {expandedSection === 'newClients' && newClientsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes nuevos este mes.</p>}
-                {expandedSection === 'newClients' && newClientsThisMonthList.map(client => (
-                  <ClientRow key={client.id} client={client} />
-                ))}
+                    {expandedSection === 'newClients' && newClientsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes nuevos este mes.</p>}
+                    {expandedSection === 'newClients' && newClientsThisMonthList.map(client => (
+                      <ClientRow key={client.id} client={client} />
+                    ))}
+                  </div>
+                </GymCard>
+              </motion.section>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <section className="lg:col-span-1">
+          <GymCard title="Control de Transferencias" subtitle="Mes actual" variant={transferControl.percentage > 90 ? 'danger' : transferControl.percentage > 70 ? 'warning' : 'default'}>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Usado</p>
+                  <p className="text-3xl font-bold text-[var(--color-text)]">${transferControl.used.toLocaleString('es-MX')}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Disponible</p>
+                  <p className="text-base font-semibold text-[var(--color-text)]">${transferControl.remaining.toLocaleString('es-MX')}</p>
+                </div>
               </div>
-            </GymCard>
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      <section className="grid gap-6 xl:grid-cols-[1fr]">
-        <GymCard title="Control de Transferencias" subtitle="Mes actual" variant={transferControl.percentage > 90 ? 'danger' : transferControl.percentage > 70 ? 'warning' : 'default'}>
-          <div className="space-y-4 max-w-2xl">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Usado</p>
-                <p className="text-3xl font-bold text-[var(--color-text)]">${transferControl.used.toLocaleString('es-MX')}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Disponible</p>
-                <p className="text-base font-semibold text-[var(--color-text)]">${transferControl.remaining.toLocaleString('es-MX')}</p>
-              </div>
+              <ProgressBar used={transferControl.used} limit={transferControl.limit} percentage={transferControl.percentage} />
+              <p className="text-sm text-[var(--color-text-muted)]">El límite mensual no se bloquea, solo muestra advertencia.</p>
             </div>
-            <ProgressBar used={transferControl.used} limit={transferControl.limit} percentage={transferControl.percentage} />
-            <p className="text-sm text-[var(--color-text-muted)]">El límite mensual no se bloquea, solo muestra advertencia.</p>
-          </div>
-        </GymCard>
-      </section>
+          </GymCard>
+        </section>
+      </div>
 
       <GymModal isOpen={modalNotify} onClose={() => setModalNotify(false)} title="Confirmar Notificación" width="sm">
         <div className="space-y-4 text-[var(--color-text-muted)]">

@@ -16,12 +16,30 @@ async function clientRoutes(fastify, options) {
   fastify.get('/', async (request, reply) => {
     const filters = {
       status: request.query.status,
-      client_type: request.query.client_type,
+      client_type: request.query.client_type || request.query.type,
       search: request.query.search
     };
     
     const clients = await service.getAll(filters);
     return { data: clients };
+  });
+
+  // GET /api/clients/validate
+  fastify.get('/validate', async (request, reply) => {
+    const { phone, rfc } = request.query;
+    if (phone || rfc) {
+      const repository = require('./clients.repository');
+      const existingClient = await repository.findByPhoneOrRfc(phone, rfc);
+      if (existingClient) {
+        if (existingClient.phone === phone && phone) {
+          return reply.status(400).send({ error: 'Este número de teléfono ya está registrado' });
+        }
+        if (existingClient.rfc === rfc && rfc) {
+          return reply.status(400).send({ error: 'Este RFC ya está registrado' });
+        }
+      }
+    }
+    return reply.send({ success: true });
   });
 
   // GET /api/clients/:id

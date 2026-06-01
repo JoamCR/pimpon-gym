@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS clients (
     age INT,
     phone VARCHAR(20),
     email VARCHAR(255),
+    rfc VARCHAR(13),
+    gender VARCHAR(20),
     client_type VARCHAR(50),
     plan_id UUID REFERENCES plans(id) ON DELETE SET NULL,
     enrollment_date DATE,

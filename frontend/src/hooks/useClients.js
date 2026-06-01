@@ -108,3 +108,14 @@ export const useUpdateClient = () => {
     },
   });
 };
+
+export const validateClientField = async (field, value) => {
+  if (!value) return true;
+  const url = `${API_URL}/clients/validate?${field}=${encodeURIComponent(value)}`;
+  const response = await fetch(url, { headers: getHeaders() });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Dato ya registrado');
+  }
+  return true;
+};

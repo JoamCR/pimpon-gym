@@ -66,16 +66,44 @@ const findById = async (id) => {
 };
 
 /**
+ * Busca un cliente por teléfono o RFC, útil para validaciones de duplicidad.
+ */
+const findByPhoneOrRfc = async (phone, rfc, dbClient) => {
+  const conditions = [];
+  const params = [];
+  let paramCount = 1;
+
+  if (phone) {
+    conditions.push(`phone = $${paramCount}`);
+    params.push(phone);
+    paramCount++;
+  }
+
+  if (rfc) {
+    conditions.push(`rfc = $${paramCount}`);
+    params.push(rfc);
+    paramCount++;
+  }
+
+  if (conditions.length === 0) return null;
+
+  const sql = `SELECT * FROM clients WHERE ${conditions.join(' OR ')} LIMIT 1`;
+  const executor = dbClient || { query };
+  const { rows } = await executor.query(sql, params);
+  return rows[0] || null;
+};
+
+/**
  * Crea un cliente nuevo. Recibe opcionalmente un dbClient para transacciones.
  */
 const create = async (data, dbClient) => {
   const sql = `
     INSERT INTO clients (
       id, first_name, last_name, age, phone, plan_id, 
-      email, rfc, enrollment_date, enrollment_expires_at,
+      email, rfc, gender, enrollment_date, enrollment_expires_at,
       coach_fitness_level, coach_health_notes, coach_goal, created_by
     ) VALUES (
-      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
     ) RETURNING *
   `;
   const params = [
@@ -86,6 +114,7 @@ const create = async (data, dbClient) => {
     data.plan_id,
     data.email || null,
     data.rfc || null,
+    data.gender || null,
     data.enrollment_date || null,
     data.enrollment_expires_at || null,
     data.coach_fitness_level || null, 
@@ -242,6 +271,7 @@ const updateTransferControl = async (amount, dbClient) => {
 module.exports = {
   findAll,
   findById,
+  findByPhoneOrRfc,
   create,
   update,
   findExpiring,

@@ -15,17 +15,16 @@ function App() {
   return (
     <>
       {/* Configuración global de Toasts */}
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           style: {
             fontFamily: 'var(--font-body)',
             background: 'var(--color-navy)',
-            color: '#fff',
+            color: 'var(--color-text)',
           }
         }}
-      />
-      
+      />      
       {/* Sistema de Rutas con Layout Principal */}
       <Routes>
         <Route path="/" element={<Layout />}>

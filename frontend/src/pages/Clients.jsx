@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { useClients, useCreateClient, usePlans } from '../hooks/useClients';
+import { useClients, useCreateClient, usePlans, validateClientField } from '../hooks/useClients';
 import { useRenewSubscription } from '../hooks/useDashboard';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -8,9 +8,10 @@ import { GymButton } from '../components/ui/GymButton';
 import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh } from '@tabler/icons-react';
 
 export default function Clients() {
-  const [filterTab, setFilterTab] = useState('monthly');
+  const [filterTab, setFilterTab] = useState('enrolled');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isVisitMode, setIsVisitMode] = useState(false);
   
   // Sort state
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -24,12 +25,14 @@ export default function Clients() {
   const [renewFormData, setRenewFormData] = useState({ payment_method: 'cash', amount: 0 });
 
   const [step, setStep] = useState(1);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     plan_id: '',
     plan_requires_enrollment: false,
     first_name: '',
     last_name: '',
     age: '',
+    gender: 'Masculino',
     phone: '',
     rfc: '',
     payment_method: 'cash',
@@ -39,21 +42,24 @@ export default function Clients() {
     coach_goal: '',
   });
 
-  const { data, isLoading, refetch } = useClients({ type: filterTab, search: searchQuery });
+  const { data, isLoading, refetch } = useClients({ search: searchQuery });
   const clients = Array.isArray(data) ? data : data?.data || [];
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const planOptions = Array.isArray(plansData?.data) ? plansData.data : [];
   const createClientMutation = useCreateClient();
   const renewSubscription = useRenewSubscription();
 
-  const openModal = () => {
+  const openModal = (isVisit = false) => {
+    setIsVisitMode(isVisit);
     setStep(1);
+    setFieldErrors({});
     setFormData({
       plan_id: '',
       plan_requires_enrollment: false,
       first_name: '',
       last_name: '',
       age: '',
+      gender: 'Masculino',
       phone: '',
       rfc: '',
       payment_method: 'cash',
@@ -66,6 +72,15 @@ export default function Clients() {
   };
 
   const nextStep = () => {
+    if (step === 1 && !formData.plan_id) {
+      toast.error('Por favor, selecciona un plan');
+      return;
+    }
+    if (step === 2 && (!formData.first_name || !formData.last_name)) {
+      toast.error('Por favor, ingresa el nombre y los apellidos');
+      return;
+    }
+
     if (step === 4 || (step === 3 && !formData.plan_requires_enrollment)) {
       return submitForm();
     }
@@ -82,13 +97,16 @@ export default function Clients() {
     };
 
     if (payload.plan_requires_enrollment) {
-      payload.enrollment_amount = 0; // Se podría añadir un campo en UI, por ahora 0 para que backend no falle si no se cobra extra
+      payload.enrollment_amount = 500; // Inscripción fija de $500
     }
 
     delete payload.amount;
     delete payload.plan_requires_enrollment;
     
     // Sanitize empty strings to avoid Zod schema validation errors
+    if (!payload.age) delete payload.age;
+    if (!payload.phone) delete payload.phone;
+    if (!payload.rfc) delete payload.rfc;
     if (!payload.coach_fitness_level) delete payload.coach_fitness_level;
     if (!payload.coach_health_notes) delete payload.coach_health_notes;
     if (!payload.coach_goal) delete payload.coach_goal;
@@ -99,7 +117,16 @@ export default function Clients() {
         setIsModalOpen(false);
       },
       onError: (error) => {
-        toast.error(error.message || 'Error al registrar el cliente');
+        const msg = error.message || 'Error al registrar el cliente';
+        if (msg.includes('número de teléfono')) {
+          setFieldErrors({ phone: msg });
+          setStep(2);
+        } else if (msg.includes('RFC')) {
+          setFieldErrors({ rfc: msg });
+          setStep(2);
+        } else {
+          toast.error(msg);
+        }
       },
     });
   };
@@ -113,7 +140,14 @@ export default function Clients() {
   };
 
   const sortedClients = useMemo(() => {
-    let sortableItems = [...clients];
+    let filteredItems = clients.filter(client => {
+      const isVisitor = client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita');
+      if (filterTab === 'visit') return isVisitor;
+      if (filterTab === 'enrolled') return !isVisitor;
+      return true;
+    });
+
+    let sortableItems = [...filteredItems];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         let aVal = a[sortConfig.key];
@@ -139,7 +173,7 @@ export default function Clients() {
       });
     }
     return sortableItems;
-  }, [clients, sortConfig]);
+  }, [clients, sortConfig, filterTab]);
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
@@ -195,26 +229,35 @@ export default function Clients() {
 
   const renderStep = () => {
     if (step === 1) {
+      const visiblePlans = planOptions.filter(plan => isVisitMode ? plan.is_visit_based : !plan.is_visit_based);
       return (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {planOptions.map((plan) => (
-            <button
-              key={plan.id}
-              type="button"
-              onClick={() => setFormData({
-                ...formData,
-                plan_id: plan.id,
-                plan_requires_enrollment: plan.requires_enrollment,
-                amount: plan.price_monthly,
-              })}
-              className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
-                formData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
-              }`}
-            >
-              <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
-            </button>
-          ))}
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {visiblePlans.map((plan) => (
+              <button
+                key={plan.id}
+                type="button"
+                onClick={() => setFormData({
+                  ...formData,
+                  plan_id: plan.id,
+                  plan_requires_enrollment: plan.requires_enrollment,
+                  amount: isVisitMode ? '' : plan.price_monthly,
+                })}
+                className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
+                  formData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
+                }`}
+              >
+                <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
+                {!isVisitMode && <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>}
+              </button>
+            ))}
+          </div>
+          {!isVisitMode && (
+            <div className="rounded-[var(--radius-lg)] border p-4 text-left transition border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)] cursor-default">
+              <p className="text-base font-semibold text-[var(--color-text)]">Inscripción</p>
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">$500.00 MXN (Obligatorio para nuevos clientes)</p>
+            </div>
+          )}
         </div>
       );
     }
@@ -226,17 +269,48 @@ export default function Clients() {
             { label: 'Nombre', key: 'first_name' },
             { label: 'Apellidos', key: 'last_name' },
             { label: 'Edad', key: 'age', type: 'number' },
+            { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'RFC', key: 'rfc' },
           ].map((field) => (
             <div key={field.key} className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-              <input
-                type={field.type || 'text'}
-                value={formData[field.key]}
-                onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+              {field.type === 'select' ? (
+                <select
+                  value={formData[field.key]}
+                  onChange={(e) => {
+                    setFormData({ ...formData, [field.key]: e.target.value });
+                    if (fieldErrors[field.key]) setFieldErrors({ ...fieldErrors, [field.key]: null });
+                  }}
+                  className={`w-full rounded-[var(--radius-md)] border ${fieldErrors[field.key] ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
+                >
+                  {field.options.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type || 'text'}
+                  value={formData[field.key]}
+                  onChange={(e) => {
+                    setFormData({ ...formData, [field.key]: e.target.value });
+                    if (fieldErrors[field.key]) setFieldErrors({ ...fieldErrors, [field.key]: null });
+                  }}
+                  onBlur={async (e) => {
+                    if ((field.key === 'phone' || field.key === 'rfc') && e.target.value) {
+                      try {
+                        await validateClientField(field.key, e.target.value);
+                      } catch (error) {
+                        setFieldErrors((prev) => ({ ...prev, [field.key]: error.message }));
+                      }
+                    }
+                  }}
+                  className={`w-full rounded-[var(--radius-md)] border ${fieldErrors[field.key] ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
+                />
+              )}
+              {fieldErrors[field.key] && (
+                <p className="text-red-500 text-xs mt-1">{fieldErrors[field.key]}</p>
+              )}
             </div>
           ))}
         </div>
@@ -255,7 +329,7 @@ export default function Clients() {
             >
               <option value="cash">Efectivo</option>
               <option value="transfer">Transferencia</option>
-              <option value="card">Tarjeta</option>
+              {/* <option value="card">Tarjeta</option> */}
             </select>
           </div>
           <div className="space-y-2">
@@ -314,7 +388,10 @@ export default function Clients() {
             <p className="text-[var(--color-text-muted)] mt-2">Filtra, busca y registra nuevos miembros desde una interfaz premium.</p>
           </div>
         </div>
-        <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={openModal}>Agregar Cliente</GymButton>
+        <div className="flex gap-3">
+          <GymButton variant="secondary" onClick={() => openModal(true)}>Agregar visitante</GymButton>
+          <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={() => openModal(false)}>Agregar Cliente</GymButton>
+        </div>
       </header>
 
       <GymCard title="Clientes registrados" variant="default">
@@ -328,13 +405,13 @@ export default function Clients() {
               className="flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
             />
             <div className="flex flex-wrap items-center gap-2 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] p-1 shrink-0">
-              {['monthly', 'visit', 'weekly'].map((tab) => (
+              {['enrolled', 'visit'].map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setFilterTab(tab)}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${filterTab === tab ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}>
-                  {tab === 'monthly' ? 'Mensuales' : tab === 'visit' ? 'Visitantes' : 'Semanales'}
+                  {tab === 'enrolled' ? 'Inscritos' : 'Visitantes'}
                 </button>
               ))}
             </div>
@@ -377,12 +454,16 @@ export default function Clients() {
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-secondary)] text-white font-bold">{client.first_name?.[0]}{client.last_name?.[0]}</div>
                         <div>
                           <p className="font-semibold text-[var(--color-text)]">{client.first_name} {client.last_name}</p>
-                          <p className="text-sm text-[var(--color-text-muted)]">{client.plan_name}</p>
+                          <p className="text-sm text-[var(--color-text-muted)]">
+                            {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.phone}</td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text)]">{client.plan_name}</td>
+                    <td className="px-4 py-4 text-sm text-[var(--color-text)]">
+                      {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
+                    </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${currentStatus === 'active' ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : currentStatus === 'expiring' ? 'bg-[rgba(245,158,11,0.15)] text-[var(--color-warning)]' : 'bg-[rgba(239,68,68,0.15)] text-[var(--color-danger)]'}`}>
                         {currentStatus === 'active' ? 'Activo' : currentStatus === 'expiring' ? 'Por vencer' : 'Vencido'}
@@ -409,7 +490,7 @@ export default function Clients() {
         </div>
       </GymCard>
 
-      <GymModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Nuevo Cliente" width="lg">
+      <GymModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={isVisitMode ? "Registrar Nuevo Visitante" : "Registrar Nuevo Cliente"} width="lg">
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -426,7 +507,7 @@ export default function Clients() {
           <div className="flex justify-between gap-3">
             <GymButton variant="secondary" onClick={() => setStep(Math.max(step - 1, 1))} disabled={step === 1}>Atrás</GymButton>
             <GymButton variant="primary" onClick={nextStep}>
-              {step < 4 ? 'Siguiente' : 'Registrar cliente'}
+              {step < 4 ? 'Siguiente' : (isVisitMode ? 'Registrar visitante' : 'Registrar cliente')}
             </GymButton>
           </div>
         </div>
@@ -446,7 +527,7 @@ export default function Clients() {
               </div>
               <div>
                 <p className="text-sm text-[var(--color-text-muted)] font-semibold">Plan</p>
-                <p>{selectedClient.plan_name}</p>
+                <p>{selectedClient.plan_name?.toLowerCase().includes('día') || selectedClient.plan_name?.toLowerCase().includes('semana') || selectedClient.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : selectedClient.plan_name}</p>
               </div>
               <div>
                 <p className="text-sm text-[var(--color-text-muted)] font-semibold">Estado</p>
