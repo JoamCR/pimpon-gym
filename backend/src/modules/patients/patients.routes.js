@@ -15,6 +15,23 @@ async function patientRoutes(fastify, options) {
     return { data: patients };
   });
 
+  fastify.get('/validate', async (request, reply) => {
+    const { phone, rfc } = request.query;
+    if (phone || rfc) {
+      const repository = require('./patients.repository');
+      const existingPatient = await repository.findByPhoneOrRfc(phone, rfc);
+      if (existingPatient) {
+        if (existingPatient.phone === phone && phone) {
+          return reply.status(400).send({ error: 'Este número de teléfono ya está registrado' });
+        }
+        if (existingPatient.rfc === rfc && rfc) {
+          return reply.status(400).send({ error: 'Este RFC ya está registrado' });
+        }
+      }
+    }
+    return { valid: true };
+  });
+
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params;
     const patient = await service.getById(id);

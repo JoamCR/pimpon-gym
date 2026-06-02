@@ -82,4 +82,15 @@ export const useCreatePayment = () => {
   });
 };
 
+export const validatePatientField = async (field, value) => {
+  if (!value) return true;
+  const url = `${API_URL}/patients/validate?${field}=${encodeURIComponent(value)}`;
+  const response = await fetch(url, { headers: getHeaders() });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Dato ya registrado');
+  }
+  return true;
+};
+
 export default usePatients;

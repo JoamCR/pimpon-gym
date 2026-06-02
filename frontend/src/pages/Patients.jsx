@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { usePatients, useCreatePatient, useCreatePayment } from '../hooks/usePatients';
+import { usePatients, useCreatePatient, useCreatePayment, validatePatientField } from '../hooks/usePatients';
 import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -16,6 +16,7 @@ export default function Patients() {
   const [expandedConsultation, setExpandedConsultation] = useState(null);
 
   const [step, setStep] = useState(1);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -132,6 +133,7 @@ export default function Patients() {
 
   const openModal = () => {
     setStep(1);
+    setFieldErrors({});
     setFormData({
       first_name: '',
       last_name: '',
@@ -182,7 +184,16 @@ export default function Patients() {
         setIsModalOpen(false);
       },
       onError: (error) => {
-        toast.error(error.message || 'Error al registrar el paciente');
+        const msg = error.message || 'Error al registrar el paciente';
+        if (msg.includes('número de teléfono')) {
+          setFieldErrors({ phone: msg });
+          setStep(1);
+        } else if (msg.includes('RFC')) {
+          setFieldErrors({ rfc: msg });
+          setStep(1);
+        } else {
+          toast.error(msg);
+        }
       },
     });
   };
@@ -248,9 +259,24 @@ export default function Patients() {
               <input
                 type={field.type || 'text'}
                 value={formData[field.key]}
-                onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                onChange={(e) => {
+                  setFormData({ ...formData, [field.key]: e.target.value });
+                  if (fieldErrors[field.key]) setFieldErrors({ ...fieldErrors, [field.key]: null });
+                }}
+                onBlur={async (e) => {
+                  if ((field.key === 'phone' || field.key === 'rfc') && e.target.value) {
+                    try {
+                      await validatePatientField(field.key, e.target.value);
+                    } catch (error) {
+                      setFieldErrors((prev) => ({ ...prev, [field.key]: error.message }));
+                    }
+                  }
+                }}
+                className={`w-full rounded-[var(--radius-md)] border ${fieldErrors[field.key] ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
               />
+              {fieldErrors[field.key] && (
+                <p className="text-red-500 text-xs mt-1">{fieldErrors[field.key]}</p>
+              )}
             </div>
           ))}
         </div>
