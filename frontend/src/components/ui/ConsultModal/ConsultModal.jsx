@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import { IconX } from '@tabler/icons-react';
@@ -200,7 +200,7 @@ export function ConsultModal({
     }
   };
 
-  const tabOrder = patient?.userType === 'client'
+  const tabOrder = (patient?.userType === 'client'
     ? [
       { key: 'composition', label: 'Composición Corporal' },
       { key: 'clinical_history', label: 'Historia Clínica' },
@@ -212,7 +212,18 @@ export function ConsultModal({
       { key: 'clinical_history', label: 'Historia Clínica' },
       { key: 'diet', label: 'Plan Nutricional' },
       { key: 'exercise_plan', label: 'Plan de Ejercicio' },
-    ];
+    ]) || [];
+
+  const currentTabIndex = tabOrder.findIndex((tab) => tab.key === evaluationTab);
+  const showNextButton = currentTabIndex !== -1 && currentTabIndex < tabOrder.length - 1;
+  const isSaveEnabled = currentTabIndex >= 2;
+
+  const handleNext = () => {
+    if (currentTabIndex < 0 || currentTabIndex >= tabOrder.length - 1) return;
+    setEvaluationTab(tabOrder[currentTabIndex + 1].key);
+  };
+
+  const currentSubmitLabel = evaluationTab === 'exercise_plan' ? planSubmitLabel : submitLabel;
 
   return (
     <GymModal isOpen={isOpen} onClose={onClose} title={title} width="lg">
@@ -470,9 +481,17 @@ export function ConsultModal({
           </div>
         )}
 
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
-          <GymButton variant="secondary" onClick={onClose}>Cancelar</GymButton>
-          <GymButton variant="success" onClick={handleSubmit}>{submitLabel}</GymButton>
+        <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
+          <div className="flex justify-end gap-3">
+            <GymButton variant="secondary" onClick={onClose}>Cancelar</GymButton>
+            {showNextButton && (
+              <GymButton variant="secondary" onClick={handleNext}>Siguiente</GymButton>
+            )}
+            <GymButton variant="success" onClick={handleSubmit} disabled={!isSaveEnabled}>{currentSubmitLabel}</GymButton>
+          </div>
+          {!isSaveEnabled && (
+            <p className="text-right text-sm text-[var(--color-text-muted)]">Avanza hasta la tercera pestaña para habilitar Guardar, luego podrás guardar aunque no completes todos los campos.</p>
+          )}
         </div>
       </div>
     </GymModal>
