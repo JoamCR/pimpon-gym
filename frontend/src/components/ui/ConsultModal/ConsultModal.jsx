@@ -200,34 +200,33 @@ export function ConsultModal({
     }
   };
 
+  const tabOrder = patient?.userType === 'client'
+    ? [
+      { key: 'composition', label: 'Composición Corporal' },
+      { key: 'clinical_history', label: 'Historia Clínica' },
+      { key: 'exercise_plan', label: 'Plan de Ejercicio' },
+      { key: 'diet', label: 'Plan Nutricional' },
+    ]
+    : [
+      { key: 'composition', label: 'Composición Corporal' },
+      { key: 'clinical_history', label: 'Historia Clínica' },
+      { key: 'diet', label: 'Plan Nutricional' },
+      { key: 'exercise_plan', label: 'Plan de Ejercicio' },
+    ];
+
   return (
     <GymModal isOpen={isOpen} onClose={onClose} title={title} width="lg">
       <div className="space-y-6">
         <div className="flex border-b border-[var(--color-border)] mb-4">
-          <button
-            className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'composition' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
-            onClick={() => setEvaluationTab('composition')}
-          >
-            Composición Corporal
-          </button>
-          <button
-            className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'clinical_history' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
-            onClick={() => setEvaluationTab('clinical_history')}
-          >
-            Historia Clínica
-          </button>
-          <button
-            className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'diet' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
-            onClick={() => setEvaluationTab('diet')}
-          >
-            Plan Nutricional
-          </button>
-          <button
-            className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'exercise_plan' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
-            onClick={() => setEvaluationTab('exercise_plan')}
-          >
-            Plan de Ejercicio
-          </button>
+          {tabOrder.map((tab) => (
+            <button
+              key={tab.key}
+              className={`px-4 py-2 font-semibold text-sm ${evaluationTab === tab.key ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
+              onClick={() => setEvaluationTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {evaluationTab === 'composition' && (

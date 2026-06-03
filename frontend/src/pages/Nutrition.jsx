@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import {
@@ -7,7 +7,6 @@ import {
   useUpdateEvaluation,
   useExercisePlans,
   useCreateExercisePlan,
-  useUpdateExercisePlan,
 } from '../hooks/useNutrition';
 import { usePatients } from '../hooks/usePatients';
 import { useClients } from '../hooks/useClients';
@@ -15,10 +14,10 @@ import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
-import { IconClipboardHeart, IconSalad, IconX, IconPlus } from '@tabler/icons-react';
+import { IconClipboardHeart } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
-const ClientCard = ({ patient, onEvaluate, onPlan, onShowDetails }) => {
+const ClientCard = ({ patient, onEvaluate, onShowDetails }) => {
   const isClient = patient.userType === 'client';
   const days = isClient && patient.end_date ? Math.max(0, Math.ceil((new Date(patient.end_date) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
   const isFreeConsult = patient.userType === 'patient' && patient.is_free_consult;
@@ -47,9 +46,8 @@ const ClientCard = ({ patient, onEvaluate, onPlan, onShowDetails }) => {
         <span className="rounded-full bg-[rgba(14,116,144,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-teal)]">{patient.plan_name || 'Sin plan'}</span>
         {days > 0 && <span className="rounded-full bg-[rgba(226,154,0,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-secondary)]">{days} días</span>}
       </div>
-      <div className="flex gap-3 mt-auto">
-        <GymButton size="sm" variant="primary" className="flex-1" icon={<IconClipboardHeart size={16} />} onClick={() => onEvaluate(patient)}>Evaluar</GymButton>
-        <GymButton size="sm" variant="secondary" className="flex-1" icon={<IconSalad size={16} />} onClick={() => onPlan(patient)}>Plan</GymButton>
+      <div className="grid gap-3 mt-auto">
+        <GymButton size="sm" variant="primary" className="w-full" icon={<IconClipboardHeart size={16} />} onClick={() => onEvaluate(patient)}>Evaluar</GymButton>
       </div>
     </motion.div>
   );
@@ -84,87 +82,13 @@ const EvaluationRow = ({ evaluation, onEdit }) => {
   );
 };
 
-const ExerciseDayEditor = ({ day, content, onChange }) => {
-  const dayNames = {
-    monday: 'Lunes',
-    tuesday: 'Martes',
-    wednesday: 'Miércoles',
-    thursday: 'Jueves',
-    friday: 'Viernes',
-    saturday: 'Sábado',
-  };
-
-  const dayContent = content[day] || { exercises: [] };
-
-  const handleAddExercise = () => {
-    const newExercises = [...(dayContent.exercises || []), { name: '', series: 3, reps: 10 }];
-    onChange(day, { ...dayContent, exercises: newExercises });
-  };
-
-  const handleUpdateExercise = (index, field, value) => {
-    const updated = [...dayContent.exercises];
-    updated[index] = { ...updated[index], [field]: value };
-    onChange(day, { ...dayContent, exercises: updated });
-  };
-
-  const handleRemoveExercise = (index) => {
-    const updated = dayContent.exercises.filter((_, i) => i !== index);
-    onChange(day, { ...dayContent, exercises: updated });
-  };
-
-  return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4">
-      <h4 className="mb-3 text-base font-semibold text-[var(--color-text)]">{dayNames[day]}</h4>
-      <div className="space-y-4">
-        {dayContent.exercises?.map((exercise, idx) => (
-          <div key={idx} className="grid gap-3 md:grid-cols-[1.5fr_0.8fr_0.8fr_auto] items-end">
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Ejercicio {idx + 1}</label>
-              <input
-                type="text"
-                value={exercise.name}
-                onChange={(e) => handleUpdateExercise(idx, 'name', e.target.value)}
-                placeholder="Ej: Flexiones"
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Series</label>
-              <input
-                type="number"
-                value={exercise.series}
-                onChange={(e) => handleUpdateExercise(idx, 'series', Number(e.target.value))}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Reps</label>
-              <input
-                type="number"
-                value={exercise.reps}
-                onChange={(e) => handleUpdateExercise(idx, 'reps', Number(e.target.value))}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-              />
-            </div>
-            <div className="flex items-center justify-end">
-              <GymButton size="sm" variant="danger" icon={<IconX size={16} />} onClick={() => handleRemoveExercise(idx)} />
-            </div>
-          </div>
-        ))}
-        <GymButton size="sm" variant="secondary" onClick={handleAddExercise} className="w-full">+ Agregar Ejercicio</GymButton>
-      </div>
-    </div>
-  );
-};
-
 export default function Nutrition() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [modalEvaluate, setModalEvaluate] = useState(false);
   const [modalDetails, setModalDetails] = useState(false);
   const [defaultTab, setDefaultTab] = useState('composition');
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [planForm, setPlanForm] = useState({
+  const [planForm] = useState({
     monday: { exercises: [] },
     tuesday: { exercises: [] },
     wednesday: { exercises: [] },
@@ -181,7 +105,6 @@ export default function Nutrition() {
   const createEvaluation = useCreateEvaluation();
   const updateEvaluation = useUpdateEvaluation();
   const createExercisePlan = useCreateExercisePlan();
-  const updateExercisePlan = useUpdateExercisePlan();
 
   const rawPatients = Array.isArray(patientsResponse) ? patientsResponse : patientsResponse?.data || [];
   const rawClients = Array.isArray(clientsResponse) ? clientsResponse : clientsResponse?.data || [];
@@ -202,35 +125,34 @@ export default function Nutrition() {
     setModalEvaluate(true);
   };
 
-  const handleEditEvaluation = (evaluationItem) => {
-    setSelectedEvaluation(evaluationItem);
-    setDefaultTab('composition');
-    setModalEvaluate(true);
-  };
-
-  const handlePlan = (patient) => {
-    setSelectedPatient(patient);
-    setSelectedEvaluation(null);
-    setEditingPlan(null);
-    setDefaultTab('exercise_plan');
-    setModalEvaluate(true);
-  };
-
   const handleShowDetails = (patient) => {
     setSelectedPatient(patient);
     setModalDetails(true);
   };
 
-  const handleChangePlanDay = (day, content) => {
-    setPlanForm((prev) => ({ ...prev, [day]: content }));
-  };
-
   const handleSaveEvaluation = async (payload) => {
+    const cleanedPayload = {
+      ...payload,
+      entity_type: 'consultorio',
+    };
+
+    ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g', 'energy_level', 'hunger_level', 'sleep_quality', 'concentration_level', 'mood_level'].forEach((key) => {
+      if (cleanedPayload[key] !== undefined && cleanedPayload[key] !== '') {
+        cleanedPayload[key] = Number(cleanedPayload[key]);
+      } else {
+        delete cleanedPayload[key];
+      }
+    });
+
+    Object.keys(cleanedPayload).forEach((key) => {
+      if (cleanedPayload[key] === '') delete cleanedPayload[key];
+    });
+
     try {
       if (selectedEvaluation) {
-        await updateEvaluation.mutateAsync({ id: selectedEvaluation.id, body: payload });
+        await updateEvaluation.mutateAsync({ id: selectedEvaluation.id, body: cleanedPayload });
       } else {
-        await createEvaluation.mutateAsync(payload);
+        await createEvaluation.mutateAsync(cleanedPayload);
       }
       toast.success('Evaluación guardada');
       setModalEvaluate(false);
@@ -241,11 +163,7 @@ export default function Nutrition() {
 
   const handleSavePlan = async (payload) => {
     try {
-      if (editingPlan) {
-        await updateExercisePlan.mutateAsync({ id: editingPlan.id, body: payload });
-      } else {
-        await createExercisePlan.mutateAsync(payload);
-      }
+      await createExercisePlan.mutateAsync(payload);
       toast.success('Plan guardado');
       setModalEvaluate(false);
     } catch (error) {
@@ -272,7 +190,7 @@ export default function Nutrition() {
               <p className="text-[var(--color-text-muted)] col-span-full">No hay pacientes registrados.</p>
             ) : (
               queue.map((patient) => (
-                <ClientCard key={patient.id} patient={patient} onEvaluate={handleEvaluate} onPlan={handlePlan} onShowDetails={handleShowDetails} />
+                <ClientCard key={patient.id} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} />
               ))
             )}
           </div>
