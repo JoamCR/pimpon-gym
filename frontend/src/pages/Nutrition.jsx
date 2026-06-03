@@ -14,6 +14,7 @@ import { useClients } from '../hooks/useClients';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { IconClipboardHeart, IconSalad, IconX, IconPlus } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
@@ -163,27 +164,6 @@ export default function Nutrition() {
   const [modalPlan, setModalPlan] = useState(false);
   const [modalDetails, setModalDetails] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
-  const [evaluationTab, setEvaluationTab] = useState('composition'); // 'composition' or 'diet'
-  const resetEvaluationForm = () => ({
-    weight_kg: '',
-    height_cm: '',
-    body_fat_pct: '',
-    visceral_fat_pct: '',
-    muscle_mass_kg: '',
-    waist_cm: '',
-    family_history: '',
-    pathological_history: '',
-    personal_history: '',
-    body_composition_notes: '',
-    diet_plan: '',
-    caloric_target: '',
-    protein_target_g: '',
-    carbs_target_g: '',
-    fat_target_g: '',
-  });
-
-  const [evaluationForm, setEvaluationForm] = useState(resetEvaluationForm());
-
   const [planForm, setPlanForm] = useState({
     monday: { exercises: [] },
     tuesday: { exercises: [] },
@@ -218,8 +198,6 @@ export default function Nutrition() {
   const handleEvaluate = (patient) => {
     setSelectedPatient(patient);
     setSelectedEvaluation(null);
-    setEvaluationForm(resetEvaluationForm());
-    setEvaluationTab('composition');
     setModalEvaluate(true);
   };
 
@@ -356,124 +334,15 @@ export default function Nutrition() {
         </div>
       </div>
 
-      <GymModal isOpen={modalEvaluate} onClose={() => setModalEvaluate(false)} title={`Evaluación — ${selectedPatient?.first_name || 'Paciente'}`} width="lg">
-        <div className="space-y-6">
-          <div className="flex border-b border-[var(--color-border)] mb-4">
-            <button
-              className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'composition' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
-              onClick={() => setEvaluationTab('composition')}
-            >
-              Composición Corporal
-            </button>
-            <button
-              className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'diet' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
-              onClick={() => setEvaluationTab('diet')}
-            >
-              Plan Nutricional
-            </button>
-          </div>
-
-          {evaluationTab === 'composition' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="grid gap-4 md:grid-cols-3">
-                {[
-                  { label: 'Peso (kg)', key: 'weight_kg' },
-                  { label: 'Altura (cm)', key: 'height_cm' },
-                  { label: 'Grasa (%)', key: 'body_fat_pct' },
-                ].map((field) => (
-                  <div key={field.key} className="space-y-2">
-                    <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                    <input
-                      type="number"
-                      value={evaluationForm[field.key]}
-                      onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
-                      className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                {[
-                  { label: 'Visceral (%)', key: 'visceral_fat_pct' },
-                  { label: 'Masa muscular (kg)', key: 'muscle_mass_kg' },
-                  { label: 'Cintura (cm)', key: 'waist_cm' },
-                ].map((field) => (
-                  <div key={field.key} className="space-y-2">
-                    <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                    <input
-                      type="number"
-                      value={evaluationForm[field.key]}
-                      onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
-                      className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes personales</label>
-                  <textarea
-                    rows={3}
-                    value={evaluationForm.personal_history}
-                    onChange={(e) => setEvaluationForm({ ...evaluationForm, personal_history: e.target.value })}
-                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas de composición</label>
-                  <textarea
-                    rows={3}
-                    value={evaluationForm.body_composition_notes}
-                    onChange={(e) => setEvaluationForm({ ...evaluationForm, body_composition_notes: e.target.value })}
-                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {evaluationTab === 'diet' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="grid gap-4 md:grid-cols-4">
-                {[
-                  { label: 'Calorías (kcal)', key: 'caloric_target' },
-                  { label: 'Proteína (g)', key: 'protein_target_g' },
-                  { label: 'Carbos (g)', key: 'carbs_target_g' },
-                  { label: 'Grasa (g)', key: 'fat_target_g' },
-                ].map((field) => (
-                  <div key={field.key} className="space-y-2">
-                    <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                    <input
-                      type="number"
-                      value={evaluationForm[field.key]}
-                      onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
-                      className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Plan de Alimentación / Dieta</label>
-                <textarea
-                  rows={8}
-                  placeholder="Ej: Desayuno: 2 huevos, Comida: 150g pollo..."
-                  value={evaluationForm.diet_plan}
-                  onChange={(e) => setEvaluationForm({ ...evaluationForm, diet_plan: e.target.value })}
-                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
-            <GymButton variant="secondary" onClick={() => setModalEvaluate(false)}>Cancelar</GymButton>
-            <GymButton variant="success" onClick={handleSaveEvaluation}>Guardar Evaluación</GymButton>
-          </div>
-        </div>
-      </GymModal>
+            <ConsultModal
+        isOpen={modalEvaluate}
+        onClose={() => setModalEvaluate(false)}
+        title={"Evaluación — " + (selectedPatient?.first_name || "Paciente")}
+        patient={selectedPatient}
+        evaluation={selectedEvaluation}
+        onSubmit={handleSaveEvaluation}
+        submitLabel="Guardar Evaluación"
+      />
 
       <GymModal isOpen={modalPlan} onClose={() => setModalPlan(false)} title={`Plan de Ejercicio — ${selectedPatient?.first_name || 'Paciente'}`} width="full">
         <div className="space-y-6">
