@@ -80,14 +80,20 @@ const createRecord = async (data, nutritionistId, dbClient) => {
       body_fat_pct, visceral_fat_pct, muscle_mass_kg, waist_cm,
       family_history, pathological_history, personal_history,
       body_composition_notes, is_free_consult,
+      smokes, drinks_alcohol, uses_drugs, drugs_description,
+      drinks_soda, eats_junk_food, junk_food_description,
+      energy_level, bowel_movements, hunger_level, sleep_quality,
+      concentration_level, mood_level, sp_notes,
       diet_plan, caloric_target, protein_target_g, carbs_target_g, fat_target_g,
       created_by, created_at
     ) VALUES (
       gen_random_uuid(), $1, $2, $3, CURRENT_DATE, $4, $5, $6, $7,
-      $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW()
+      $8, $9, $10, $11, $12, $13, $14,
+      $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
+      $29, $30, $31, $32, $33, $34, NOW()
     ) RETURNING *
   `;
-  
+
   const params = [
     data.client_id || null,
     data.patient_id || null,
@@ -103,14 +109,27 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     data.personal_history || null,
     data.body_composition_notes || null,
     data.is_free_consult || false,
+    data.smokes || false,
+    data.drinks_alcohol || false,
+    data.uses_drugs || false,
+    data.drugs_description || null,
+    data.drinks_soda || false,
+    data.eats_junk_food || false,
+    data.junk_food_description || null,
+    data.energy_level || null,
+    data.bowel_movements ? String(data.bowel_movements) : null,
+    data.hunger_level || null,
+    data.sleep_quality || null,
+    data.concentration_level || null,
+    data.mood_level || null,
+    data.sp_notes || null,
     data.diet_plan || null,
     data.caloric_target || null,
     data.protein_target_g || null,
     data.carbs_target_g || null,
     data.fat_target_g || null,
     nutritionistId
-  ];
-  
+  ];  
   try {
     const result = await executor.query(sql, params);
     const record = result.rows[0];
@@ -180,6 +199,62 @@ const updateRecord = async (recordId, data, dbClient) => {
   if (data.body_composition_notes !== undefined) {
     updates.push(`body_composition_notes = $${paramIndex++}`);
     values.push(data.body_composition_notes);
+  }
+  if (data.smokes !== undefined) {
+    updates.push(`smokes = $${paramIndex++}`);
+    values.push(data.smokes);
+  }
+  if (data.drinks_alcohol !== undefined) {
+    updates.push(`drinks_alcohol = $${paramIndex++}`);
+    values.push(data.drinks_alcohol);
+  }
+  if (data.uses_drugs !== undefined) {
+    updates.push(`uses_drugs = $${paramIndex++}`);
+    values.push(data.uses_drugs);
+  }
+  if (data.drugs_description !== undefined) {
+    updates.push(`drugs_description = $${paramIndex++}`);
+    values.push(data.drugs_description);
+  }
+  if (data.drinks_soda !== undefined) {
+    updates.push(`drinks_soda = $${paramIndex++}`);
+    values.push(data.drinks_soda);
+  }
+  if (data.eats_junk_food !== undefined) {
+    updates.push(`eats_junk_food = $${paramIndex++}`);
+    values.push(data.eats_junk_food);
+  }
+  if (data.junk_food_description !== undefined) {
+    updates.push(`junk_food_description = $${paramIndex++}`);
+    values.push(data.junk_food_description);
+  }
+  if (data.energy_level !== undefined) {
+    updates.push(`energy_level = $${paramIndex++}`);
+    values.push(data.energy_level);
+  }
+  if (data.bowel_movements !== undefined) {
+    updates.push(`bowel_movements = $${paramIndex++}`);
+    values.push(data.bowel_movements ? String(data.bowel_movements) : null);
+  }
+  if (data.hunger_level !== undefined) {
+    updates.push(`hunger_level = $${paramIndex++}`);
+    values.push(data.hunger_level);
+  }
+  if (data.sleep_quality !== undefined) {
+    updates.push(`sleep_quality = $${paramIndex++}`);
+    values.push(data.sleep_quality);
+  }
+  if (data.concentration_level !== undefined) {
+    updates.push(`concentration_level = $${paramIndex++}`);
+    values.push(data.concentration_level);
+  }
+  if (data.mood_level !== undefined) {
+    updates.push(`mood_level = $${paramIndex++}`);
+    values.push(data.mood_level);
+  }
+  if (data.sp_notes !== undefined) {
+    updates.push(`sp_notes = $${paramIndex++}`);
+    values.push(data.sp_notes);
   }
   if (data.diet_plan !== undefined) {
     updates.push(`diet_plan = $${paramIndex++}`);

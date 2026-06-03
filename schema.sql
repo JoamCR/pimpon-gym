@@ -149,6 +149,23 @@ CREATE TABLE IF NOT EXISTS nutrition_records (
     pathological_history TEXT,
     personal_history TEXT,
     body_composition_notes TEXT,
+    
+    -- Historia clinica / Health indicators
+    smokes BOOLEAN DEFAULT false,
+    drinks_alcohol BOOLEAN DEFAULT false,
+    uses_drugs BOOLEAN DEFAULT false,
+    drugs_description TEXT,
+    drinks_soda BOOLEAN DEFAULT false,
+    eats_junk_food BOOLEAN DEFAULT false,
+    junk_food_description TEXT,
+    energy_level INTEGER CHECK (energy_level >= 1 AND energy_level <= 10),
+    bowel_movements TEXT,
+    hunger_level INTEGER CHECK (hunger_level >= 1 AND hunger_level <= 10),
+    sleep_quality INTEGER CHECK (sleep_quality >= 1 AND sleep_quality <= 10),
+    concentration_level INTEGER CHECK (concentration_level >= 1 AND concentration_level <= 10),
+    mood_level INTEGER CHECK (mood_level >= 1 AND mood_level <= 10),
+    sp_notes TEXT,
+
     -- Plan nutricional
     diet_plan TEXT,
     caloric_target NUMERIC(6,1),
