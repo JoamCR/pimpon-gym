@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
-
+import { IconX } from '@tabler/icons-react';
 const getInitialEvaluation = () => ({
+
   weight_kg: '',
   height_cm: '',
   body_fat_pct: '',
@@ -32,6 +33,16 @@ const getInitialEvaluation = () => ({
   protein_target_g: '',
   carbs_target_g: '',
   fat_target_g: '',
+});
+
+const getInitialPlanForm = () => ({
+  monday: { exercises: [] },
+  tuesday: { exercises: [] },
+  wednesday: { exercises: [] },
+  thursday: { exercises: [] },
+  friday: { exercises: [] },
+  saturday: { exercises: [] },
+  notes: '',
 });
 
 const HealthSlider = ({ label, value, onChange }) => {
@@ -64,21 +75,100 @@ const HealthSlider = ({ label, value, onChange }) => {
   );
 };
 
+const ExerciseDayEditor = ({ day, content, onChange }) => {
+  const dayNames = {
+    monday: 'Lunes',
+    tuesday: 'Martes',
+    wednesday: 'Miércoles',
+    thursday: 'Jueves',
+    friday: 'Viernes',
+    saturday: 'Sábado',
+  };
+
+  const dayContent = content[day] || { exercises: [] };
+
+  const handleAddExercise = () => {
+    const newExercises = [...(dayContent.exercises || []), { name: '', series: 3, reps: 10 }];
+    onChange(day, { ...dayContent, exercises: newExercises });
+  };
+
+  const handleUpdateExercise = (index, field, value) => {
+    const updated = [...dayContent.exercises];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange(day, { ...dayContent, exercises: updated });
+  };
+
+  const handleRemoveExercise = (index) => {
+    const updated = dayContent.exercises.filter((_, i) => i !== index);
+    onChange(day, { ...dayContent, exercises: updated });
+  };
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4">
+      <h4 className="mb-3 text-base font-semibold text-[var(--color-text)]">{dayNames[day]}</h4>
+      <div className="space-y-4">
+        {dayContent.exercises?.map((exercise, idx) => (
+          <div key={idx} className="grid gap-3 md:grid-cols-[1.5fr_0.8fr_0.8fr_auto] items-end">
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Ejercicio {idx + 1}</label>
+              <input
+                type="text"
+                value={exercise.name}
+                onChange={(e) => handleUpdateExercise(idx, 'name', e.target.value)}
+                placeholder="Ej: Flexiones"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Series</label>
+              <input
+                type="number"
+                value={exercise.series}
+                onChange={(e) => handleUpdateExercise(idx, 'series', Number(e.target.value))}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Reps</label>
+              <input
+                type="number"
+                value={exercise.reps}
+                onChange={(e) => handleUpdateExercise(idx, 'reps', Number(e.target.value))}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+              />
+            </div>
+            <div className="flex items-center justify-end">
+              <GymButton size="sm" variant="danger" icon={<IconX size={16} />} onClick={() => handleRemoveExercise(idx)} />
+            </div>
+          </div>
+        ))}
+        <GymButton size="sm" variant="secondary" onClick={handleAddExercise} className="w-full">+ Agregar Ejercicio</GymButton>
+      </div>
+    </div>
+  );
+};
+
 export function ConsultModal({
   isOpen,
   onClose,
   title,
   patient,
   evaluation,
+  plan,
+  defaultTab = 'composition',
   onSubmit,
+  onSubmitPlan,
   submitLabel = 'Guardar Consulta',
+  planSubmitLabel = 'Guardar Plan',
 }) {
   const [evaluationForm, setEvaluationForm] = useState(getInitialEvaluation());
-  const [evaluationTab, setEvaluationTab] = useState('composition');
+  const [planForm, setPlanForm] = useState(getInitialPlanForm());
+  const [evaluationTab, setEvaluationTab] = useState(defaultTab);
 
   useEffect(() => {
     if (!isOpen) return;
-    setEvaluationTab('composition');
+    setEvaluationTab(defaultTab || 'composition');
+    setPlanForm(plan ? plan : getInitialPlanForm());
     if (evaluation) {
       setEvaluationForm({
         ...getInitialEvaluation(),
@@ -87,17 +177,23 @@ export function ConsultModal({
     } else {
       setEvaluationForm(getInitialEvaluation());
     }
-  }, [isOpen, evaluation]);
+  }, [isOpen, evaluation, plan, defaultTab]);
+
+  const handlePlanChange = (day, content) => {
+    setPlanForm((prev) => ({ ...prev, [day]: content }));
+  };
 
   const handleSubmit = async () => {
     if (!patient?.id) return;
-    const payload = {
-      ...evaluationForm,
-      patient_id: patient.id,
-    };
 
     try {
-      await onSubmit(payload);
+      if (evaluationTab === 'exercise_plan') {
+        if (!onSubmitPlan) return;
+        await onSubmitPlan({ ...planForm, patient_id: patient.id });
+      } else {
+        if (!onSubmit) return;
+        await onSubmit({ ...evaluationForm, patient_id: patient.id });
+      }
       onClose();
     } catch (error) {
       console.error('Error al guardar consulta:', error);
@@ -125,6 +221,12 @@ export function ConsultModal({
             onClick={() => setEvaluationTab('diet')}
           >
             Plan Nutricional
+          </button>
+          <button
+            className={`px-4 py-2 font-semibold text-sm ${evaluationTab === 'exercise_plan' ? 'border-b-2 border-[var(--color-secondary)] text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]'}`}
+            onClick={() => setEvaluationTab('exercise_plan')}
+          >
+            Plan de Ejercicio
           </button>
         </div>
 
@@ -343,6 +445,27 @@ export function ConsultModal({
                 value={evaluationForm.diet_plan}
                 onChange={(e) => setEvaluationForm({ ...evaluationForm, diet_plan: e.target.value })}
                 className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+          </div>
+        )}
+
+        {evaluationTab === 'exercise_plan' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="grid gap-4 md:grid-cols-2">
+              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
+                <ExerciseDayEditor key={day} day={day} content={planForm} onChange={handlePlanChange} />
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas del plan</label>
+              <textarea
+                rows={4}
+                value={planForm.notes}
+                onChange={(e) => setPlanForm((prev) => ({ ...prev, notes: e.target.value }))}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                placeholder="Añade observaciones o instrucciones especiales para la rutina"
               />
             </div>
           </div>

@@ -161,8 +161,8 @@ export default function Nutrition() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [modalEvaluate, setModalEvaluate] = useState(false);
-  const [modalPlan, setModalPlan] = useState(false);
   const [modalDetails, setModalDetails] = useState(false);
+  const [defaultTab, setDefaultTab] = useState('composition');
   const [editingPlan, setEditingPlan] = useState(null);
   const [planForm, setPlanForm] = useState({
     monday: { exercises: [] },
@@ -198,29 +198,13 @@ export default function Nutrition() {
   const handleEvaluate = (patient) => {
     setSelectedPatient(patient);
     setSelectedEvaluation(null);
+    setDefaultTab('composition');
     setModalEvaluate(true);
   };
 
   const handleEditEvaluation = (evaluationItem) => {
     setSelectedEvaluation(evaluationItem);
-    setEvaluationForm({
-      weight_kg: evaluationItem.weight_kg || '',
-      height_cm: evaluationItem.height_cm || '',
-      body_fat_pct: evaluationItem.body_fat_pct || '',
-      visceral_fat_pct: evaluationItem.visceral_fat_pct || '',
-      muscle_mass_kg: evaluationItem.muscle_mass_kg || '',
-      waist_cm: evaluationItem.waist_cm || '',
-      family_history: evaluationItem.family_history || '',
-      pathological_history: evaluationItem.pathological_history || '',
-      personal_history: evaluationItem.personal_history || '',
-      body_composition_notes: evaluationItem.body_composition_notes || '',
-      diet_plan: evaluationItem.diet_plan || '',
-      caloric_target: evaluationItem.caloric_target || '',
-      protein_target_g: evaluationItem.protein_target_g || '',
-      carbs_target_g: evaluationItem.carbs_target_g || '',
-      fat_target_g: evaluationItem.fat_target_g || '',
-    });
-    setEvaluationTab('composition');
+    setDefaultTab('composition');
     setModalEvaluate(true);
   };
 
@@ -228,7 +212,8 @@ export default function Nutrition() {
     setSelectedPatient(patient);
     setSelectedEvaluation(null);
     setEditingPlan(null);
-    setModalPlan(true);
+    setDefaultTab('exercise_plan');
+    setModalEvaluate(true);
   };
 
   const handleShowDetails = (patient) => {
@@ -240,9 +225,8 @@ export default function Nutrition() {
     setPlanForm((prev) => ({ ...prev, [day]: content }));
   };
 
-  const handleSaveEvaluation = async () => {
+  const handleSaveEvaluation = async (payload) => {
     try {
-      const payload = { ...evaluationForm, patient_id: selectedPatient?.id };
       if (selectedEvaluation) {
         await updateEvaluation.mutateAsync({ id: selectedEvaluation.id, body: payload });
       } else {
@@ -255,16 +239,15 @@ export default function Nutrition() {
     }
   };
 
-  const handleSavePlan = async () => {
+  const handleSavePlan = async (payload) => {
     try {
-      const payload = { patient_id: selectedPatient?.id, plan: planForm };
       if (editingPlan) {
         await updateExercisePlan.mutateAsync({ id: editingPlan.id, body: payload });
       } else {
         await createExercisePlan.mutateAsync(payload);
       }
       toast.success('Plan guardado');
-      setModalPlan(false);
+      setModalEvaluate(false);
     } catch (error) {
       toast.error(error.message || 'Error al guardar plan');
     }
@@ -337,38 +320,15 @@ export default function Nutrition() {
             <ConsultModal
         isOpen={modalEvaluate}
         onClose={() => setModalEvaluate(false)}
-        title={"Evaluación — " + (selectedPatient?.first_name || "Paciente")}
+        title={defaultTab === 'exercise_plan' ? `Plan de Ejercicio — ${selectedPatient?.first_name || 'Paciente'}` : `Evaluación — ${selectedPatient?.first_name || 'Paciente'}`}
         patient={selectedPatient}
         evaluation={selectedEvaluation}
+        plan={planForm}
+        defaultTab={defaultTab}
         onSubmit={handleSaveEvaluation}
-        submitLabel="Guardar Evaluación"
+        onSubmitPlan={handleSavePlan}
+        submitLabel={defaultTab === 'exercise_plan' ? 'Guardar Plan' : 'Guardar Evaluación'}
       />
-
-      <GymModal isOpen={modalPlan} onClose={() => setModalPlan(false)} title={`Plan de Ejercicio — ${selectedPatient?.first_name || 'Paciente'}`} width="full">
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
-              <ExerciseDayEditor key={day} day={day} content={planForm} onChange={handleChangePlanDay} />
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas nutricionales</label>
-            <textarea
-              rows={3}
-              value={planForm.notes}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, notes: e.target.value }))}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3 justify-end">
-            <GymButton variant="secondary" onClick={() => setModalPlan(false)}>Cancelar</GymButton>
-            <GymButton variant="primary">Generar PDF</GymButton>
-            <GymButton variant="success" onClick={handleSavePlan}>Guardar Plan</GymButton>
-          </div>
-        </div>
-      </GymModal>
 
       <GymModal isOpen={modalDetails} onClose={() => setModalDetails(false)} title={`Detalles de Paciente — ${selectedPatient?.first_name || 'Paciente'}`} width="lg">
         <div className="space-y-6">
