@@ -4,6 +4,7 @@ const createPatientSchema = z.object({
   first_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   last_name: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   age: z.number().int().min(10, 'La edad mínima es 10 años').max(120, 'La edad máxima es 120 años'),
+  gender: z.enum(['Masculino', 'Femenino', 'Otro'], { errorMap: () => ({ message: 'Género inválido' }) }).optional(),
   phone: z.string().regex(/^\d{10}$/, 'El teléfono debe tener 10 dígitos'),
   email: z.string().email('El correo no es válido').or(z.literal('')).optional(),
   rfc: z.string().regex(/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i, 'El RFC no tiene un formato válido').or(z.literal('')).optional(),

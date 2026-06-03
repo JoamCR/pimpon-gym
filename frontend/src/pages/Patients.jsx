@@ -138,8 +138,8 @@ export default function Patients() {
       first_name: '',
       last_name: '',
       age: '',
+      gender: 'Masculino',
       phone: '',
-      email: '',
       rfc: '',
       occupation: '',
       referred_by: '',
@@ -250,30 +250,46 @@ export default function Patients() {
             { label: 'Nombre', key: 'first_name' },
             { label: 'Apellidos', key: 'last_name' },
             { label: 'Edad', key: 'age', type: 'number' },
+            { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'RFC', key: 'rfc' },
-            { label: 'Email', key: 'email', type: 'email' },
+            
           ].map((field) => (
             <div key={field.key} className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-              <input
-                type={field.type || 'text'}
-                value={formData[field.key]}
-                onChange={(e) => {
-                  setFormData({ ...formData, [field.key]: e.target.value });
-                  if (fieldErrors[field.key]) setFieldErrors({ ...fieldErrors, [field.key]: null });
-                }}
-                onBlur={async (e) => {
-                  if ((field.key === 'phone' || field.key === 'rfc') && e.target.value) {
-                    try {
-                      await validatePatientField(field.key, e.target.value);
-                    } catch (error) {
-                      setFieldErrors((prev) => ({ ...prev, [field.key]: error.message }));
+              {field.type === 'select' ? (
+                <select
+                  value={formData[field.key]}
+                  onChange={(e) => {
+                    setFormData({ ...formData, [field.key]: e.target.value });
+                    if (fieldErrors[field.key]) setFieldErrors({ ...fieldErrors, [field.key]: null });
+                  }}
+                  className={`w-full rounded-[var(--radius-md)] border ${fieldErrors[field.key] ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
+                >
+                  {field.options.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type || 'text'}
+                  value={formData[field.key]}
+                  onChange={(e) => {
+                    setFormData({ ...formData, [field.key]: e.target.value });
+                    if (fieldErrors[field.key]) setFieldErrors({ ...fieldErrors, [field.key]: null });
+                  }}
+                  onBlur={async (e) => {
+                    if ((field.key === 'phone' || field.key === 'rfc') && e.target.value) {
+                      try {
+                        await validatePatientField(field.key, e.target.value);
+                      } catch (error) {
+                        setFieldErrors((prev) => ({ ...prev, [field.key]: error.message }));
+                      }
                     }
-                  }
-                }}
-                className={`w-full rounded-[var(--radius-md)] border ${fieldErrors[field.key] ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
-              />
+                  }}
+                  className={`w-full rounded-[var(--radius-md)] border ${fieldErrors[field.key] ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
+                />
+              )}
               {fieldErrors[field.key] && (
                 <p className="text-red-500 text-xs mt-1">{fieldErrors[field.key]}</p>
               )}

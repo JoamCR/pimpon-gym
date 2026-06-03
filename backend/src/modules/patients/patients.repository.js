@@ -60,15 +60,15 @@ const findByPhoneOrRfc = async (phone, rfc, dbClient) => {
 const create = async (data) => {
   const sql = `
     INSERT INTO patients (
-      id, first_name, last_name, rfc, age, phone, email,
+      id, first_name, last_name, rfc, age, gender, phone, email,
       occupation, referred_by, is_active, notes,
       quick_weight_kg, quick_height_cm, quick_goal, quick_health_notes, quick_assessed_at,
       created_by, created_at
     ) VALUES (
-      gen_random_uuid(), $1, $2, $3, $4, $5, $6,
-      $7, $8, $9, $10,
-      $11, $12, $13, $14,
-      $15, $16, NOW()
+      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7,
+      $8, $9, $10, $11,
+      $12, $13, $14, $15,
+      $16, $17, NOW()
     ) RETURNING *
   `;
   const params = [
@@ -76,6 +76,7 @@ const create = async (data) => {
     data.last_name,
     data.rfc || null,
     data.age,
+    data.gender || null,
     data.phone,
     data.email || null,
     data.occupation || null,

@@ -241,14 +241,14 @@ export default function Clients() {
                   ...formData,
                   plan_id: plan.id,
                   plan_requires_enrollment: plan.requires_enrollment,
-                  amount: isVisitMode ? '' : plan.price_monthly,
+                  amount: plan.price_monthly,
                 })}
                 className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
                   formData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
                 }`}
               >
                 <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
-                {!isVisitMode && <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>}
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
               </button>
             ))}
           </div>
@@ -405,13 +405,13 @@ export default function Clients() {
               className="flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
             />
             <div className="flex flex-wrap items-center gap-2 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] p-1 shrink-0">
-              {['enrolled', 'visit'].map((tab) => (
+              {['all', 'enrolled', 'visit'].map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setFilterTab(tab)}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${filterTab === tab ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}>
-                  {tab === 'enrolled' ? 'Inscritos' : 'Visitantes'}
+                  {tab === 'all' ? 'Todos' : tab === 'enrolled' ? 'Inscritos' : 'Visitantes'}
                 </button>
               ))}
             </div>

@@ -55,12 +55,13 @@ CREATE TABLE IF NOT EXISTS clients (
 );
 
 -- 4. TABLA DE PACIENTES
-CREATE TABLE IF NOT EXISTS patients (
+CREATE TABLE patients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     rfc VARCHAR(13),
     age INT,
+    gender VARCHAR(20),
     phone VARCHAR(20),
     email VARCHAR(255),
     occupation VARCHAR(100),
