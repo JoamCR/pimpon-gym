@@ -1,6 +1,7 @@
 // src/components/ui/GymModal.jsx
 import { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IconX } from '@tabler/icons-react';
 
 /**
  * GymModal — Modal reutilizable con overlay oscuro y animaciones suaves
@@ -35,7 +36,10 @@ const modalVariants = {
              transition: { duration: 0.18, ease: 'easeIn' } },
 };
 
-export function GymModal({ isOpen, onClose, title, children, size = 'md', closeable = true }) {
+export function GymModal({ isOpen, onClose, title, children, size = 'md', width, closeable = true }) {
+  // Support legacy prop `width` used across the app — treat as alias for `size`
+  const finalSize = size || width;
+
   // Cerrar con Escape
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape' && closeable) onClose();
@@ -79,7 +83,7 @@ export function GymModal({ isOpen, onClose, title, children, size = 'md', closea
               'relative w-full rounded-[var(--radius-xl)]',
               'bg-[var(--color-card)] shadow-[var(--shadow-modal)] ring-1 ring-white/10',
               'flex flex-col max-h-[90vh] overflow-hidden',
-              sizeClasses[size]
+              sizeClasses[finalSize]
             ].join(' ')}
           >
             {/* Header del Modal */}
@@ -99,7 +103,7 @@ export function GymModal({ isOpen, onClose, title, children, size = 'md', closea
                              hover:bg-white/10 rounded-lg p-2"
                   aria-label="Cerrar modal"
                 >
-                  ✕
+                  <IconX size={18} />
                 </button>
               )}
             </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { usePatients, useCreatePatient, useCreatePayment, validatePatientField } from '../hooks/usePatients';
+import { useCreateAgenda } from '../hooks/useAgenda';
 import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -108,6 +109,10 @@ export default function Patients() {
   };
 
   const [consultModalOpen, setConsultModalOpen] = useState(false);
+
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ event_type: 'cita', title: '', description: '', start_at: '', end_at: '' });
+  const createAgendaMutation = useCreateAgenda();
 
   const handleOpenConsult = (patient) => {
     setSelectedPatient(patient);
@@ -586,6 +591,7 @@ export default function Patients() {
               <div className="flex gap-3">
                 <GymButton variant="primary" icon={<IconStethoscope size={18} />} onClick={() => { setViewPatientModal(false); handleOpenConsult(selectedPatient); }}>Nueva Consulta</GymButton>
                 <GymButton variant="success" icon={<IconCoin size={18} />} onClick={() => { setViewPatientModal(false); handleOpenPayment(selectedPatient); }}>Pago de Consulta</GymButton>
+                <GymButton variant="gold" onClick={() => { setScheduleForm({ event_type: 'cita', title: `Cita — ${selectedPatient.first_name}`, description: '', start_at: '', end_at: '' }); setScheduleModalOpen(true); }}>Agendar Cita</GymButton>
               </div>
               <GymButton variant="secondary" onClick={() => setViewPatientModal(false)}>Cerrar</GymButton>
             </div>
@@ -630,6 +636,43 @@ export default function Patients() {
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
             <GymButton variant="secondary" onClick={() => setPaymentModalOpen(false)}>Cancelar</GymButton>
             <GymButton variant="success" onClick={handleSavePayment}>Registrar Pago</GymButton>
+          </div>
+        </div>
+      </GymModal>
+
+      <GymModal isOpen={scheduleModalOpen} onClose={() => setScheduleModalOpen(false)} title={`Agendar Cita — ${selectedPatient?.first_name || ''}`} width="sm">
+        <div className="space-y-4 text-[var(--color-text)]">
+          <div>
+            <label className="block text-sm text-[var(--color-text-muted)]">Título</label>
+            <input value={scheduleForm.title} onChange={(e) => setScheduleForm({ ...scheduleForm, title: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+          </div>
+          <div>
+            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Inicio</label>
+            <input type="datetime-local" value={scheduleForm.start_at} onChange={(e) => setScheduleForm({ ...scheduleForm, start_at: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+          </div>
+          <div>
+            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Fin</label>
+            <input type="datetime-local" value={scheduleForm.end_at} onChange={(e) => setScheduleForm({ ...scheduleForm, end_at: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <GymButton variant="secondary" onClick={() => setScheduleModalOpen(false)}>Cancelar</GymButton>
+            <GymButton variant="primary" onClick={async () => {
+              try {
+                await createAgendaMutation.mutateAsync({
+                  event_type: 'cita',
+                  title: scheduleForm.title,
+                  description: scheduleForm.description,
+                  patient_id: selectedPatient.id,
+                  start_at: new Date(scheduleForm.start_at).toISOString(),
+                  end_at: scheduleForm.end_at ? new Date(scheduleForm.end_at).toISOString() : null,
+                });
+                setScheduleModalOpen(false);
+                setViewPatientModal(false);
+              } catch (err) {
+                console.error(err);
+                alert(err.message || 'Error al agendar cita');
+              }
+            }}>Agendar</GymButton>
           </div>
         </div>
       </GymModal>

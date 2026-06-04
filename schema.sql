@@ -218,3 +218,19 @@ CREATE TABLE IF NOT EXISTS audit_log (
     performed_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
     performed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 12. AGENDA / EVENTOS (Citas, Reuniones, Videollamadas, Otros)
+CREATE TABLE IF NOT EXISTS agenda (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('cita','reunion','videollamada','otro')),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    patient_id UUID REFERENCES patients(id) ON DELETE SET NULL,
+    phone VARCHAR(20),
+    status VARCHAR(50) NOT NULL CHECK (status IN ('programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso')) DEFAULT 'programada',
+    start_at TIMESTAMPTZ NOT NULL,
+    end_at TIMESTAMPTZ,
+    metadata JSONB,
+    created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
