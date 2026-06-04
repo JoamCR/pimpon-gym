@@ -11,13 +11,15 @@ import {
   IconSettings,
   IconDoorExit,
   IconSun,
-  IconMoon
+  IconMoon,
+  IconCalendarEvent,
 } from '@tabler/icons-react';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <IconLayoutDashboard size={20} /> },
   { path: '/clients', label: 'Clientes', icon: <IconUsers size={20} /> },
   { path: '/patients', label: 'Pacientes', icon: <IconClipboardHeart size={20} /> },
+  { path: '/agenda', label: 'Agenda', icon: <IconCalendarEvent size={20} /> },
   { path: '/attendance', label: 'Asistencia', icon: <IconCheckbox size={20} /> },
   { path: '/nutrition', label: 'Nutrición', icon: <IconApple size={20} /> },
   { path: '/statistics', label: 'Estadísticas', icon: <IconChartBar size={20} /> },

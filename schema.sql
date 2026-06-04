@@ -230,7 +230,8 @@ CREATE TABLE IF NOT EXISTS agenda (
     status VARCHAR(50) NOT NULL CHECK (status IN ('programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso')) DEFAULT 'programada',
     start_at TIMESTAMPTZ NOT NULL,
     end_at TIMESTAMPTZ,
-    metadata JSONB,
+    reminder_at TIMESTAMPTZ,
+    metadata JSONB DEFAULT '{}'::jsonb,
     created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

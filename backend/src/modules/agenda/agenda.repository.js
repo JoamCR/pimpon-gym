@@ -2,9 +2,9 @@ const { query } = require('../../lib/database');
 
 const createEvent = async (payload) => {
   const res = await query(
-    `INSERT INTO agenda (event_type, title, description, patient_id, phone, status, start_at, end_at, metadata, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-    [payload.event_type, payload.title, payload.description || null, payload.patient_id || null, payload.phone || null, payload.status || 'programada', payload.start_at, payload.end_at || null, payload.metadata || null, payload.created_by || null]
+    `INSERT INTO agenda (event_type, title, description, patient_id, phone, status, start_at, end_at, reminder_at, metadata, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+    [payload.event_type, payload.title, payload.description || null, payload.patient_id || null, payload.phone || null, payload.status || 'programada', payload.start_at, payload.end_at || null, payload.reminder_at || null, payload.metadata || null, payload.created_by || null]
   );
   return res.rows[0];
 };

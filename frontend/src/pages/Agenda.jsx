@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { useAgenda, useCreateAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { usePatients } from '../hooks/usePatients';
-import { IconPlus, IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconBell, IconDots } from '@tabler/icons-react';
+import { IconPlus, IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots } from '@tabler/icons-react';
 
 const eventStatusOptions = ['programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso'];
 
@@ -24,14 +24,29 @@ function buildMonthMatrix(date) {
 
 export default function Agenda() {
   const [viewDate, setViewDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ event_type: 'cita', title: '', description: '', patient_id: null, phone: '', status: 'programada', start_at: '', end_at: '' });
+  const [form, setForm] = useState({
+    event_type: 'cita',
+    title: '',
+    description: '',
+    patient_id: null,
+    phone: '',
+    status: 'programada',
+    start_at: '',
+    end_at: '',
+    metadata: {
+      reason: '',
+      medium: '',
+      with_whom: '',
+      location: '',
+      reminder_at: '',
+    },
+  });
 
   const { data } = useAgenda();
-  const events = data?.data || [];
+  const events = useMemo(() => data?.data || [], [data]);
   const { data: patientsResp } = usePatients();
-  const patients = patientsResp?.data || [];
+  const patients = useMemo(() => patientsResp?.data || [], [patientsResp]);
   const createMutation = useCreateAgenda();
   const updateMutation = useUpdateAgenda();
 
@@ -53,22 +68,31 @@ export default function Agenda() {
     return map;
   }, [events]);
 
-  useEffect(() => {
-    if (selectedDay) {
-      const iso = new Date(selectedDay).toISOString().slice(0,10);
-      setForm((f) => ({ ...f, start_at: `${iso}T09:00:00.000Z`, end_at: `${iso}T10:00:00.000Z` }));
-    }
-  }, [selectedDay]);
-
   const openNew = (day) => {
-    setSelectedDay(day);
+    const iso = new Date(day).toISOString().slice(0,10);
+    setForm((prev) => ({
+      ...prev,
+      start_at: `${iso}T09:00:00.000Z`,
+      end_at: `${iso}T10:00:00.000Z`,
+    }));
     setModalOpen(true);
+  };
+
+  const handlePatientSelection = (patientId) => {
+    const patient = patients.find((p) => p.id === patientId);
+    setForm((prev) => ({
+      ...prev,
+      patient_id: patientId || null,
+      title: patient ? `Cita — ${patient.first_name} ${patient.last_name}` : prev.title,
+      phone: patient?.phone || prev.phone,
+    }));
   };
 
   const submit = async () => {
     try {
       await createMutation.mutateAsync({
         ...form,
+        reminder_at: form.metadata.reminder_at || null,
       });
       setModalOpen(false);
     } catch (err) {
@@ -108,6 +132,8 @@ export default function Agenda() {
     setIsEditingEvent(false);
   };
 
+  const selectedPatient = selectedEvent ? patients.find((p) => p.id === selectedEvent.patient_id) : null;
+
   const applyStatusChange = async (ev, newStatus) => {
     try {
       await updateMutation.mutateAsync({ id: ev.id, payload: { status: newStatus } });
@@ -128,6 +154,7 @@ export default function Agenda() {
         description: selectedEvent.description,
         start_at: selectedEvent.start_at,
         end_at: selectedEvent.end_at,
+        reminder_at: selectedEvent.metadata?.reminder_at || null,
         metadata: selectedEvent.metadata || null,
       };
       await updateMutation.mutateAsync({ id: selectedEvent.id, payload });
@@ -139,11 +166,11 @@ export default function Agenda() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-[var(--color-surface)]">
+    <div className="min-h-screen p-6 bg-(--color-surface)">
       <header className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-4xl font-bold text-[var(--color-text)]">Agenda</h1>
-          <p className="text-[var(--color-text-muted)]">Calendario de actividades y citas</p>
+          <h1 className="text-4xl font-bold text-(--color-text)">Agenda</h1>
+          <p className="text-(--color-text-muted)">Calendario de actividades y citas</p>
         </div>
         <div className="flex gap-2">
           <GymButton onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() -1, 1))} variant="secondary">Anterior</GymButton>
@@ -155,27 +182,27 @@ export default function Agenda() {
       <GymCard title={`Vista mes — ${viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}`} variant="default">
         <div className="grid grid-cols-7 gap-2">
           {['Dom','Lun','Mar','Mie','Jue','Vie','Sab'].map(d => (
-            <div key={d} className="text-sm text-[var(--color-text-muted)] font-semibold p-2">{d}</div>
+            <div key={d} className="text-sm text-(--color-text-muted) font-semibold p-2">{d}</div>
           ))}
           {monthDays.map((d) => {
             const isCurrentMonth = d.getMonth() === viewDate.getMonth();
             const dayKey = d.toDateString();
             const dayEvents = eventsByDay[dayKey] || [];
             return (
-              <div key={dayKey} className={`min-h-28 rounded-md p-2 border ${isCurrentMonth ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'} border-[var(--color-border)]`}>
+              <div key={dayKey} className={`min-h-28 rounded-md p-2 border ${isCurrentMonth ? 'bg-(--color-card-alt)' : 'bg-(--color-card)'} border-(--color-border)`}>
                 <div className="flex justify-between items-start">
                   <div className="text-sm font-semibold">{d.getDate()}</div>
                   <GymButton size="xs" variant="ghost" onClick={() => openNew(d)}>Agendar</GymButton>
                 </div>
                 <div className="mt-2 space-y-1 max-h-36 overflow-y-auto">
                   {dayEvents.map(ev => {
-                    const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-[var(--color-success)]' : ev.event_type === 'reunion' ? 'border-l-4 border-[var(--color-teal)]' : ev.event_type === 'videollamada' ? 'border-l-4 border-[var(--color-gold)]' : 'border-l-4 border-[var(--color-amber)]';
-                    const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : 'bg-[var(--color-card-alt)] text-[var(--color-text)]';
+                    const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-(--color-success)' : ev.event_type === 'reunion' ? 'border-l-4 border-(--color-teal)' : ev.event_type === 'videollamada' ? 'border-l-4 border-(--color-gold)' : 'border-l-4 border-(--color-amber)';
+                    const statusBg = ev.status === 'confirmada' ? 'bg-(--color-success) text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-(--color-danger) text-white' : 'bg-(--color-card-alt) text-(--color-text)';
                     return (
-                      <button key={ev.id} onClick={() => openDetails(ev)} className={`w-full text-left rounded px-2 py-1 border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs`}> 
+                      <button key={ev.id} onClick={() => openDetails(ev)} className={`w-full text-left rounded px-2 py-1 border ${typeColor} border-(--color-border) ${statusBg} text-xs`}> 
                         <div className="flex justify-between items-center">
                           <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
-                          <div className="text-[var(--color-text-muted)] ml-2">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          <div className="text-(--color-text-muted) ml-2">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                         </div>
                       </button>
                     );
@@ -187,18 +214,18 @@ export default function Agenda() {
         </div>
       </GymCard>
       
-      <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="md">
+      <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="lg">
         {selectedEvent && (
-          <div className="space-y-4 text-[var(--color-text)]">
+          <div className="space-y-4 text-(--color-text)">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-[var(--color-text-muted)]">Tipo</p>
+                <p className="text-sm text-(--color-text-muted)">Tipo</p>
                 <p className="font-semibold">{selectedEvent.event_type}</p>
               </div>
               <div className="relative" ref={optionsRef}>
                 <GymButton size="sm" variant="ghost" onClick={() => setOptionsOpen(!optionsOpen)}>Opciones <IconDots className="inline ml-2" /></GymButton>
                 {optionsOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded border border-[var(--color-border)] bg-[var(--color-card-alt)] p-2 z-50">
+                  <div className="absolute right-0 mt-2 w-48 rounded border border-(--color-border) bg-(--color-card-alt) p-2 z-50">
                     <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => { setIsEditingEvent(true); setOptionsOpen(false); }}><IconCalendarTime size={18} />Reagendar</button>
                     <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'confirmada')}><IconCheck size={18} />Confirmar</button>
                     <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'ausente')}><IconUserX size={18} />Ausente</button>
@@ -212,17 +239,63 @@ export default function Agenda() {
             </div>
 
             {!isEditingEvent ? (
-              <div className="space-y-2">
-                <p className="text-sm text-[var(--color-text-muted)]">Paciente</p>
-                <p>{patients.find(p=>p.id===selectedEvent.patient_id)?.first_name || '—'} {patients.find(p=>p.id===selectedEvent.patient_id)?.last_name || ''}</p>
-                <p className="text-sm text-[var(--color-text-muted)]">Teléfono</p>
-                <p>{selectedEvent.phone || '—'}</p>
-                <p className="text-sm text-[var(--color-text-muted)]">Fecha y Hora</p>
-                <p>{new Date(selectedEvent.start_at).toLocaleString('es-MX')} — {selectedEvent.end_at ? new Date(selectedEvent.end_at).toLocaleString('es-MX') : '-'}</p>
-                <p className="text-sm text-[var(--color-text-muted)]">Estado</p>
-                <p className="font-semibold">{selectedEvent.status}</p>
-                <p className="text-sm text-[var(--color-text-muted)]">Descripción</p>
-                <p className="whitespace-pre-wrap">{selectedEvent.description || '—'}</p>
+              <div className="space-y-3">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Paciente</p>
+                    <p>{selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Teléfono</p>
+                    <p>{selectedEvent.phone || selectedPatient?.phone || '—'}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Fecha y Hora</p>
+                    <p>{new Date(selectedEvent.start_at).toLocaleString('es-MX')} — {selectedEvent.end_at ? new Date(selectedEvent.end_at).toLocaleString('es-MX') : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Estado</p>
+                    <p className="font-semibold">{selectedEvent.status}</p>
+                  </div>
+                </div>
+
+                {selectedEvent.metadata?.reason && (
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Razón</p>
+                    <p>{selectedEvent.metadata.reason}</p>
+                  </div>
+                )}
+                {(selectedEvent.metadata?.medium || selectedEvent.metadata?.location) && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-sm text-(--color-text-muted)">Medio</p>
+                      <p>{selectedEvent.metadata?.medium || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-(--color-text-muted)">Lugar / Plataforma</p>
+                      <p>{selectedEvent.metadata?.location || '-'}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedEvent.metadata?.with_whom && (
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Con quién</p>
+                    <p>{selectedEvent.metadata.with_whom}</p>
+                  </div>
+                )}
+                {selectedEvent.metadata?.reminder_at && (
+                  <div>
+                    <p className="text-sm text-(--color-text-muted)">Recordatorio</p>
+                    <p>{new Date(selectedEvent.metadata.reminder_at).toLocaleString('es-MX')}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-(--color-text-muted)">Notas</p>
+                  <p className="whitespace-pre-wrap">{selectedEvent.description || '—'}</p>
+                </div>
                 <div className="pt-4 flex justify-end gap-3">
                   <GymButton variant="secondary" onClick={() => setDetailModalOpen(false)}>Cerrar</GymButton>
                 </div>
@@ -230,12 +303,12 @@ export default function Agenda() {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Inicio</label>
-                  <input type="datetime-local" value={selectedEvent.start_at ? selectedEvent.start_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+                  <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
+                  <input type="datetime-local" value={selectedEvent.start_at ? selectedEvent.start_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Fin</label>
-                  <input type="datetime-local" value={selectedEvent.end_at ? selectedEvent.end_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+                  <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
+                  <input type="datetime-local" value={selectedEvent.end_at ? selectedEvent.end_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
                 </div>
                 <div className="flex justify-end gap-3">
                   <GymButton variant="secondary" onClick={() => setIsEditingEvent(false)}>Cancelar</GymButton>
@@ -247,48 +320,96 @@ export default function Agenda() {
         )}
       </GymModal>
 
-      <GymModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={form.event_type === 'cita' ? 'Agendar Cita' : 'Nueva Agenda'} width="md">
-        <div className="space-y-4 text-[var(--color-text)]">
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Tipo</label>
-            <select value={form.event_type} onChange={(e) => setForm({ ...form, event_type: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]">
-              <option value="cita">Cita</option>
-              <option value="reunion">Reunión</option>
-              <option value="videollamada">Videollamada</option>
-              <option value="otro">Otro</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Título</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
-          </div>
-
-          {form.event_type === 'cita' && (
+      <GymModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={form.event_type === 'cita' ? 'Agendar Cita' : `Nueva ${form.event_type}`} width="lg">
+        <div className="space-y-6 text-(--color-text)">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm text-[var(--color-text-muted)]">Paciente</label>
-              <select value={form.patient_id || ''} onChange={(e) => setForm({ ...form, patient_id: e.target.value || null })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]">
-                <option value="">Seleccionar paciente</option>
-                {patients.map(p => (
-                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name} — {p.phone || 'Sin teléfono'}</option>
+              <label className="block text-sm text-(--color-text-muted)">Tipo de agenda</label>
+              <select value={form.event_type} onChange={(e) => setForm({ ...form, event_type: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)">
+                <option value="cita">Cita</option>
+                <option value="reunion">Reunión</option>
+                <option value="videollamada">Videollamada</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-(--color-text-muted)">Estado</label>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)">
+                {eventStatusOptions.map((status) => (
+                  <option key={status} value={status}>{status}</option>
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-(--color-text-muted)">Título</label>
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+          </div>
+
+          {form.event_type === 'cita' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm text-(--color-text-muted)">Paciente</label>
+                <select value={form.patient_id || ''} onChange={(e) => handlePatientSelection(e.target.value)} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)">
+                  <option value="">Seleccionar paciente</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name} — {p.phone || 'Sin teléfono'}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-(--color-text-muted)">Teléfono</label>
+                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              </div>
+            </div>
           )}
 
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Inicio</label>
-            <input type="datetime-local" value={form.start_at ? form.start_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, start_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+          {(form.event_type === 'videollamada' || form.event_type === 'reunion' || form.event_type === 'otro') && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm text-(--color-text-muted)">Razón</label>
+                <input value={form.metadata.reason} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, reason: e.target.value } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              </div>
+              <div>
+                <label className="block text-sm text-(--color-text-muted)">Con quién</label>
+                <input value={form.metadata.with_whom} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, with_whom: e.target.value } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              </div>
+            </div>
+          )}
+
+          {(form.event_type === 'videollamada' || form.event_type === 'reunion') && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm text-(--color-text-muted)">Medio</label>
+                <input value={form.metadata.medium} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, medium: e.target.value } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              </div>
+              <div>
+                <label className="block text-sm text-(--color-text-muted)">Lugar / Plataforma</label>
+                <input value={form.metadata.location} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, location: e.target.value } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
+              <input type="datetime-local" value={form.start_at ? form.start_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, start_at: new Date(e.target.value).toISOString() })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+            </div>
+            <div>
+              <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
+              <input type="datetime-local" value={form.end_at ? form.end_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, end_at: new Date(e.target.value).toISOString() })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Fin</label>
-            <input type="datetime-local" value={form.end_at ? form.end_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, end_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+            <label className="block text-sm text-(--color-text-muted)">Notas adicionales</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Descripción / Razón</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)]" />
+            <label className="block text-sm text-(--color-text-muted)">Recordatorio</label>
+            <input type="datetime-local" value={form.metadata.reminder_at ? form.metadata.reminder_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, reminder_at: e.target.value ? new Date(e.target.value).toISOString() : '' } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

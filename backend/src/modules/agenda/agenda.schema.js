@@ -9,6 +9,7 @@ const createSchema = z.object({
   status: z.string().optional(),
   start_at: z.string().min(1),
   end_at: z.string().optional(),
+  reminder_at: z.string().optional(),
   metadata: z.any().optional(),
 });
 
