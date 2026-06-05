@@ -25,7 +25,9 @@ module.exports = async function (fastify, opts) {
       return created;
     } catch (err) {
       if (err.name === 'ZodError') {
-        throw createError(400, 'Payload inválido');
+        console.error('Zod Validation Error:', err.errors);
+        const issues = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        throw createError(400, `Payload inválido: ${issues}`);
       }
       throw err;
     }

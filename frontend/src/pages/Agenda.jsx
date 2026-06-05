@@ -89,12 +89,38 @@ export default function Agenda() {
   };
 
   const submit = async () => {
+    if (!form.title || form.title.trim() === '') {
+      alert('Por favor, ingresa un título para el evento.');
+      return;
+    }
+    
     try {
-      await createMutation.mutateAsync({
+      const payload = {
         ...form,
+        patient_id: form.patient_id || null,
+        end_at: form.end_at || null,
         reminder_at: form.metadata.reminder_at || null,
-      });
+      };
+      
+      await createMutation.mutateAsync(payload);
       setModalOpen(false);
+      setForm({
+        event_type: 'cita',
+        title: '',
+        description: '',
+        patient_id: null,
+        phone: '',
+        status: 'programada',
+        start_at: '',
+        end_at: '',
+        metadata: {
+          reason: '',
+          medium: '',
+          with_whom: '',
+          location: '',
+          reminder_at: '',
+        },
+      });
     } catch (err) {
       console.error(err);
       alert(err.message || 'Error al guardar evento');
@@ -304,11 +330,11 @@ export default function Agenda() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
-                  <input type="datetime-local" value={selectedEvent.start_at ? selectedEvent.start_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
+                  <input type="datetime-local" value={selectedEvent.start_at ? selectedEvent.start_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
                 </div>
                 <div>
                   <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
-                  <input type="datetime-local" value={selectedEvent.end_at ? selectedEvent.end_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: new Date(e.target.value).toISOString() })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
+                  <input type="datetime-local" value={selectedEvent.end_at ? selectedEvent.end_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
                 </div>
                 <div className="flex justify-end gap-3">
                   <GymButton variant="secondary" onClick={() => setIsEditingEvent(false)}>Cancelar</GymButton>
@@ -394,11 +420,11 @@ export default function Agenda() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
-              <input type="datetime-local" value={form.start_at ? form.start_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, start_at: new Date(e.target.value).toISOString() })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              <input type="datetime-local" value={form.start_at ? form.start_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
             </div>
             <div>
               <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
-              <input type="datetime-local" value={form.end_at ? form.end_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, end_at: new Date(e.target.value).toISOString() })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              <input type="datetime-local" value={form.end_at ? form.end_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
             </div>
           </div>
 

@@ -81,8 +81,25 @@ END$$;
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_payment_type_check;
 ALTER TABLE payments ADD CONSTRAINT payments_payment_type_check CHECK (payment_type IN ('enrollment', 'monthly', 'visit', 'nutrition_consult', 'nutrition_followup'));
 
+-- Crear la tabla de agenda si aún no existe
+CREATE TABLE IF NOT EXISTS agenda (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('cita','reunion','videollamada','otro')),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    patient_id UUID REFERENCES patients(id) ON DELETE SET NULL,
+    phone VARCHAR(20),
+    status VARCHAR(50) NOT NULL CHECK (status IN ('programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso')) DEFAULT 'programada',
+    start_at TIMESTAMPTZ NOT NULL,
+    end_at TIMESTAMPTZ,
+    reminder_at TIMESTAMPTZ,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Limpiar las tablas antes de insertar para que el seed sea repetible
-TRUNCATE audit_log, notifications, exercise_plans, nutrition_records, attendance, transfer_control, payments, subscriptions, patients, clients, plans, app_users RESTART IDENTITY CASCADE;
+TRUNCATE audit_log, notifications, exercise_plans, nutrition_records, attendance, transfer_control, payments, subscriptions, agenda, patients, clients, plans, app_users RESTART IDENTITY CASCADE;
 
 -- 1. Usuarios del sistema
 INSERT INTO app_users (email, password_hash, full_name, role, is_active)
@@ -234,3 +251,11 @@ INSERT INTO audit_log (table_name, record_id, action, old_values, new_values, pe
 VALUES
 ('payments', (SELECT id FROM payments WHERE client_id = (SELECT id FROM clients WHERE email = 'sofia.ramirez@gmail.com') LIMIT 1), 'INSERT', NULL, '{"amount":650.00,"payment_method":"card","payment_type":"enrollment"}'::jsonb, (SELECT id FROM app_users WHERE email = 'recepcion@pimpongym.com')),
 ('subscriptions', (SELECT id FROM subscriptions WHERE client_id = (SELECT id FROM clients WHERE email = 'mateo.garcia@studentes.mx') LIMIT 1), 'INSERT', NULL, '{"status":"active"}'::jsonb, (SELECT id FROM app_users WHERE email = 'recepcion@pimpongym.com'));
+
+-- 12. Agenda / Eventos de prueba
+INSERT INTO agenda (event_type, title, description, patient_id, phone, status, start_at, end_at, metadata, created_by)
+VALUES
+('cita', 'Cita Nutricional Inicial', 'Primera cita de evaluación.', (SELECT id FROM patients WHERE email = 'valeria.lopez@mail.com'), '5551001021', 'realizada', '2026-05-01T09:30:00Z', '2026-05-01T10:30:00Z', '{"reason": "Evaluación general"}', (SELECT id FROM app_users WHERE email = 'nutri@pimpongym.com')),
+('cita', 'Revisión Mensual', 'Cita de seguimiento.', (SELECT id FROM patients WHERE email = 'ricardo.mendoza@mail.com'), '5551001022', 'programada', '2026-05-15T10:00:00Z', '2026-05-15T11:00:00Z', '{"reason": "Seguimiento dolor lumbar"}', (SELECT id FROM app_users WHERE email = 'nutri@pimpongym.com')),
+('reunion', 'Junta de Staff', 'Reunión mensual para revisar métricas.', NULL, NULL, 'programada', '2026-05-20T14:00:00Z', '2026-05-20T15:00:00Z', '{"with_whom": "Todo el equipo", "location": "Oficina"}', (SELECT id FROM app_users WHERE email = 'admin@pimpongym.com')),
+('videollamada', 'Asesoría Online', 'Consulta express sobre suplementos.', (SELECT id FROM patients WHERE email = 'paola.reyes@mail.com'), '5551001023', 'confirmada', '2026-05-18T16:00:00Z', '2026-05-18T16:30:00Z', '{"medium": "Google Meet", "reason": "Dudas dieta"}', (SELECT id FROM app_users WHERE email = 'nutri@pimpongym.com'));
