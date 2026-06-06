@@ -8,10 +8,10 @@ const PlatoEditable = ({ titulo, name, valores, onChange }) => {
   };
 
   return (
-    <div className="flex flex-col items-center bg-transparent p-4 w-full sm:w-auto">
-      <h3 className="font-black text-xl mb-4 text-white uppercase tracking-wide">{titulo}</h3>
+    <div className="flex flex-col items-center bg-transparent p-1 min-w-[6rem] sm:min-w-[7rem]">
+      <h3 className="font-black text-[0.62rem] mb-1 text-white uppercase tracking-[0.18em]">{titulo}</h3>
 
-      <div className="relative w-20 h-20 sm:w-56 sm:h-20">
+      <div className="relative w-12 h-12 sm:w-20 sm:h-12">
         <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-2xl overflow-visible" style={{ transform: 'scaleX(-1)' }}>
           <circle cx="100" cy="100" r="98" fill="#1f2937" stroke="#374151" strokeWidth="4" />
           <path d="M 100,100 v -90 a 90,90 0 0,0 0,180 z" fill="#22c55e" stroke="#374151" strokeWidth="3" />
@@ -28,7 +28,7 @@ const PlatoEditable = ({ titulo, name, valores, onChange }) => {
             pattern="[0-9]*"
             maxLength={3}
             placeholder="000"
-            className="absolute left-2 top-2 w-12 sm:w-16 rounded border border-white/30 bg-black/75 text-center text-xs sm:text-sm text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+            className="absolute left-1 top-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
           />
           <input
             name="cuarto2"
@@ -38,7 +38,7 @@ const PlatoEditable = ({ titulo, name, valores, onChange }) => {
             pattern="[0-9]*"
             maxLength={3}
             placeholder="000"
-            className="absolute left-2 bottom-2 w-12 sm:w-16 rounded border border-white/30 bg-black/75 text-center text-xs sm:text-sm text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+            className="absolute left-1 bottom-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
           />
           <input
             name="mitad"
@@ -48,7 +48,7 @@ const PlatoEditable = ({ titulo, name, valores, onChange }) => {
             pattern="[0-9]*"
             maxLength={3}
             placeholder="000"
-            className="absolute right-2 top-1/2 w-20 sm:w-24 -translate-y-1/2 rounded border border-white/30 bg-black/75 text-center text-xs sm:text-sm text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+            className="absolute right-1 top-1/2 w-14 sm:w-16 -translate-y-1/2 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
           />
         </div>
       </div>
@@ -184,7 +184,7 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
               <div className="w-24 h-1 bg-orange-500 mx-auto mt-4 rounded-full"></div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 w-full gap-4 sm:gap-6 justify-items-center">
+            <div className="flex w-full gap-4 overflow-x-auto pb-2">
               <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Desayuno</span>} name="desayuno" valores={platos.desayuno} onChange={handleChangePlato} />
               <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación mañana</span>} name="colacion_manana" valores={platos.colacion_manana} onChange={handleChangePlato} />
               <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Almuerzo</span>} name="almuerzo" valores={platos.almuerzo} onChange={handleChangePlato} />
