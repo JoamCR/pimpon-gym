@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import { IconX } from '@tabler/icons-react';
+import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
 const getInitialEvaluation = () => ({
 
   weight_kg: '',
@@ -430,10 +431,10 @@ export function ConsultModal({
           <div className="space-y-6 animate-fade-in">
             <div className="grid gap-4 md:grid-cols-4">
               {[
-                { label: 'Calorías (kcal)', key: 'caloric_target' },
-                { label: 'Proteína (g)', key: 'protein_target_g' },
-                { label: 'Carbos (g)', key: 'carbs_target_g' },
-                { label: 'Grasa (g)', key: 'fat_target_g' },
+                { label: 'Calorías totales (kcal)', key: 'caloric_target' },
+                { label: 'Proteína total (g)', key: 'protein_target_g' },
+                { label: 'Carbos totales (g)', key: 'carbs_target_g' },
+                { label: 'Grasa total (g)', key: 'fat_target_g' },
               ].map((field) => (
                 <div key={field.key} className="space-y-2">
                   <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
@@ -447,16 +448,11 @@ export function ConsultModal({
               ))}
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Plan de Alimentación / Dieta</label>
-              <textarea
-                rows={8}
-                placeholder="Ej: Desayuno: 2 huevos, Comida: 150g pollo..."
-                value={evaluationForm.diet_plan}
-                onChange={(e) => setEvaluationForm({ ...evaluationForm, diet_plan: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
-            </div>
+            <PlanNutricionalPlatos 
+              patient={patient} 
+              values={evaluationForm} 
+              setValues={setEvaluationForm}
+            />
           </div>
         )}
 
