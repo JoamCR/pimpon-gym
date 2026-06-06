@@ -429,25 +429,6 @@ export function ConsultModal({
 
         {evaluationTab === 'diet' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="grid gap-4 md:grid-cols-4">
-              {[
-                { label: 'Calorías totales (kcal)', key: 'caloric_target' },
-                { label: 'Proteína total (g)', key: 'protein_target_g' },
-                { label: 'Carbos totales (g)', key: 'carbs_target_g' },
-                { label: 'Grasa total (g)', key: 'fat_target_g' },
-              ].map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                  <input
-                    type="number"
-                    value={evaluationForm[field.key]}
-                    onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
-                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                  />
-                </div>
-              ))}
-            </div>
-
             <PlanNutricionalPlatos 
               patient={patient} 
               values={evaluationForm} 

@@ -131,9 +131,10 @@ export default function Nutrition() {
   };
 
   const handleSaveEvaluation = async (payload) => {
+    const entityType = selectedPatient?.userType === 'client' ? 'gym' : 'consultorio';
     const cleanedPayload = {
       ...payload,
-      entity_type: 'consultorio',
+      entity_type: entityType,
     };
 
     ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g', 'energy_level', 'hunger_level', 'sleep_quality', 'concentration_level', 'mood_level'].forEach((key) => {
@@ -150,7 +151,7 @@ export default function Nutrition() {
 
     try {
       if (selectedEvaluation) {
-        await updateEvaluation.mutateAsync({ id: selectedEvaluation.id, body: cleanedPayload });
+        await updateEvaluation.mutateAsync({ recordId: selectedEvaluation.id, data: cleanedPayload });
       } else {
         await createEvaluation.mutateAsync(cleanedPayload);
       }
