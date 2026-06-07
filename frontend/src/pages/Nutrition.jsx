@@ -14,6 +14,7 @@ import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
+import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { IconClipboardHeart } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
@@ -264,46 +265,17 @@ export default function Nutrition() {
         submitLabel={defaultTab === 'exercise_plan' ? 'Guardar Plan' : 'Guardar Evaluación'}
       />
 
-      <GymModal isOpen={modalDetails} onClose={() => setModalDetails(false)} title={`Detalles de Paciente — ${selectedPatient?.first_name || 'Paciente'}`} width="lg">
-        <div className="space-y-6">
-          <div className="bg-[var(--color-card-alt)] p-4 rounded-[var(--radius-lg)] border border-[var(--color-border)]">
-            <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">Información de Contacto</h3>
-            <p className="text-[var(--color-text-muted)]"><strong>Teléfono:</strong> {selectedPatient?.phone || 'N/A'}</p>
-            <p className="text-[var(--color-text-muted)]"><strong>Email:</strong> {selectedPatient?.email || 'N/A'}</p>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">Historial de Consultas</h3>
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-              {history.length === 0 ? (
-                <p className="text-[var(--color-text-muted)]">No hay consultas registradas para este paciente.</p>
-              ) : (
-                history.map((evaluation) => (
-                  <div key={evaluation.id} className="p-3 border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-surface)]">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-semibold text-[var(--color-text)]">{new Date(evaluation.evaluation_date).toLocaleDateString('es-MX')}</span>
-                      <span className="text-xs px-2 py-1 rounded bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)]">
-                        {evaluation.is_free_consult ? 'Gratis' : 'Regular'}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-sm text-[var(--color-text-muted)]">
-                      <div><span className="font-medium">Peso:</span> {evaluation.weight_kg || '—'} kg</div>
-                      <div><span className="font-medium">Grasa:</span> {evaluation.body_fat_pct || '—'}%</div>
-                      <div>
-                        <span className="font-medium">IMC:</span> {evaluation.height_cm && evaluation.weight_kg ? (evaluation.weight_kg / ((evaluation.height_cm / 100) ** 2)).toFixed(1) : '—'}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-          
-          <div className="flex justify-end pt-4 border-t border-[var(--color-border)]">
-            <GymButton variant="secondary" onClick={() => setModalDetails(false)}>Cerrar</GymButton>
-          </div>
-        </div>
-      </GymModal>
+      <PatientDetailsModal
+        isOpen={modalDetails}
+        onClose={() => setModalDetails(false)}
+        patient={selectedPatient}
+        evaluations={history}
+        isLoadingEvaluations={false}
+        onNewConsult={() => {
+          setModalDetails(false);
+          handleEvaluate(selectedPatient);
+        }}
+      />
     </div>
   );
 }

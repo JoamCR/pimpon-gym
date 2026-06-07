@@ -215,17 +215,16 @@ export default function Agenda() {
             const dayKey = d.toDateString();
             const dayEvents = eventsByDay[dayKey] || [];
             return (
-              <div key={dayKey} className={`min-h-28 rounded-md p-2 border ${isCurrentMonth ? 'bg-(--color-card-alt)' : 'bg-(--color-card)'} border-(--color-border)`}>
+              <div key={dayKey} onClick={() => openNew(d)} className={`min-h-28 rounded-md p-2 border ${isCurrentMonth ? 'bg-(--color-card-alt)' : 'bg-(--color-card)'} border-(--color-border) cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors`}>
                 <div className="flex justify-between items-start">
                   <div className="text-sm font-semibold">{d.getDate()}</div>
-                  <GymButton size="xs" variant="ghost" onClick={() => openNew(d)}>Agendar</GymButton>
                 </div>
                 <div className="mt-2 space-y-1 max-h-36 overflow-y-auto">
                   {dayEvents.map(ev => {
                     const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-(--color-success)' : ev.event_type === 'reunion' ? 'border-l-4 border-(--color-teal)' : ev.event_type === 'videollamada' ? 'border-l-4 border-(--color-gold)' : 'border-l-4 border-(--color-amber)';
-                    const statusBg = ev.status === 'confirmada' ? 'bg-(--color-success) text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-(--color-danger) text-white' : 'bg-(--color-card-alt) text-(--color-text)';
+                    const statusBg = ev.status === 'confirmada' ? 'bg-(--color-success) text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-(--color-danger) text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-(--color-card-alt) text-(--color-text)';
                     return (
-                      <button key={ev.id} onClick={() => openDetails(ev)} className={`w-full text-left rounded px-2 py-1 border ${typeColor} border-(--color-border) ${statusBg} text-xs`}> 
+                      <button key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`w-full text-left rounded px-2 py-1 border ${typeColor} border-(--color-border) ${statusBg} text-xs`}> 
                         <div className="flex justify-between items-center">
                           <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
                           <div className="text-(--color-text-muted) ml-2">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
@@ -252,13 +251,13 @@ export default function Agenda() {
                 <GymButton size="sm" variant="ghost" onClick={() => setOptionsOpen(!optionsOpen)}>Opciones <IconDots className="inline ml-2" /></GymButton>
                 {optionsOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded border border-(--color-border) bg-(--color-card-alt) p-2 z-50">
-                    <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => { setIsEditingEvent(true); setOptionsOpen(false); }}><IconCalendarTime size={18} />Reagendar</button>
-                    <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'confirmada')}><IconCheck size={18} />Confirmar</button>
-                    <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'ausente')}><IconUserX size={18} />Ausente</button>
-                    <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'realizada')}><IconRefresh size={18} />Concretar</button>
-                    <button className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'espera')}><IconClock size={18} />Espera</button>
-                    <button className="w-full flex items-center gap-2 px-2 py-1 text-red-500 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'en_curso')}><IconCalendarEvent size={18} />En Curso</button>
-                    <button className="w-full flex items-center gap-2 px-2 py-1 text-red-500 hover:bg-[rgba(255,255,255,0.02)]" onClick={() => applyStatusChange(selectedEvent, 'cancelada')}><IconX size={18} />Cancelar</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditingEvent(true); setOptionsOpen(false); }}><IconCalendarTime size={18} />Reagendar</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'confirmada'); }}><IconCheck size={18} />Confirmar</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'ausente'); }}><IconUserX size={18} />Ausente</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'realizada'); }}><IconRefresh size={18} />Concretar</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'espera'); }}><IconClock size={18} />Espera</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 text-red-500 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'en_curso'); }}><IconCalendarEvent size={18} />En Curso</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 text-red-500 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'cancelada'); }}><IconX size={18} />Cancelar</button>
                   </div>
                 )}
               </div>

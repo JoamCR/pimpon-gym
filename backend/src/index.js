@@ -49,7 +49,10 @@ fastify.setErrorHandler((error, request, reply) => {
 const start = async () => {
   try {
     // Registro de plugins y configuraciones de seguridad
-    await fastify.register(cors, { origin: '*' }); // TODO: Restringir origen en producción
+    await fastify.register(cors, { 
+      origin: '*', 
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+    }); // TODO: Restringir origen en producción
     await fastify.register(helmet);
     await fastify.register(jwt, { secret: env.JWT_SECRET });
 

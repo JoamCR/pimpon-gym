@@ -7,6 +7,7 @@ import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
+import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconChevronRight, IconCoin, IconStethoscope } from '@tabler/icons-react';
 
 const HealthSlider = ({ label, value, onChange }) => {
@@ -479,125 +480,19 @@ export default function Patients() {
         </div>
       </GymModal>
 
-      <GymModal isOpen={viewPatientModal} onClose={() => setViewPatientModal(false)} title="Detalles del Paciente" width="md">
-        {selectedPatient && (
-          <div className="space-y-4 text-[var(--color-text)]">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Nombre Completo</p>
-                <p>{selectedPatient.first_name} {selectedPatient.last_name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
-                <p>{selectedPatient.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">RFC</p>
-                <p>{selectedPatient.rfc || 'No registrado'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Ocupación</p>
-                <p>{selectedPatient.occupation || 'No registrado'}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Evaluación Rápida</p>
-                <p className="text-sm">Peso: {selectedPatient.quick_weight_kg ? `${selectedPatient.quick_weight_kg} kg` : 'N/A'}</p>
-                <p className="text-sm">Estatura: {selectedPatient.quick_height_cm ? `${selectedPatient.quick_height_cm} cm` : 'N/A'}</p>
-                <p className="text-sm">Objetivo: {selectedPatient.quick_goal || 'N/A'}</p>
-                <p className="text-sm">Notas de salud: {selectedPatient.quick_health_notes || 'N/A'}</p>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-[var(--color-border)] mt-4">
-              <h3 className="text-lg font-bold mb-3 text-[var(--color-text)]">Historial de Consultas</h3>
-              {isLoadingEvaluations ? (
-                <p className="text-sm text-[var(--color-text-muted)]">Cargando consultas...</p>
-              ) : evaluations.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                  {evaluations.map((evalRecord) => {
-                    const isExpanded = expandedConsultation === evalRecord.id;
-                    return (
-                      <div key={evalRecord.id} className="bg-[var(--color-card-alt)] rounded-[var(--radius-md)] border border-[var(--color-border)] overflow-hidden transition-all duration-200">
-                        <button
-                          className="w-full p-3 flex justify-between items-center text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-                          onClick={() => setExpandedConsultation(isExpanded ? null : evalRecord.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-[var(--color-text-muted)]">{isExpanded ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />}</span>
-                            <span className="font-semibold text-[var(--color-success)]">
-                              Expediente - {new Date(evalRecord.evaluation_date).toLocaleDateString('es-MX')}
-                            </span>
-                          </div>
-                          <span className="text-xs px-2 py-1 rounded bg-[rgba(255,255,255,0.1)] text-[var(--color-text-muted)]">
-                            {evalRecord.is_free_consult ? 'Primera Gratis' : 'Consulta Pago'}
-                          </span>
-                        </button>
-                        
-                        {isExpanded && (
-                          <div className="p-4 border-t border-[var(--color-border)] bg-[rgba(0,0,0,0.1)]">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4 text-sm">
-                              <div>
-                                <p className="text-[var(--color-text-muted)] font-semibold mb-1">Composición Corporal</p>
-                                <p>Peso: {evalRecord.weight_kg ? `${evalRecord.weight_kg} kg` : '-'}</p>
-                                <p>Estatura: {evalRecord.height_cm ? `${evalRecord.height_cm} cm` : '-'}</p>
-                                <p>Cintura: {evalRecord.waist_cm ? `${evalRecord.waist_cm} cm` : '-'}</p>
-                              </div>
-                              <div>
-                                <p className="text-[var(--color-text-muted)] font-semibold mb-1">Masa y Grasa</p>
-                                <p>% Grasa: {evalRecord.body_fat_pct ? `${evalRecord.body_fat_pct}%` : '-'}</p>
-                                <p>Grasa Visceral: {evalRecord.visceral_fat_pct ? `${evalRecord.visceral_fat_pct}%` : '-'}</p>
-                                <p>Músculo: {evalRecord.muscle_mass_kg ? `${evalRecord.muscle_mass_kg} kg` : '-'}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-3 mt-4 pt-4 border-t border-[rgba(255,255,255,0.05)] text-sm">
-                              {evalRecord.family_history && (
-                                <div>
-                                  <p className="text-[var(--color-text-muted)] font-semibold">Antecedentes Familiares</p>
-                                  <p className="text-[var(--color-text)] whitespace-pre-wrap">{evalRecord.family_history}</p>
-                                </div>
-                              )}
-                              {evalRecord.pathological_history && (
-                                <div>
-                                  <p className="text-[var(--color-text-muted)] font-semibold">Antecedentes Patológicos</p>
-                                  <p className="text-[var(--color-text)] whitespace-pre-wrap">{evalRecord.pathological_history}</p>
-                                </div>
-                              )}
-                              {evalRecord.personal_history && (
-                                <div>
-                                  <p className="text-[var(--color-text-muted)] font-semibold">Antecedentes Personales</p>
-                                  <p className="text-[var(--color-text)] whitespace-pre-wrap">{evalRecord.personal_history}</p>
-                                </div>
-                              )}
-                              {evalRecord.body_composition_notes && (
-                                <div>
-                                  <p className="text-[var(--color-text-muted)] font-semibold">Notas de Consulta</p>
-                                  <p className="text-[var(--color-text)] whitespace-pre-wrap">{evalRecord.body_composition_notes}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--color-text-muted)]">El paciente no tiene consultas registradas.</p>
-              )}
-            </div>
-
-            <div className="flex justify-between pt-4">
-              <div className="flex gap-3">
-                <GymButton variant="primary" icon={<IconStethoscope size={18} />} onClick={() => { setViewPatientModal(false); handleOpenConsult(selectedPatient); }}>Nueva Consulta</GymButton>
-                <GymButton variant="success" icon={<IconCoin size={18} />} onClick={() => { setViewPatientModal(false); handleOpenPayment(selectedPatient); }}>Pago de Consulta</GymButton>
-                <GymButton variant="gold" onClick={() => { setScheduleForm({ event_type: 'cita', title: `Cita — ${selectedPatient.first_name}`, description: '', start_at: '', end_at: '' }); setScheduleModalOpen(true); }}>Agendar Cita</GymButton>
-              </div>
-              <GymButton variant="secondary" onClick={() => setViewPatientModal(false)}>Cerrar</GymButton>
-            </div>
-          </div>
-        )}
-      </GymModal>
+      <PatientDetailsModal
+        isOpen={viewPatientModal}
+        onClose={() => setViewPatientModal(false)}
+        patient={selectedPatient}
+        evaluations={evaluations}
+        isLoadingEvaluations={isLoadingEvaluations}
+        onNewConsult={() => { setViewPatientModal(false); handleOpenConsult(selectedPatient); }}
+        onPayment={() => { setViewPatientModal(false); handleOpenPayment(selectedPatient); }}
+        onSchedule={() => { 
+          setScheduleForm({ event_type: 'cita', title: `Cita — ${selectedPatient.first_name}`, description: '', start_at: '', end_at: '' }); 
+          setScheduleModalOpen(true); 
+        }}
+      />
 
       <GymModal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title={`Pago de Consulta — ${selectedPatient?.first_name || 'Paciente'}`} width="sm">
         <div className="space-y-4 text-[var(--color-text)]">
