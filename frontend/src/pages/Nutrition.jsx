@@ -110,10 +110,9 @@ export default function Nutrition() {
   const rawClients = Array.isArray(clientsResponse) ? clientsResponse : clientsResponse?.data || [];
   const queueLoading = patientsLoading || clientsLoading;
 
-  const queue = [
-    ...rawPatients.map(p => ({ ...p, userType: 'patient', consultType: p.is_free_consult ? 'Primera consulta gratis' : 'Consulta regular' })),
-    ...rawClients.map(c => ({ ...c, userType: 'client', consultType: 'Cliente de gimnasio' }))
-  ];
+  const patientsQueue = rawPatients.map(p => ({ ...p, userType: 'patient', consultType: p.is_free_consult ? 'Primera consulta gratis' : 'Consulta regular' }));
+  const clientsQueue = rawClients.map(c => ({ ...c, userType: 'client', consultType: 'Cliente de gimnasio' }));
+  const queue = [...patientsQueue, ...clientsQueue];
 
   const history = Array.isArray(evaluationsResponse) ? evaluationsResponse : evaluationsResponse?.data || [];
   const plans = Array.isArray(plansResponse) ? plansResponse : plansResponse?.data || [];
@@ -183,19 +182,35 @@ export default function Nutrition() {
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <GymCard className="h-full" title="Cola de Pacientes y Clientes" subtitle="Listado general" variant="default">
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-            {queueLoading ? (
-              <p className="text-[var(--color-text-muted)] col-span-full">Cargando pacientes...</p>
-            ) : queue.length === 0 ? (
-              <p className="text-[var(--color-text-muted)] col-span-full">No hay pacientes registrados.</p>
-            ) : (
-              queue.map((patient) => (
-                <ClientCard key={patient.id} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} />
-              ))
-            )}
-          </div>
-        </GymCard>
+        <div className="flex flex-col gap-6 h-full">
+          <GymCard title="Cola de Pacientes" subtitle="Pacientes de consultorio" variant="default">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {queueLoading ? (
+                <p className="text-[var(--color-text-muted)] col-span-full">Cargando pacientes...</p>
+              ) : patientsQueue.length === 0 ? (
+                <p className="text-[var(--color-text-muted)] col-span-full">No hay pacientes registrados.</p>
+              ) : (
+                patientsQueue.map((patient) => (
+                  <ClientCard key={`patient-${patient.id}`} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} />
+                ))
+              )}
+            </div>
+          </GymCard>
+
+          <GymCard title="Cola de Clientes" subtitle="Clientes de gimnasio" variant="default">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {queueLoading ? (
+                <p className="text-[var(--color-text-muted)] col-span-full">Cargando clientes...</p>
+              ) : clientsQueue.length === 0 ? (
+                <p className="text-[var(--color-text-muted)] col-span-full">No hay clientes registrados.</p>
+              ) : (
+                clientsQueue.map((client) => (
+                  <ClientCard key={`client-${client.id}`} patient={client} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} />
+                ))
+              )}
+            </div>
+          </GymCard>
+        </div>
 
         <div className="space-y-6">
           <GymCard title="Evaluaciones recientes" variant="default">
