@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { usePatients, useCreatePatient, useCreatePayment, validatePatientField } from '../hooks/usePatients';
 import { useCreateAgenda } from '../hooks/useAgenda';
@@ -41,6 +42,7 @@ const HealthSlider = ({ label, value, onChange }) => {
 };
 
 export default function Patients() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewPatientModal, setViewPatientModal] = useState(false);
@@ -135,15 +137,14 @@ export default function Patients() {
       if (cleanedPayload[key] === '') delete cleanedPayload[key];
     });
 
-    createEvaluationMutation.mutate(cleanedPayload, {
-      onSuccess: () => {
-        toast.success('Expediente registrado exitosamente');
-        setConsultModalOpen(false);
-      },
-      onError: (error) => {
-        toast.error(error.message || 'Error al guardar el expediente');
-      },
-    });
+    try {
+      await createEvaluationMutation.mutateAsync(cleanedPayload);
+      toast.success('Expediente registrado exitosamente');
+      setConsultModalOpen(false);
+    } catch (error) {
+      toast.error(error.message || 'Error al guardar el expediente');
+      throw error;
+    }
   };
 
   const openModal = () => {
@@ -253,6 +254,10 @@ export default function Patients() {
   };
 
   const handleViewPatient = (patient) => {
+    navigate(`/patients/${patient.first_name}`);
+  };
+
+  const handleOpenPatientModal = (patient) => {
     setSelectedPatient(patient);
     setViewPatientModal(true);
   };
@@ -434,7 +439,12 @@ export default function Patients() {
                       <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-success)] text-white font-bold">{patient.first_name?.[0]}{patient.last_name?.[0]}</div>
                         <div>
-                          <p className="font-semibold text-[var(--color-text)]">{patient.first_name} {patient.last_name}</p>
+                          <p 
+                            className="font-semibold text-[var(--color-text)] cursor-pointer hover:underline"
+                            onClick={() => handleViewPatient(patient)}
+                          >
+                            {patient.first_name} {patient.last_name}
+                          </p>
                           <p className="text-sm text-[var(--color-text-muted)]">{patient.email || 'Sin correo'}</p>
                         </div>
                       </div>
@@ -442,7 +452,7 @@ export default function Patients() {
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{patient.phone}</td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text)]">{new Date(patient.created_at).toLocaleDateString('es-MX')}</td>
                     <td className="px-4 py-4 space-x-2">
-                      <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleViewPatient(patient)}>Ver</GymButton>
+                      <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleOpenPatientModal(patient)}>Ver</GymButton>
                     </td>
                   </tr>
                 ))}
@@ -479,20 +489,6 @@ export default function Patients() {
           </div>
         </div>
       </GymModal>
-
-      <PatientDetailsModal
-        isOpen={viewPatientModal}
-        onClose={() => setViewPatientModal(false)}
-        patient={selectedPatient}
-        evaluations={evaluations}
-        isLoadingEvaluations={isLoadingEvaluations}
-        onNewConsult={() => { setViewPatientModal(false); handleOpenConsult(selectedPatient); }}
-        onPayment={() => { setViewPatientModal(false); handleOpenPayment(selectedPatient); }}
-        onSchedule={() => { 
-          setScheduleForm({ event_type: 'cita', title: `Cita — ${selectedPatient.first_name}`, description: '', start_at: '', end_at: '' }); 
-          setScheduleModalOpen(true); 
-        }}
-      />
 
       <GymModal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title={`Pago de Consulta — ${selectedPatient?.first_name || 'Paciente'}`} width="sm">
         <div className="space-y-4 text-[var(--color-text)]">
@@ -579,6 +575,27 @@ export default function Patients() {
         patient={selectedPatient}
         onSubmit={handleSaveConsult}
         submitLabel="Guardar Expediente"
+      />
+
+      <PatientDetailsModal
+        isOpen={viewPatientModal}
+        onClose={() => setViewPatientModal(false)}
+        patient={selectedPatient}
+        evaluations={evaluations}
+        isLoadingEvaluations={isLoadingEvaluations}
+        onNewConsult={() => {
+          setViewPatientModal(false);
+          setConsultModalOpen(true);
+        }}
+        onPayment={() => {
+          setViewPatientModal(false);
+          setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
+          setPaymentModalOpen(true);
+        }}
+        onSchedule={() => {
+          setViewPatientModal(false);
+          setScheduleModalOpen(true);
+        }}
       />
     </div>
   );

@@ -1,0 +1,376 @@
+import React, { useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { usePatients, useCreatePayment } from '../hooks/usePatients';
+import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition';
+import { useCreateAgenda } from '../hooks/useAgenda';
+import { GymCard } from '../components/ui/GymCard';
+import { GymButton } from '../components/ui/GymButton';
+import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
+import { GymModal } from '../components/ui/GymModal';
+import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } from '@tabler/icons-react';
+import toast from 'react-hot-toast';
+
+export default function PatientDetails() {
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('details');
+
+  // Find patient by slug (first_name or id)
+  const { data: patientsData, isLoading: isLoadingPatients } = usePatients();
+  const patients = Array.isArray(patientsData) ? patientsData : patientsData?.data || [];
+  
+  const patient = useMemo(() => {
+    return patients.find(p => 
+      p.first_name === slug || 
+      `${p.id}` === slug || 
+      `${p.first_name}-${p.last_name}`.replace(/\s+/g, '-') === slug
+    );
+  }, [patients, slug]);
+
+  const { data: evaluationsData, isLoading: isLoadingEvaluations } = useEvaluationHistory(patient?.id);
+  const evaluations = Array.isArray(evaluationsData?.data) ? evaluationsData.data : [];
+
+  // Modals state
+  const [consultModalOpen, setConsultModalOpen] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  
+  // Forms state
+  const [paymentForm, setPaymentForm] = useState({ amount: '', payment_method: 'cash', notes: '' });
+  const [scheduleForm, setScheduleForm] = useState({ title: '', description: '', start_at: '', end_at: '' });
+
+  // Mutations
+  const createEvaluationMutation = useCreateEvaluation();
+  const createPaymentMutation = useCreatePayment();
+  const createAgendaMutation = useCreateAgenda();
+
+  const handleSaveConsult = async (payload) => {
+    const cleanedPayload = {
+      ...payload,
+      entity_type: 'consultorio',
+    };
+
+    ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g'].forEach((key) => {
+      if (cleanedPayload[key]) cleanedPayload[key] = Number(cleanedPayload[key]);
+      else delete cleanedPayload[key];
+    });
+
+    Object.keys(cleanedPayload).forEach((key) => {
+      if (cleanedPayload[key] === '') delete cleanedPayload[key];
+    });
+
+    try {
+      await createEvaluationMutation.mutateAsync(cleanedPayload);
+      toast.success('Expediente registrado exitosamente');
+      setConsultModalOpen(false);
+    } catch (error) {
+      toast.error(error.message || 'Error al guardar el expediente');
+      throw error;
+    }
+  };
+
+  const handleSavePayment = () => {
+    const payload = {
+      entity_type: 'consultorio',
+      patient_id: patient.id,
+      amount: Number(paymentForm.amount),
+      payment_method: paymentForm.payment_method,
+      payment_type: 'nutrition_consult',
+      notes: paymentForm.notes
+    };
+    
+    if (!payload.amount || payload.amount <= 0) {
+      toast.error('El monto debe ser mayor a 0');
+      return;
+    }
+
+    createPaymentMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success('Pago de consulta registrado exitosamente');
+        setPaymentModalOpen(false);
+      },
+      onError: (error) => {
+        toast.error(error.message || 'Error al registrar el pago');
+      }
+    });
+  };
+
+  const handleSaveSchedule = async () => {
+    try {
+      await createAgendaMutation.mutateAsync({
+        event_type: 'cita',
+        title: scheduleForm.title,
+        description: scheduleForm.description,
+        patient_id: patient.id,
+        start_at: new Date(scheduleForm.start_at).toISOString(),
+        end_at: scheduleForm.end_at ? new Date(scheduleForm.end_at).toISOString() : null,
+      });
+      toast.success('Cita agendada exitosamente');
+      setScheduleModalOpen(false);
+    } catch (err) {
+      toast.error(err.message || 'Error al agendar cita');
+    }
+  };
+
+  if (isLoadingPatients) {
+    return <div className="min-h-screen p-6 flex items-center justify-center text-[var(--color-text)]">Cargando expediente...</div>;
+  }
+
+  if (!patient) {
+    return (
+      <div className="min-h-screen p-6 bg-[var(--color-surface)] flex flex-col items-center justify-center space-y-4">
+        <h2 className="text-2xl font-bold text-[var(--color-text)]">Paciente no encontrado</h2>
+        <GymButton variant="secondary" onClick={() => navigate(-1)} icon={<IconArrowLeft />}>Volver</GymButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="space-y-3">
+          <GymButton variant="secondary" onClick={() => navigate(-1)} icon={<IconArrowLeft size={18} />}>
+            Volver
+          </GymButton>
+          <div>
+            <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)] flex items-center gap-3">
+              <IconFolder className="text-[var(--color-gold)]" size={36} />
+              Expediente: {patient.first_name} {patient.last_name}
+            </h1>
+            <p className="text-[var(--color-text-muted)] mt-2">Gestiona el historial y las consultas de este paciente.</p>
+          </div>
+        </div>
+        <div className="flex gap-3 flex-wrap">
+          <GymButton variant="primary" icon={<IconStethoscope size={18} />} onClick={() => setConsultModalOpen(true)}>
+            Nueva Consulta
+          </GymButton>
+          <GymButton variant="success" icon={<IconCoin size={18} />} onClick={() => {
+            setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
+            setPaymentModalOpen(true);
+          }}>
+            Cobrar Consulta
+          </GymButton>
+          <GymButton variant="gold" icon={<IconCalendar size={18} />} onClick={() => {
+            setScheduleForm({ title: `Cita — ${patient.first_name}`, description: '', start_at: '', end_at: '' });
+            setScheduleModalOpen(true);
+          }}>
+            Agendar Cita
+          </GymButton>
+        </div>
+      </header>
+
+      {/* Estilo de "Carpeta con Pestañas" */}
+      <div className="mt-8">
+        <div className="flex space-x-1 pl-4">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
+              activeTab === 'details' 
+                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
+                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+            }`}
+          >
+            Detalles del Paciente
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
+              activeTab === 'history' 
+                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
+                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+            }`}
+          >
+            Historial de Consultas
+          </button>
+        </div>
+        
+        <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-b-xl rounded-tr-xl p-6 shadow-lg min-h-[50vh]">
+          {activeTab === 'details' && (
+            <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
+              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
+                Información Personal
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Nombre Completo</p>
+                  <p className="text-lg">{patient.first_name} {patient.last_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Teléfono</p>
+                  <p className="text-lg">{patient.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">RFC</p>
+                  <p className="text-lg">{patient.rfc || 'No registrado'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Ocupación</p>
+                  <p className="text-lg">{patient.occupation || 'No registrado'}</p>
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 mt-8 text-[var(--color-gold)]">
+                Evaluación Rápida
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Peso y Estatura</p>
+                  <p className="text-md">Peso: <span className="font-bold">{patient.quick_weight_kg ? `${patient.quick_weight_kg} kg` : 'N/A'}</span></p>
+                  <p className="text-md">Estatura: <span className="font-bold">{patient.quick_height_cm ? `${patient.quick_height_cm} cm` : 'N/A'}</span></p>
+                </div>
+                <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Objetivo</p>
+                  <p className="text-md font-bold text-[var(--color-success)]">{patient.quick_goal || 'N/A'}</p>
+                </div>
+                <div className="md:col-span-2 bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Notas de salud</p>
+                  <p className="text-md italic">{patient.quick_health_notes || 'Sin notas registradas.'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
+                Historial Médico y Nutricional
+              </h2>
+              {isLoadingEvaluations ? (
+                <p className="text-[var(--color-text-muted)] text-center py-8">Cargando historial...</p>
+              ) : evaluations.length > 0 ? (
+                <div className="space-y-4">
+                  {evaluations.map((evaluation) => (
+                    <div key={evaluation.id} className="p-5 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-center mb-4 border-b border-[var(--color-border)] pb-3">
+                        <h3 className="font-bold text-lg text-[var(--color-text)] flex items-center gap-2">
+                          <IconStethoscope className="text-[var(--color-success)]" />
+                          Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </h3>
+                        <span className={`text-xs px-3 py-1 rounded-full font-bold ${evaluation.is_free_consult ? 'bg-[rgba(234,179,8,0.2)] text-yellow-500' : 'bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]'}`}>
+                          {evaluation.is_free_consult ? 'Consulta Gratuita' : 'Consulta Regular'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-[var(--color-text)]">
+                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Peso</span> 
+                          <span className="font-bold text-lg">{evaluation.weight_kg || '—'} kg</span>
+                        </div>
+                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">% Grasa</span> 
+                          <span className="font-bold text-lg">{evaluation.body_fat_pct || '—'}%</span>
+                        </div>
+                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Masa Muscular</span> 
+                          <span className="font-bold text-lg">{evaluation.muscle_mass_kg || '—'} kg</span>
+                        </div>
+                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">IMC</span> 
+                          <span className="font-bold text-lg">
+                            {evaluation.height_cm && evaluation.weight_kg ? (evaluation.weight_kg / ((evaluation.height_cm / 100) ** 2)).toFixed(1) : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* More details if needed could be expanded here */}
+                      {(evaluation.notes || evaluation.caloric_target) && (
+                        <div className="mt-4 pt-4 border-t border-dashed border-[var(--color-border)]">
+                          {evaluation.caloric_target && (
+                            <p className="text-sm text-[var(--color-text)]"><span className="font-semibold text-[var(--color-text-muted)]">Meta Calórica:</span> {evaluation.caloric_target} kcal</p>
+                          )}
+                          {evaluation.notes && (
+                            <p className="text-sm text-[var(--color-text)] mt-2"><span className="font-semibold text-[var(--color-text-muted)]">Notas:</span> {evaluation.notes}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+                  <IconFolder className="mx-auto text-[var(--color-border)] mb-3" size={48} />
+                  <p className="text-lg font-semibold text-[var(--color-text-muted)]">El expediente está vacío</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">El paciente no tiene consultas registradas.</p>
+                  <GymButton variant="primary" className="mt-4" onClick={() => setConsultModalOpen(true)}>
+                    Iniciar Primera Consulta
+                  </GymButton>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals from Patients view */}
+      <ConsultModal
+        isOpen={consultModalOpen}
+        onClose={() => setConsultModalOpen(false)}
+        title={"Nueva Consulta — " + patient.first_name}
+        patient={patient}
+        onSubmit={handleSaveConsult}
+        submitLabel="Guardar Expediente"
+      />
+
+      <GymModal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title={`Pago de Consulta — ${patient.first_name}`} width="sm">
+        <div className="space-y-4 text-[var(--color-text)]">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Monto ($)</label>
+            <input
+              type="number"
+              value={paymentForm.amount}
+              onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              placeholder="Ej. 500"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Método de Pago</label>
+            <select
+              value={paymentForm.payment_method}
+              onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+            >
+              <option value="cash">Efectivo</option>
+              <option value="transfer">Transferencia</option>
+              <option value="card">Tarjeta</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas (opcional)</label>
+            <input
+              type="text"
+              value={paymentForm.notes}
+              onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              placeholder="Detalles del pago"
+            />
+          </div>
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
+            <GymButton variant="secondary" onClick={() => setPaymentModalOpen(false)}>Cancelar</GymButton>
+            <GymButton variant="success" onClick={handleSavePayment}>Registrar Pago</GymButton>
+          </div>
+        </div>
+      </GymModal>
+
+      <GymModal isOpen={scheduleModalOpen} onClose={() => setScheduleModalOpen(false)} title={`Agendar Cita — ${patient.first_name}`} width="sm">
+        <div className="space-y-4 text-[var(--color-text)]">
+          <div>
+            <label className="block text-sm text-[var(--color-text-muted)]">Título</label>
+            <input value={scheduleForm.title} onChange={(e) => setScheduleForm({ ...scheduleForm, title: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)] border-[var(--color-border)]" />
+          </div>
+          <div>
+            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Inicio</label>
+            <input type="datetime-local" value={scheduleForm.start_at} onChange={(e) => setScheduleForm({ ...scheduleForm, start_at: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)] border-[var(--color-border)]" />
+          </div>
+          <div>
+            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Fin</label>
+            <input type="datetime-local" value={scheduleForm.end_at} onChange={(e) => setScheduleForm({ ...scheduleForm, end_at: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)] border-[var(--color-border)]" />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <GymButton variant="secondary" onClick={() => setScheduleModalOpen(false)}>Cancelar</GymButton>
+            <GymButton variant="primary" onClick={handleSaveSchedule}>Agendar</GymButton>
+          </div>
+        </div>
+      </GymModal>
+    </div>
+  );
+}

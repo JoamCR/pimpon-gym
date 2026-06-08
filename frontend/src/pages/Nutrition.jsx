@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import {
@@ -15,10 +16,10 @@ import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
-import { IconClipboardHeart } from '@tabler/icons-react';
+import { IconClipboardHeart, IconEye } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
-const ClientCard = ({ patient, onEvaluate, onShowDetails }) => {
+const ClientCard = ({ patient, onEvaluate, onShowDetails, onViewPatient }) => {
   const isClient = patient.userType === 'client';
   const days = isClient && patient.end_date ? Math.max(0, Math.ceil((new Date(patient.end_date) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
   const isFreeConsult = patient.userType === 'patient' && patient.is_free_consult;
@@ -33,7 +34,7 @@ const ClientCard = ({ patient, onEvaluate, onShowDetails }) => {
         <div>
           <p 
             className="font-semibold text-[var(--color-text)] cursor-pointer hover:text-[var(--color-secondary)] hover:underline transition-colors"
-            onClick={() => onShowDetails(patient)}
+            onClick={() => onViewPatient(patient)}
           >
             {patient.first_name} {patient.last_name}
           </p>
@@ -47,8 +48,9 @@ const ClientCard = ({ patient, onEvaluate, onShowDetails }) => {
         <span className="rounded-full bg-[rgba(14,116,144,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-teal)]">{patient.plan_name || 'Sin plan'}</span>
         {days > 0 && <span className="rounded-full bg-[rgba(226,154,0,0.12)] px-3 py-1 text-xs font-semibold text-[var(--color-secondary)]">{days} días</span>}
       </div>
-      <div className="grid gap-3 mt-auto">
-        <GymButton size="sm" variant="primary" className="w-full" icon={<IconClipboardHeart size={16} />} onClick={() => onEvaluate(patient)}>Evaluar</GymButton>
+      <div className="flex gap-2 mt-auto">
+        <GymButton size="sm" variant="secondary" icon={<IconEye size={16} />} onClick={() => onShowDetails(patient)}>Ver</GymButton>
+        <GymButton size="sm" variant="primary" className="flex-1" icon={<IconClipboardHeart size={16} />} onClick={() => onEvaluate(patient)}>Evaluar</GymButton>
       </div>
     </motion.div>
   );
@@ -117,6 +119,12 @@ export default function Nutrition() {
 
   const history = Array.isArray(evaluationsResponse) ? evaluationsResponse : evaluationsResponse?.data || [];
   const plans = Array.isArray(plansResponse) ? plansResponse : plansResponse?.data || [];
+
+  const navigate = useNavigate();
+
+  const handleViewPatient = (patient) => {
+    navigate(`/patients/${patient.first_name}`);
+  };
 
   const handleEvaluate = (patient) => {
     setSelectedPatient(patient);
@@ -192,7 +200,7 @@ export default function Nutrition() {
                 <p className="text-[var(--color-text-muted)] col-span-full">No hay pacientes registrados.</p>
               ) : (
                 patientsQueue.map((patient) => (
-                  <ClientCard key={`patient-${patient.id}`} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} />
+                  <ClientCard key={`patient-${patient.id}`} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} onViewPatient={handleViewPatient} />
                 ))
               )}
             </div>
@@ -206,7 +214,7 @@ export default function Nutrition() {
                 <p className="text-[var(--color-text-muted)] col-span-full">No hay clientes registrados.</p>
               ) : (
                 clientsQueue.map((client) => (
-                  <ClientCard key={`client-${client.id}`} patient={client} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} />
+                  <ClientCard key={`client-${client.id}`} patient={client} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} onViewPatient={handleViewPatient} />
                 ))
               )}
             </div>

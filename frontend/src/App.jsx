@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Patients from './pages/Patients';
+import PatientDetails from './pages/PatientDetails';
 import Attendance from './pages/Attendance';
 import Nutrition from './pages/Nutrition';
 import Statistics from './pages/Statistics';
@@ -33,6 +34,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="clients" element={<Clients />} />
           <Route path="patients" element={<Patients />} />
+          <Route path="patients/:slug" element={<PatientDetails />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="nutrition" element={<Nutrition />} />
           <Route path="statistics" element={<Statistics />} />
