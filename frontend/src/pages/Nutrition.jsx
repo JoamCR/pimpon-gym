@@ -123,7 +123,9 @@ export default function Nutrition() {
   const navigate = useNavigate();
 
   const handleViewPatient = (patient) => {
-    navigate(`/patients/${patient.first_name}`);
+    // Generate a slug similar to the logic in PatientDetails
+    const slug = `${patient.first_name}-${patient.last_name || ''}`.replace(/\s+/g, '-').replace(/-$/, '');
+    navigate(`/patients/${slug || patient.first_name}`);
   };
 
   const handleEvaluate = (patient) => {

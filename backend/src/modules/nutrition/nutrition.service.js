@@ -55,9 +55,8 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
       if (!entity) {
         throw createError(404, 'Cliente no encontrado');
       }
-      if (!entity.includes_nutrition) {
-        throw createError(400, 'El plan del cliente no incluye consulta nutricional');
-      }
+      // Note: We no longer check if the plan includes nutrition, because 
+      // clients can have their first free consult and subsequent paid ones.
     } else {
       const patientCheckSql = `
         SELECT * FROM patients WHERE id = $1

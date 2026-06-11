@@ -254,7 +254,8 @@ export default function Patients() {
   };
 
   const handleViewPatient = (patient) => {
-    navigate(`/patients/${patient.first_name}`);
+    const slug = `${patient.first_name}-${patient.last_name || ''}`.replace(/\s+/g, '-').replace(/-$/, '');
+    navigate(`/patients/${slug || patient.first_name}`);
   };
 
   const handleOpenPatientModal = (patient) => {

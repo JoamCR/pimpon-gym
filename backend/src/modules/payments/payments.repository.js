@@ -130,7 +130,7 @@ const updateTransferControl = async (monthDate, amount, dbClient) => {
     await executor.query(
       `INSERT INTO transfer_control (id, month, total_received, monthly_limit)
        VALUES (gen_random_uuid(), date_trunc('month', $1::date), $2, 30000)`,
-      [amount]
+      [monthDate, amount]
     );
     return { newTotal: amount, limit: 30000 };
   }

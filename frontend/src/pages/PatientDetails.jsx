@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePatients, useCreatePayment } from '../hooks/usePatients';
+import { useClients } from '../hooks/useClients';
 import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition';
 import { useCreateAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
@@ -17,15 +18,28 @@ export default function PatientDetails() {
 
   // Find patient by slug (first_name or id)
   const { data: patientsData, isLoading: isLoadingPatients } = usePatients();
+  const { data: clientsData, isLoading: isLoadingClients } = useClients(); // ADDED
+  
   const patients = Array.isArray(patientsData) ? patientsData : patientsData?.data || [];
+  const clients = Array.isArray(clientsData) ? clientsData : clientsData?.data || [];
   
   const patient = useMemo(() => {
-    return patients.find(p => 
+    let found = patients.find(p => 
       p.first_name === slug || 
       `${p.id}` === slug || 
       `${p.first_name}-${p.last_name}`.replace(/\s+/g, '-') === slug
     );
-  }, [patients, slug]);
+    if (found) return { ...found, userType: 'patient' };
+    
+    found = clients.find(c => 
+      c.first_name === slug || 
+      `${c.id}` === slug || 
+      `${c.first_name}-${c.last_name}`.replace(/\s+/g, '-') === slug
+    );
+    if (found) return { ...found, userType: 'client' };
+
+    return null;
+  }, [patients, clients, slug]);
 
   const { data: evaluationsData, isLoading: isLoadingEvaluations } = useEvaluationHistory(patient?.id);
   const evaluations = Array.isArray(evaluationsData?.data) ? evaluationsData.data : [];
@@ -45,9 +59,11 @@ export default function PatientDetails() {
   const createAgendaMutation = useCreateAgenda();
 
   const handleSaveConsult = async (payload) => {
+    const isClient = patient.userType === 'client';
     const cleanedPayload = {
       ...payload,
-      entity_type: 'consultorio',
+      entity_type: isClient ? 'gym' : 'consultorio',
+      [isClient ? 'client_id' : 'patient_id']: patient.id,
     };
 
     ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g'].forEach((key) => {
@@ -70,9 +86,10 @@ export default function PatientDetails() {
   };
 
   const handleSavePayment = () => {
+    const isClient = patient.userType === 'client';
     const payload = {
-      entity_type: 'consultorio',
-      patient_id: patient.id,
+      entity_type: isClient ? 'gym' : 'consultorio',
+      [isClient ? 'client_id' : 'patient_id']: patient.id,
       amount: Number(paymentForm.amount),
       payment_method: paymentForm.payment_method,
       payment_type: 'nutrition_consult',
@@ -97,11 +114,12 @@ export default function PatientDetails() {
 
   const handleSaveSchedule = async () => {
     try {
+      const isClient = patient.userType === 'client';
       await createAgendaMutation.mutateAsync({
         event_type: 'cita',
         title: scheduleForm.title,
         description: scheduleForm.description,
-        patient_id: patient.id,
+        [isClient ? 'client_id' : 'patient_id']: patient.id,
         start_at: new Date(scheduleForm.start_at).toISOString(),
         end_at: scheduleForm.end_at ? new Date(scheduleForm.end_at).toISOString() : null,
       });
@@ -140,23 +158,6 @@ export default function PatientDetails() {
             <p className="text-[var(--color-text-muted)] mt-2">Gestiona el historial y las consultas de este paciente.</p>
           </div>
         </div>
-        <div className="flex gap-3 flex-wrap">
-          <GymButton variant="primary" icon={<IconStethoscope size={18} />} onClick={() => setConsultModalOpen(true)}>
-            Nueva Consulta
-          </GymButton>
-          <GymButton variant="success" icon={<IconCoin size={18} />} onClick={() => {
-            setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
-            setPaymentModalOpen(true);
-          }}>
-            Cobrar Consulta
-          </GymButton>
-          <GymButton variant="gold" icon={<IconCalendar size={18} />} onClick={() => {
-            setScheduleForm({ title: `Cita — ${patient.first_name}`, description: '', start_at: '', end_at: '' });
-            setScheduleModalOpen(true);
-          }}>
-            Agendar Cita
-          </GymButton>
-        </div>
       </header>
 
       {/* Estilo de "Carpeta con Pestañas" */}
@@ -181,6 +182,16 @@ export default function PatientDetails() {
             }`}
           >
             Historial de Consultas
+          </button>
+          <button
+            onClick={() => setActiveTab('actions')}
+            className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
+              activeTab === 'actions' 
+                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
+                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+            }`}
+          >
+            Acciones
           </button>
         </div>
         
@@ -295,6 +306,31 @@ export default function PatientDetails() {
                   </GymButton>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'actions' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
+                Acciones Rápidas
+              </h2>
+              <div className="flex gap-4 flex-wrap">
+                <GymButton variant="primary" icon={<IconStethoscope size={18} />} onClick={() => setConsultModalOpen(true)}>
+                  Nueva Consulta
+                </GymButton>
+                <GymButton variant="success" icon={<IconCoin size={18} />} onClick={() => {
+                  setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
+                  setPaymentModalOpen(true);
+                }}>
+                  Cobrar Consulta
+                </GymButton>
+                <GymButton variant="gold" icon={<IconCalendar size={18} />} onClick={() => {
+                  setScheduleForm({ title: `Cita — ${patient.first_name}`, description: '', start_at: '', end_at: '' });
+                  setScheduleModalOpen(true);
+                }}>
+                  Agendar Cita
+                </GymButton>
+              </div>
             </div>
           )}
         </div>
