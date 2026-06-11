@@ -4,7 +4,7 @@ import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { useAgenda, useCreateAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { usePatients } from '../hooks/usePatients';
-import { IconPlus, IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots } from '@tabler/icons-react';
+import { IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots } from '@tabler/icons-react';
 
 const eventStatusOptions = ['programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso'];
 
@@ -23,6 +23,7 @@ function buildMonthMatrix(date) {
 }
 
 export default function Agenda() {
+  const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [viewDate, setViewDate] = useState(new Date());
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
@@ -69,11 +70,19 @@ export default function Agenda() {
   }, [events]);
 
   const openNew = (day) => {
-    const iso = new Date(day).toISOString().slice(0,10);
+    // Para que al hacer click se cree a las 9am o a la hora actual
+    const d = new Date(day);
+    if (viewMode === 'day') {
+       // Si estamos en vista día y el click fue general, podríamos usar la hora actual, pero por ahora 9am
+    }
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    
     setForm((prev) => ({
       ...prev,
-      start_at: `${iso}T09:00:00.000Z`,
-      end_at: `${iso}T10:00:00.000Z`,
+      start_at: `${yyyy}-${mm}-${dd}T09:00:00`,
+      end_at: `${yyyy}-${mm}-${dd}T10:00:00`,
     }));
     setModalOpen(true);
   };
@@ -95,11 +104,13 @@ export default function Agenda() {
     }
     
     try {
+      // Necesitamos enviar las fechas en formato ISO
       const payload = {
         ...form,
         patient_id: form.patient_id || null,
-        end_at: form.end_at || null,
-        reminder_at: form.metadata.reminder_at || null,
+        start_at: new Date(form.start_at).toISOString(),
+        end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
+        reminder_at: form.metadata.reminder_at ? new Date(form.metadata.reminder_at).toISOString() : null,
       };
       
       await createMutation.mutateAsync(payload);
@@ -178,9 +189,9 @@ export default function Agenda() {
       const payload = {
         title: selectedEvent.title,
         description: selectedEvent.description,
-        start_at: selectedEvent.start_at,
-        end_at: selectedEvent.end_at,
-        reminder_at: selectedEvent.metadata?.reminder_at || null,
+        start_at: new Date(selectedEvent.start_at).toISOString(),
+        end_at: selectedEvent.end_at ? new Date(selectedEvent.end_at).toISOString() : null,
+        reminder_at: selectedEvent.metadata?.reminder_at ? new Date(selectedEvent.metadata.reminder_at).toISOString() : null,
         metadata: selectedEvent.metadata || null,
       };
       await updateMutation.mutateAsync({ id: selectedEvent.id, payload });
@@ -191,52 +202,186 @@ export default function Agenda() {
     }
   };
 
+  const navigatePrev = () => {
+    const d = new Date(viewDate);
+    if (viewMode === 'month') d.setMonth(d.getMonth() - 1);
+    if (viewMode === 'week') d.setDate(d.getDate() - 7);
+    if (viewMode === 'day') d.setDate(d.getDate() - 1);
+    setViewDate(d);
+  };
+
+  const navigateNext = () => {
+    const d = new Date(viewDate);
+    if (viewMode === 'month') d.setMonth(d.getMonth() + 1);
+    if (viewMode === 'week') d.setDate(d.getDate() + 7);
+    if (viewMode === 'day') d.setDate(d.getDate() + 1);
+    setViewDate(d);
+  };
+
+  const getViewTitle = () => {
+    if (viewMode === 'month') {
+      return `Vista mes — ${viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}`;
+    }
+    if (viewMode === 'week') {
+      const start = new Date(viewDate);
+      start.setDate(start.getDate() - start.getDay());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return `Vista semana — ${start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} al ${end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    }
+    if (viewMode === 'day') {
+      return `Vista día — ${viewDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+    }
+  };
+
+  const renderEventCard = (ev, showDetails = false) => {
+    const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-(--color-success)' : ev.event_type === 'reunion' ? 'border-l-4 border-(--color-teal)' : ev.event_type === 'videollamada' ? 'border-l-4 border-(--color-gold)' : 'border-l-4 border-(--color-amber)';
+    const statusBg = ev.status === 'confirmada' ? 'bg-(--color-success) text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-(--color-danger) text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-(--color-card-alt) text-(--color-text)';
+    
+    return (
+      <button key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`w-full text-left rounded px-2 py-1.5 border ${typeColor} border-(--color-border) ${statusBg} text-xs mb-1 hover:brightness-110 flex flex-col gap-1`}> 
+        <div className="flex justify-between items-center w-full">
+          <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
+          <div className="ml-1 opacity-80 shrink-0">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        </div>
+        {showDetails && ev.patient_id && (
+          <div className="text-[10px] opacity-80 truncate">Con paciente</div>
+        )}
+      </button>
+    );
+  };
+
+  const renderMonthView = () => (
+    <div className="grid grid-cols-7 gap-2">
+      {['Dom','Lun','Mar','Mie','Jue','Vie','Sab'].map(d => (
+        <div key={d} className="text-sm text-(--color-text-muted) font-semibold p-2 text-center">{d}</div>
+      ))}
+      {monthDays.map((d) => {
+        const isCurrentMonth = d.getMonth() === viewDate.getMonth();
+        const dayKey = d.toDateString();
+        const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a,b) => new Date(a.start_at) - new Date(b.start_at));
+        const isToday = d.toDateString() === new Date().toDateString();
+
+        return (
+          <div key={dayKey} onClick={() => openNew(d)} className={`min-h-28 rounded-md p-2 border ${isCurrentMonth ? 'bg-(--color-card-alt)' : 'bg-(--color-card)'} border-(--color-border) cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors flex flex-col`}>
+            <div className="flex justify-between items-start mb-2">
+              <div className={`text-sm font-semibold flex items-center justify-center w-6 h-6 rounded-full ${isToday ? 'bg-(--color-primary) text-white' : ''}`}>{d.getDate()}</div>
+            </div>
+            <div className="space-y-1 overflow-y-auto flex-1 max-h-36">
+              {dayEvents.map(ev => renderEventCard(ev))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderWeekView = () => {
+    const start = new Date(viewDate);
+    start.setDate(start.getDate() - start.getDay());
+    const weekDays = [];
+    for (let i = 0; i < 7; i++) {
+      weekDays.push(new Date(start));
+      start.setDate(start.getDate() + 1);
+    }
+
+    return (
+      <div className="grid grid-cols-7 gap-2">
+        {weekDays.map((d) => {
+          const dayKey = d.toDateString();
+          const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a,b) => new Date(a.start_at) - new Date(b.start_at));
+          const isToday = d.toDateString() === new Date().toDateString();
+
+          return (
+            <div key={dayKey} className="flex flex-col">
+              <div className={`text-center p-2 mb-2 rounded ${isToday ? 'bg-(--color-primary) text-white' : 'text-(--color-text-muted)'}`}>
+                <div className="text-xs uppercase font-semibold">{d.toLocaleDateString('es-MX', { weekday: 'short' })}</div>
+                <div className="text-xl font-bold">{d.getDate()}</div>
+              </div>
+              <div onClick={() => openNew(d)} className="flex-1 min-h-[400px] border border-(--color-border) rounded bg-(--color-card-alt) p-2 space-y-1 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                {dayEvents.map(ev => renderEventCard(ev, true))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderDayView = () => {
+    const dayKey = viewDate.toDateString();
+    const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a,b) => new Date(a.start_at) - new Date(b.start_at));
+
+    return (
+      <div onClick={() => openNew(viewDate)} className="min-h-[400px] bg-(--color-card-alt) border border-(--color-border) rounded p-4 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+        {dayEvents.length === 0 ? (
+          <div className="text-center text-(--color-text-muted) py-10">No hay eventos programados para este día.</div>
+        ) : (
+          <div className="space-y-3">
+            {dayEvents.map(ev => {
+              const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-(--color-success)' : ev.event_type === 'reunion' ? 'border-l-4 border-(--color-teal)' : ev.event_type === 'videollamada' ? 'border-l-4 border-(--color-gold)' : 'border-l-4 border-(--color-amber)';
+              const statusBg = ev.status === 'confirmada' ? 'bg-(--color-success) text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-(--color-danger) text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-(--color-card) text-(--color-text)';
+              
+              return (
+                <div key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`flex flex-col sm:flex-row p-4 rounded border ${typeColor} border-(--color-border) ${statusBg} items-start sm:items-center justify-between gap-4 hover:brightness-110 transition-all`}>
+                  <div>
+                    <h3 className="font-bold text-lg">{ev.title}</h3>
+                    <p className="opacity-90 text-sm flex items-center gap-2 mt-1">
+                      <IconClock size={16} />
+                      {new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+                      {ev.end_at ? ` - ${new Date(ev.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                    </p>
+                    {ev.description && <p className="mt-2 text-sm opacity-80">{ev.description}</p>}
+                  </div>
+                  <div className="text-sm font-bold uppercase opacity-90 px-3 py-1 rounded bg-black/20 self-start sm:self-auto">
+                    {ev.status}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Pre-fill dates for editing properly
+  const getLocalDateTimeString = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
+
   return (
     <div className="min-h-screen p-6 bg-(--color-surface)">
-      <header className="flex items-center justify-between mb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-4xl font-bold text-(--color-text)">Agenda</h1>
           <p className="text-(--color-text-muted)">Calendario de actividades y citas</p>
         </div>
-        <div className="flex gap-2">
-          <GymButton onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() -1, 1))} variant="secondary">Anterior</GymButton>
-          <GymButton onClick={() => setViewDate(new Date())} variant="ghost">Hoy</GymButton>
-          <GymButton onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() +1, 1))} variant="primary" icon={<IconPlus size={16} />}>Mes Siguiente</GymButton>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex p-1 bg-(--color-card) rounded-md border border-(--color-border)">
+            <button onClick={() => setViewMode('month')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'month' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Mes</button>
+            <button onClick={() => setViewMode('week')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'week' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Semana</button>
+            <button onClick={() => setViewMode('day')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Día</button>
+          </div>
+          <div className="flex gap-2">
+            <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
+            <GymButton onClick={() => setViewDate(new Date())} variant="ghost">Hoy</GymButton>
+            <GymButton onClick={navigateNext} variant="primary">Siguiente</GymButton>
+          </div>
         </div>
       </header>
 
-      <GymCard title={`Vista mes — ${viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}`} variant="default">
-        <div className="grid grid-cols-7 gap-2">
-          {['Dom','Lun','Mar','Mie','Jue','Vie','Sab'].map(d => (
-            <div key={d} className="text-sm text-(--color-text-muted) font-semibold p-2">{d}</div>
-          ))}
-          {monthDays.map((d) => {
-            const isCurrentMonth = d.getMonth() === viewDate.getMonth();
-            const dayKey = d.toDateString();
-            const dayEvents = eventsByDay[dayKey] || [];
-            return (
-              <div key={dayKey} onClick={() => openNew(d)} className={`min-h-28 rounded-md p-2 border ${isCurrentMonth ? 'bg-(--color-card-alt)' : 'bg-(--color-card)'} border-(--color-border) cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors`}>
-                <div className="flex justify-between items-start">
-                  <div className="text-sm font-semibold">{d.getDate()}</div>
-                </div>
-                <div className="mt-2 space-y-1 max-h-36 overflow-y-auto">
-                  {dayEvents.map(ev => {
-                    const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-(--color-success)' : ev.event_type === 'reunion' ? 'border-l-4 border-(--color-teal)' : ev.event_type === 'videollamada' ? 'border-l-4 border-(--color-gold)' : 'border-l-4 border-(--color-amber)';
-                    const statusBg = ev.status === 'confirmada' ? 'bg-(--color-success) text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-(--color-danger) text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-(--color-card-alt) text-(--color-text)';
-                    return (
-                      <button key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`w-full text-left rounded px-2 py-1 border ${typeColor} border-(--color-border) ${statusBg} text-xs`}> 
-                        <div className="flex justify-between items-center">
-                          <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
-                          <div className="text-(--color-text-muted) ml-2">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <GymCard title={getViewTitle()} variant="default">
+        {viewMode === 'month' && renderMonthView()}
+        {viewMode === 'week' && renderWeekView()}
+        {viewMode === 'day' && renderDayView()}
       </GymCard>
       
       <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="lg">
@@ -251,7 +396,7 @@ export default function Agenda() {
                 <GymButton size="sm" variant="ghost" onClick={() => setOptionsOpen(!optionsOpen)}>Opciones <IconDots className="inline ml-2" /></GymButton>
                 {optionsOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded border border-(--color-border) bg-(--color-card-alt) p-2 z-50">
-                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditingEvent(true); setOptionsOpen(false); }}><IconCalendarTime size={18} />Reagendar</button>
+                    <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditingEvent(true); setOptionsOpen(false); }}><IconCalendarTime size={18} />Editar / Reagendar</button>
                     <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'confirmada'); }}><IconCheck size={18} />Confirmar</button>
                     <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'ausente'); }}><IconUserX size={18} />Ausente</button>
                     <button type="button" className="w-full flex items-center gap-2 px-2 py-1 hover:bg-[rgba(255,255,255,0.02)]" onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyStatusChange(selectedEvent, 'realizada'); }}><IconRefresh size={18} />Concretar</button>
@@ -328,14 +473,22 @@ export default function Agenda() {
             ) : (
               <div className="space-y-3">
                 <div>
+                  <label className="block text-sm text-(--color-text-muted)">Título</label>
+                  <input type="text" value={selectedEvent.title} onChange={(e) => setSelectedEvent({ ...selectedEvent, title: e.target.value })} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
+                </div>
+                <div>
                   <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
-                  <input type="datetime-local" value={selectedEvent.start_at ? selectedEvent.start_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
+                  <input type="datetime-local" value={getLocalDateTimeString(selectedEvent.start_at)} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
                 </div>
                 <div>
                   <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
-                  <input type="datetime-local" value={selectedEvent.end_at ? selectedEvent.end_at.slice(0,19) : ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border px-3 py-2 bg-(--color-card-alt)" />
+                  <input type="datetime-local" value={getLocalDateTimeString(selectedEvent.end_at)} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
                 </div>
-                <div className="flex justify-end gap-3">
+                <div>
+                  <label className="block text-sm text-(--color-text-muted)">Notas adicionales</label>
+                  <textarea value={selectedEvent.description || ''} onChange={(e) => setSelectedEvent({ ...selectedEvent, description: e.target.value })} rows={3} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
                   <GymButton variant="secondary" onClick={() => setIsEditingEvent(false)}>Cancelar</GymButton>
                   <GymButton variant="primary" onClick={saveEventEdits}>Guardar</GymButton>
                 </div>
@@ -419,11 +572,11 @@ export default function Agenda() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
-              <input type="datetime-local" value={form.start_at ? form.start_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              <input type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
             </div>
             <div>
               <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
-              <input type="datetime-local" value={form.end_at ? form.end_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+              <input type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
             </div>
           </div>
 
@@ -434,7 +587,7 @@ export default function Agenda() {
 
           <div>
             <label className="block text-sm text-(--color-text-muted)">Recordatorio</label>
-            <input type="datetime-local" value={form.metadata.reminder_at ? form.metadata.reminder_at.slice(0,19) : ''} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, reminder_at: e.target.value ? new Date(e.target.value).toISOString() : '' } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+            <input type="datetime-local" value={form.metadata.reminder_at} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, reminder_at: e.target.value } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
