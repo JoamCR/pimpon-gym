@@ -12,12 +12,12 @@ const createEvaluationSchema = z.object({
   entity_type: z.enum(['gym', 'consultorio'], {
     errorMap: () => ({ message: 'El tipo de entidad debe ser gym o consultorio' })
   }),
-  weight_kg: z.number().positive('El peso debe ser un número positivo'),
-  height_cm: z.number().positive('La altura debe ser un número positivo'),
-  body_fat_pct: z.number().min(0, 'El porcentaje de grasa no puede ser negativo').max(100),
-  visceral_fat_pct: z.number().min(0, 'El porcentaje de grasa visceral no puede ser negativo').max(100),
-  muscle_mass_kg: z.number().min(0, 'La masa muscular no puede ser negativa'),
-  waist_cm: z.number().positive('La cintura debe ser un número positivo'),
+  weight_kg: z.number().positive('El peso debe ser un número positivo').optional(),
+  height_cm: z.number().positive('La altura debe ser un número positivo').optional(),
+  body_fat_pct: z.number().min(0, 'El porcentaje de grasa no puede ser negativo').max(100).optional(),
+  visceral_fat_pct: z.number().min(0, 'El porcentaje de grasa visceral no puede ser negativo').max(100).optional(),
+  muscle_mass_kg: z.number().min(0, 'La masa muscular no puede ser negativa').optional(),
+  waist_cm: z.number().positive('La cintura debe ser un número positivo').optional(),
   family_history: z.string().optional(),
   pathological_history: z.string().optional(),
   personal_history: z.string().optional(),

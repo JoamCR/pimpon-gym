@@ -6,7 +6,7 @@ import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition
 import { useCreateAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
-import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
+import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
 import { GymModal } from '../components/ui/GymModal';
 import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
@@ -45,8 +45,6 @@ export default function PatientDetails() {
   const evaluations = Array.isArray(evaluationsData?.data) ? evaluationsData.data : [];
 
   // Modals state
-  const [consultModalOpen, setConsultModalOpen] = useState(false);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   
   // Forms state
@@ -78,7 +76,7 @@ export default function PatientDetails() {
     try {
       await createEvaluationMutation.mutateAsync(cleanedPayload);
       toast.success('Expediente registrado exitosamente');
-      setConsultModalOpen(false);
+      setActiveTab('history');
     } catch (error) {
       toast.error(error.message || 'Error al guardar el expediente');
       throw error;
@@ -104,7 +102,7 @@ export default function PatientDetails() {
     createPaymentMutation.mutate(payload, {
       onSuccess: () => {
         toast.success('Pago de consulta registrado exitosamente');
-        setPaymentModalOpen(false);
+        setActiveTab('details');
       },
       onError: (error) => {
         toast.error(error.message || 'Error al registrar el pago');
@@ -162,7 +160,7 @@ export default function PatientDetails() {
 
       {/* Estilo de "Carpeta con Pestañas" */}
       <div className="mt-8">
-        <div className="flex space-x-1 pl-4">
+        <div className="flex flex-wrap gap-1 pl-4">
           <button
             onClick={() => setActiveTab('details')}
             className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
@@ -184,14 +182,35 @@ export default function PatientDetails() {
             Historial de Consultas
           </button>
           <button
-            onClick={() => setActiveTab('actions')}
-            className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
-              activeTab === 'actions' 
+            onClick={() => setActiveTab('consult')}
+            className="px-6 py-3 rounded-t-lg font-bold transition-colors bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent flex items-center gap-2"
+          >
+            <IconStethoscope size={18} />
+            Nueva Consulta
+          </button>
+          <button
+            onClick={() => {
+              setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
+              setActiveTab('payment');
+            }}
+            className={`px-6 py-3 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${
+              activeTab === 'payment' 
                 ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
                 : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
             }`}
           >
-            Acciones
+            <IconCoin size={18} />
+            Cobrar Consulta
+          </button>
+          <button
+            onClick={() => {
+              setScheduleForm({ title: `Cita — ${patient.first_name}`, description: '', start_at: '', end_at: '' });
+              setScheduleModalOpen(true);
+            }}
+            className="px-6 py-3 rounded-t-lg font-bold transition-colors bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent flex items-center gap-2"
+          >
+            <IconCalendar size={18} />
+            Agendar Cita
           </button>
         </div>
         
@@ -301,91 +320,76 @@ export default function PatientDetails() {
                   <IconFolder className="mx-auto text-[var(--color-border)] mb-3" size={48} />
                   <p className="text-lg font-semibold text-[var(--color-text-muted)]">El expediente está vacío</p>
                   <p className="text-sm text-[var(--color-text-muted)]">El paciente no tiene consultas registradas.</p>
-                  <GymButton variant="primary" className="mt-4" onClick={() => setConsultModalOpen(true)}>
+                  <GymButton variant="primary" className="mt-4" onClick={() => setActiveTab('consult')}>
                     Iniciar Primera Consulta
                   </GymButton>
                 </div>
               )}
             </div>
           )}
-
-          {activeTab === 'actions' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
+          {activeTab === 'payment' && (
+            <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
               <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
-                Acciones Rápidas
+                Cobrar Consulta
               </h2>
-              <div className="flex gap-4 flex-wrap">
-                <GymButton variant="primary" icon={<IconStethoscope size={18} />} onClick={() => setConsultModalOpen(true)}>
-                  Nueva Consulta
-                </GymButton>
-                <GymButton variant="success" icon={<IconCoin size={18} />} onClick={() => {
-                  setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
-                  setPaymentModalOpen(true);
-                }}>
-                  Cobrar Consulta
-                </GymButton>
-                <GymButton variant="gold" icon={<IconCalendar size={18} />} onClick={() => {
-                  setScheduleForm({ title: `Cita — ${patient.first_name}`, description: '', start_at: '', end_at: '' });
-                  setScheduleModalOpen(true);
-                }}>
-                  Agendar Cita
-                </GymButton>
+              <div className="max-w-md space-y-4 bg-[var(--color-surface)] p-6 rounded-lg border border-[var(--color-border)]">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Monto ($)</label>
+                  <input
+                    type="number"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                    placeholder="Ej. 500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Método de Pago</label>
+                  <select
+                    value={paymentForm.payment_method}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                  >
+                    <option value="cash">Efectivo</option>
+                    <option value="transfer">Transferencia</option>
+                    <option value="card">Tarjeta</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas (opcional)</label>
+                  <input
+                    type="text"
+                    value={paymentForm.notes}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                    placeholder="Detalles del pago"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
+                  <GymButton variant="secondary" onClick={() => setActiveTab('details')}>Cancelar</GymButton>
+                  <GymButton variant="success" onClick={handleSavePayment}>Registrar Pago</GymButton>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'consult' && (
+            <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
+              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
+                Nueva Consulta
+              </h2>
+              <div className="bg-[var(--color-surface)] p-6 rounded-lg border border-[var(--color-border)]">
+                <ConsultForm
+                  patient={patient}
+                  onSubmit={handleSaveConsult}
+                  onCancel={() => setActiveTab('history')}
+                  submitLabel="Guardar Expediente"
+                />
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* Modals from Patients view */}
-      <ConsultModal
-        isOpen={consultModalOpen}
-        onClose={() => setConsultModalOpen(false)}
-        title={"Nueva Consulta — " + patient.first_name}
-        patient={patient}
-        onSubmit={handleSaveConsult}
-        submitLabel="Guardar Expediente"
-      />
-
-      <GymModal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title={`Pago de Consulta — ${patient.first_name}`} width="sm">
-        <div className="space-y-4 text-[var(--color-text)]">
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Monto ($)</label>
-            <input
-              type="number"
-              value={paymentForm.amount}
-              onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              placeholder="Ej. 500"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Método de Pago</label>
-            <select
-              value={paymentForm.payment_method}
-              onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-            >
-              <option value="cash">Efectivo</option>
-              <option value="transfer">Transferencia</option>
-              <option value="card">Tarjeta</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas (opcional)</label>
-            <input
-              type="text"
-              value={paymentForm.notes}
-              onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              placeholder="Detalles del pago"
-            />
-          </div>
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
-            <GymButton variant="secondary" onClick={() => setPaymentModalOpen(false)}>Cancelar</GymButton>
-            <GymButton variant="success" onClick={handleSavePayment}>Registrar Pago</GymButton>
-          </div>
-        </div>
-      </GymModal>
 
       <GymModal isOpen={scheduleModalOpen} onClose={() => setScheduleModalOpen(false)} title={`Agendar Cita — ${patient.first_name}`} width="sm">
         <div className="space-y-4 text-[var(--color-text)]">
