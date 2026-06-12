@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "qrcode.react": "^4.2.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   }
 }
