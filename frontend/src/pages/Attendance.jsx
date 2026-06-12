@@ -12,6 +12,7 @@ export default function Attendance() {
   const checkout = useCheckout();
 
   const [form, setForm] = useState({ client_id: '', method: 'manual' });
+  const [searchQuery, setSearchQuery] = useState('');
   const [scanStatus, setScanStatus] = useState('idle'); // idle, loading, success, warning, error
   const [scanMessage, setScanMessage] = useState('Pase su código por el lector o ingrese ID manual');
 
@@ -80,6 +81,11 @@ export default function Attendance() {
       }
     });
   };
+
+  // Filtrado local para la lista de asistencias de hoy
+  const filteredAttendance = attendance.filter(record => 
+    `${record.first_name} ${record.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
@@ -174,22 +180,59 @@ export default function Attendance() {
             ) : attendance.length === 0 ? (
               <p className="text-[var(--color-text-muted)]">Aún no hay registros de entrada.</p>
             ) : (
-              <div className="space-y-3 max-h-[520px] overflow-y-auto pr-2">
-                {attendance.map((record) => (
-                  <div key={record.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-semibold text-[var(--color-text)]">{record.first_name} {record.last_name}</p>
-                      <p className="text-sm text-[var(--color-text-muted)]">{new Date(record.checked_in_at).toLocaleString('es-MX')}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-3 items-center">
-                      {!record.checked_out_at ? (
-                        <GymButton variant="secondary" size="sm" onClick={() => checkout.mutate({ id: record.id }, { onSuccess: () => toast.success('Check-out registrado') })}>Check-out</GymButton>
-                      ) : (
-                        <span className="rounded-full bg-[rgba(56,189,248,0.15)] px-3 py-1 text-sm font-semibold text-[var(--color-teal)]">Salida: {record.checked_out_at}</span>
+              <div className="space-y-4">
+                {/* Filtro de búsqueda (Estilo estándar) */}
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nombre..."
+                    className="flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-secondary)] focus:outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Tabla con diseño Zebra */}
+                <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] max-h-[460px]">
+                  <table className="min-w-full text-left border-collapse relative">
+                    <thead className="sticky top-0 bg-[var(--color-surface)] z-10 shadow-sm border-b border-[var(--color-border)]">
+                      <tr className="text-[var(--color-text-muted)] text-xs uppercase tracking-[0.15em] select-none">
+                        <th className="px-4 py-4 font-semibold">Cliente</th>
+                        <th className="px-4 py-4 font-semibold">Entrada</th>
+                        <th className="px-4 py-4 font-semibold text-right">Salida / Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAttendance.map((record, index) => (
+                        <tr key={record.id} className={`border-b border-[var(--color-border)] last:border-0 ${index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'} hover:bg-[rgba(255,255,255,0.02)] transition-colors`}>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-white font-bold text-xs">{record.first_name?.[0]}{record.last_name?.[0]}</div>
+                              <p className="font-semibold text-[var(--color-text)]">{record.first_name} {record.last_name}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                            {new Date(record.checked_in_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            {!record.checked_out_at ? (
+                              <GymButton variant="secondary" size="xs" onClick={() => checkout.mutate({ id: record.id }, { onSuccess: () => toast.success('Check-out registrado') })}>Check-out</GymButton>
+                            ) : (
+                              <span className="inline-flex rounded-full bg-[rgba(56,189,248,0.15)] px-3 py-1 text-xs font-semibold text-[var(--color-teal)]">
+                                {new Date(record.checked_out_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredAttendance.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-[var(--color-text-muted)] text-sm">No se encontraron registros.</td>
+                        </tr>
                       )}
-                    </div>
-                  </div>
-                ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
