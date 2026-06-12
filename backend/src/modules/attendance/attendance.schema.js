@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 const createAttendanceSchema = z.object({
-  client_id: z.string().uuid('El ID del cliente debe ser un UUID válido'),
+  client_id: z.string().min(3, 'El identificador del cliente es muy corto'),
   method: z.enum(['qr', 'manual', 'code'], {
     errorMap: () => ({ message: 'El método de asistencia debe ser qr, manual o code' })
   }),

@@ -28,8 +28,12 @@ async function attendanceRoutes(fastify, options) {
     }
 
     const registeredBy = request.user?.id || null;
-    const record = await service.createAttendance(validation.data, registeredBy);
-    return reply.status(201).send({ data: record });
+    const result = await service.createAttendance(validation.data, registeredBy);
+    return reply.status(201).send({ 
+      data: result.record, 
+      status: result.status, 
+      message: result.message 
+    });
   });
 
   fastify.put('/:id/checkout', async (request, reply) => {

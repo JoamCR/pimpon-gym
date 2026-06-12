@@ -6,6 +6,7 @@ import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh } from '@tabler/icons-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function Clients() {
   const [filterTab, setFilterTab] = useState('enrolled');
@@ -513,33 +514,49 @@ export default function Clients() {
         </div>
       </GymModal>
 
-      <GymModal isOpen={viewClientModal} onClose={() => setViewClientModal(false)} title="Detalles del Cliente" width="md">
+      <GymModal isOpen={viewClientModal} onClose={() => setViewClientModal(false)} title="Detalles del Cliente" width="lg">
         {selectedClient && (
           <div className="space-y-4 text-[var(--color-text)]">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Nombre Completo</p>
-                <p>{selectedClient.first_name} {selectedClient.last_name}</p>
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Sección del Código QR */}
+              <div className="flex flex-col items-center justify-center p-4 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] border border-[var(--color-border)]">
+                <div className="p-3 bg-white rounded-lg">
+                  <QRCodeSVG 
+                    value={selectedClient.id} 
+                    size={140}
+                    bgColor={"#ffffff"}
+                    fgColor={"#000000"}
+                    level={"H"}
+                  />
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
-                <p>{selectedClient.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Plan</p>
-                <p>{selectedClient.plan_name?.toLowerCase().includes('día') || selectedClient.plan_name?.toLowerCase().includes('semana') || selectedClient.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : selectedClient.plan_name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Estado</p>
-                <p>{getClientStatus(selectedClient) === 'active' ? 'Activo' : getClientStatus(selectedClient) === 'expiring' ? 'Por vencer' : 'Vencido'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Meses Consecutivos</p>
-                <p>{selectedClient.consecutive_months ?? 0}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--color-text-muted)] font-semibold">Vencimiento</p>
-                <p>{selectedClient.end_date ? new Date(selectedClient.end_date).toLocaleDateString('es-MX') : 'N/A'}</p>
+
+              {/* Sección de Datos Personales */}
+              <div className="grid grid-cols-2 gap-4 flex-1 content-start">
+                <div className="col-span-2">
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Nombre Completo</p>
+                  <p>{selectedClient.first_name} {selectedClient.last_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
+                  <p>{selectedClient.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Plan</p>
+                  <p>{selectedClient.plan_name?.toLowerCase().includes('día') || selectedClient.plan_name?.toLowerCase().includes('semana') || selectedClient.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : selectedClient.plan_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Estado</p>
+                  <p>{getClientStatus(selectedClient) === 'active' ? 'Activo' : getClientStatus(selectedClient) === 'expiring' ? 'Por vencer' : 'Vencido'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Meses Consecutivos</p>
+                  <p>{selectedClient.consecutive_months ?? 0}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Vencimiento</p>
+                  <p>{selectedClient.end_date ? new Date(selectedClient.end_date).toLocaleDateString('es-MX') : 'N/A'}</p>
+                </div>
               </div>
             </div>
             <div className="flex justify-end pt-4">

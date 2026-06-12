@@ -54,6 +54,9 @@ const create = async (data, registeredBy) => {
     const clientData = { ...data, created_by: registeredBy };
     const newClient = await repository.create(clientData, dbClient);
     
+    // 2.1 Asignar el UUID generado como código QR del cliente en la base de datos
+    await dbClient.query('UPDATE clients SET qr_code = $1 WHERE id = $2', [newClient.id, newClient.id]);
+    
     // 3. Crear la suscripción (usando la duración del plan)
     const subscriptionData = {
       client_id: newClient.id,
