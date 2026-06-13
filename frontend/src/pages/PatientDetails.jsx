@@ -229,14 +229,14 @@ export default function PatientDetails() {
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Teléfono</p>
                   <p className="text-lg">{patient.phone}</p>
                 </div>
-                <div>
+                {/* <div>
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">RFC</p>
                   <p className="text-lg">{patient.rfc || 'No registrado'}</p>
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Ocupación</p>
                   <p className="text-lg">{patient.occupation || 'No registrado'}</p>
-                </div>
+                </div> */}
               </div>
 
               <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 mt-8 text-[var(--color-gold)]">

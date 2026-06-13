@@ -32,9 +32,11 @@ export default function Clients() {
     plan_requires_enrollment: false,
     first_name: '',
     last_name: '',
+    birth_date: '',
     age: '',
     gender: 'Masculino',
     phone: '',
+    email: '',
     rfc: '',
     payment_method: 'cash',
     amount: '',
@@ -272,7 +274,9 @@ export default function Clients() {
             { label: 'Edad', key: 'age', type: 'number' },
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
-            { label: 'RFC', key: 'rfc' },
+            { label: 'Correo electrónico', key: 'email', type: 'email' },
+            { label: 'Fecha de nacimiento', key: 'birth_date', type: 'date' },
+            // { label: 'RFC', key: 'rfc' },
           ].map((field) => (
             <div key={field.key} className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
@@ -462,6 +466,8 @@ export default function Clients() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.phone}</td>
+                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.email || '-'}</td>
+                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.birth_date ? new Date(client.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : '-'}</td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text)]">
                       {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
                     </td>
@@ -600,4 +606,4 @@ export default function Clients() {
       </GymModal>
     </div>
   );
-}
+}   

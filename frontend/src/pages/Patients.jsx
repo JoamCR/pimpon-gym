@@ -273,7 +273,9 @@ export default function Patients() {
             { label: 'Edad', key: 'age', type: 'number' },
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
-            { label: 'RFC', key: 'rfc' },
+            { label: 'Correo electrónico', key: 'email', type: 'email' },
+            { label: 'Fecha de nacimiento', key: 'birth_date', type: 'date' },
+            // { label: 'RFC', key: 'rfc' },
             
           ].map((field) => (
             <div key={field.key} className="space-y-2">
@@ -324,7 +326,7 @@ export default function Patients() {
       return (
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { label: 'Ocupación', key: 'occupation' },
+            // { label: 'Ocupación', key: 'occupation' },
             { label: 'Referido por', key: 'referred_by' },
           ].map((field) => (
             <div key={field.key} className="space-y-2">
@@ -432,7 +434,7 @@ export default function Patients() {
               <tbody>
                 {isLoading ? (
                    <tr>
-                     <td colSpan={4} className="px-4 py-8 text-center text-[var(--color-text-muted)]">Cargando pacientes...</td>
+                     <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">Cargando pacientes...</td>
                    </tr>
                 ) : sortedPatients.map((patient, index) => (
                   <tr key={patient.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
@@ -459,7 +461,7 @@ export default function Patients() {
                 ))}
                 {!isLoading && sortedPatients.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-[var(--color-text-muted)]">No se encontraron pacientes.</td>
+                    <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">No se encontraron pacientes.</td>
                   </tr>
                 )}
               </tbody>
@@ -600,4 +602,4 @@ export default function Patients() {
       />
     </div>
   );
-}
+}         

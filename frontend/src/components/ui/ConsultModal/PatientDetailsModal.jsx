@@ -32,14 +32,14 @@ export function PatientDetailsModal({
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
             <p>{patient.phone}</p>
           </div>
-          <div>
+          {/* <div>
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">RFC</p>
             <p>{patient.rfc || 'No registrado'}</p>
-          </div>
-          <div>
+          </div> */}
+          {/* <div>
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">Ocupación</p>
             <p>{patient.occupation || 'No registrado'}</p>
-          </div>
+          </div> */}
           <div className="col-span-2">
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">Evaluación Rápida</p>
             <p className="text-sm">Peso: {patient.quick_weight_kg ? `${patient.quick_weight_kg} kg` : 'N/A'}</p>

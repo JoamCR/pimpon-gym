@@ -59,6 +59,7 @@ CREATE TABLE patients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
+    birth_date DATE,
     rfc VARCHAR(13),
     age INT,
     gender VARCHAR(20),
