@@ -76,6 +76,34 @@ const HealthSlider = ({ label, value, onChange }) => {
   );
 };
 
+const ScaleSlider5 = ({ label, value, onChange }) => {
+  const getSegmentColor = (index, val) => {
+    if (index > val) return 'bg-[var(--color-border)]';
+    const colors = [
+      'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500'
+    ];
+    return colors[val - 1] || 'bg-gray-500';
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{label}</label>
+        <span className="text-sm font-bold text-[var(--color-text)]">{value || 0} / 5</span>
+      </div>
+      <div className="flex gap-1 h-3 w-full">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div
+            key={i}
+            className={`flex-1 rounded-sm cursor-pointer transition-colors duration-300 ${getSegmentColor(i, value || 0)}`}
+            onClick={() => onChange(i)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ExerciseDayEditor = ({ day, content, onChange }) => {
   const dayNames = {
     monday: 'Lunes',
@@ -153,7 +181,7 @@ export function ConsultForm({
   patient,
   evaluation,
   plan,
-  defaultTab = 'composition',
+  defaultTab = 'clinical_history',
   onSubmit,
   onSubmitPlan,
   onCancel,
@@ -165,7 +193,7 @@ export function ConsultForm({
   const [evaluationTab, setEvaluationTab] = useState(defaultTab);
 
   useEffect(() => {
-    setEvaluationTab(defaultTab || 'composition');
+    setEvaluationTab(defaultTab || 'clinical_history');
     setPlanForm(plan ? plan : getInitialPlanForm());
     if (evaluation) {
       setEvaluationForm({
@@ -200,21 +228,21 @@ export function ConsultForm({
 
   const tabOrder = (patient?.userType === 'client'
     ? [
-      { key: 'composition', label: 'Composición Corporal' },
       { key: 'clinical_history', label: 'Historia Clínica' },
+      { key: 'composition', label: 'Composición Corporal' },
       { key: 'exercise_plan', label: 'Plan de Ejercicio' },
       { key: 'diet', label: 'Plan Nutricional' },
     ]
     : [
-      { key: 'composition', label: 'Composición Corporal' },
       { key: 'clinical_history', label: 'Historia Clínica' },
+      { key: 'composition', label: 'Composición Corporal' },
       { key: 'diet', label: 'Plan Nutricional' },
       { key: 'exercise_plan', label: 'Plan de Ejercicio' },
     ]) || [];
 
   const currentTabIndex = tabOrder.findIndex((tab) => tab.key === evaluationTab);
   const showNextButton = currentTabIndex !== -1 && currentTabIndex < tabOrder.length - 1;
-  const isSaveEnabled = currentTabIndex >= 2;
+  const isSaveEnabled = true;
 
   const handleNext = () => {
     if (currentTabIndex < 0 || currentTabIndex >= tabOrder.length - 1) return;
@@ -391,14 +419,7 @@ export function ConsultForm({
               </div>
 
               <div className="space-y-2 pt-2">
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Evacuaciones (al día)</label>
-                <input
-                  type="text"
-                  value={evaluationForm.bowel_movements}
-                  onChange={(e) => setEvaluationForm({ ...evaluationForm, bowel_movements: e.target.value })}
-                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                  placeholder="Ej: 2 veces"
-                />
+                <ScaleSlider5 label="Evacuaciones (al día)" value={evaluationForm.bowel_movements} onChange={(v) => setEvaluationForm({ ...evaluationForm, bowel_movements: v })} />
               </div>
             </div>
 
@@ -462,9 +483,6 @@ export function ConsultForm({
           )}
           <GymButton variant="success" onClick={handleSubmit} disabled={!isSaveEnabled}>{currentSubmitLabel}</GymButton>
         </div>
-        {!isSaveEnabled && (
-          <p className="text-right text-sm text-[var(--color-text-muted)]">Avanza hasta la tercera pestaña para habilitar Guardar, luego podrás guardar aunque no completes todos los campos.</p>
-        )}
       </div>
     </div>
   );

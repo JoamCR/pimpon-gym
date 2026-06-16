@@ -229,6 +229,18 @@ export default function PatientDetails() {
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Teléfono</p>
                   <p className="text-lg">{patient.phone}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Correo electrónico</p>
+                  <p className="text-lg">{patient.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Fecha de nacimiento</p>
+                  <p className="text-lg">{patient.birth_date ? new Date(patient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Edad</p>
+                  <p className="text-lg">{patient.age ? `${patient.age} años` : 'N/A'}</p>
+                </div>
                 {/* <div>
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">RFC</p>
                   <p className="text-lg">{patient.rfc || 'No registrado'}</p>

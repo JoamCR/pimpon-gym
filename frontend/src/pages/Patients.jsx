@@ -9,6 +9,7 @@ import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
+import { HybridDateInput } from '../components/ui/HybridDateInput';
 import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconChevronRight, IconCoin, IconStethoscope } from '@tabler/icons-react';
 
 const HealthSlider = ({ label, value, onChange }) => {
@@ -270,11 +271,9 @@ export default function Patients() {
           {[
             { label: 'Nombre', key: 'first_name' },
             { label: 'Apellidos', key: 'last_name' },
-            { label: 'Edad', key: 'age', type: 'number' },
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'Correo electrónico', key: 'email', type: 'email' },
-            { label: 'Fecha de nacimiento', key: 'birth_date', type: 'date' },
             // { label: 'RFC', key: 'rfc' },
             
           ].map((field) => (
@@ -318,6 +317,21 @@ export default function Patients() {
               )}
             </div>
           ))}
+
+          <div className="sm:col-span-2 mt-2">
+            <HybridDateInput 
+              value={formData.birth_date} 
+              error={fieldErrors.birth_date}
+              onChange={(dateStr, calculatedAge) => {
+                setFormData({
+                  ...formData,
+                  birth_date: dateStr,
+                  age: calculatedAge !== null ? calculatedAge.toString() : ''
+                });
+                if (fieldErrors.birth_date) setFieldErrors({ ...fieldErrors, birth_date: null });
+              }} 
+            />
+          </div>
         </div>
       );
     }

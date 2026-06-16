@@ -32,6 +32,18 @@ export function PatientDetailsModal({
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
             <p>{patient.phone}</p>
           </div>
+          <div>
+            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Correo electrónico</p>
+            <p>{patient.email || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Fecha de nacimiento</p>
+            <p>{patient.birth_date ? new Date(patient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad</p>
+            <p>{patient.age ? `${patient.age} años` : 'N/A'}</p>
+          </div>
           {/* <div>
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">RFC</p>
             <p>{patient.rfc || 'No registrado'}</p>

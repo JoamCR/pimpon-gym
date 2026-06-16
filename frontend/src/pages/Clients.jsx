@@ -8,6 +8,8 @@ import { GymButton } from '../components/ui/GymButton';
 import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh } from '@tabler/icons-react';
 import { QRCodeSVG } from 'qrcode.react';
 
+import { HybridDateInput } from '../components/ui/HybridDateInput';
+
 export default function Clients() {
   const [filterTab, setFilterTab] = useState('enrolled');
   const [searchQuery, setSearchQuery] = useState('');
@@ -271,11 +273,9 @@ export default function Clients() {
           {[
             { label: 'Nombre', key: 'first_name' },
             { label: 'Apellidos', key: 'last_name' },
-            { label: 'Edad', key: 'age', type: 'number' },
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'Correo electrónico', key: 'email', type: 'email' },
-            { label: 'Fecha de nacimiento', key: 'birth_date', type: 'date' },
             // { label: 'RFC', key: 'rfc' },
           ].map((field) => (
             <div key={field.key} className="space-y-2">
@@ -318,6 +318,21 @@ export default function Clients() {
               )}
             </div>
           ))}
+          
+          <div className="sm:col-span-2 mt-2">
+            <HybridDateInput 
+              value={formData.birth_date} 
+              error={fieldErrors.birth_date}
+              onChange={(dateStr, calculatedAge) => {
+                setFormData({
+                  ...formData,
+                  birth_date: dateStr,
+                  age: calculatedAge !== null ? calculatedAge.toString() : ''
+                });
+                if (fieldErrors.birth_date) setFieldErrors({ ...fieldErrors, birth_date: null });
+              }} 
+            />
+          </div>
         </div>
       );
     }
@@ -546,6 +561,18 @@ export default function Clients() {
                 <div>
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
                   <p>{selectedClient.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Correo electrónico</p>
+                  <p>{selectedClient.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Fecha de nacimiento</p>
+                  <p>{selectedClient.birth_date ? new Date(selectedClient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad</p>
+                  <p>{selectedClient.age ? `${selectedClient.age} años` : 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-[var(--color-text-muted)] font-semibold">Plan</p>
