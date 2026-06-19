@@ -22,6 +22,166 @@ function buildMonthMatrix(date) {
   return days;
 }
 
+const CustomComboBox = ({ value, onChange, onBlur, options, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative flex items-stretch" ref={wrapperRef}>
+      <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        onFocus={() => setIsOpen(true)}
+        onBlur={onBlur}
+        className="w-16 rounded-l-md border border-r-0 border-(--color-border) bg-(--color-card-alt) px-2 py-2 text-(--color-text) text-center focus:outline-none focus:border-(--color-primary)"
+        placeholder={placeholder}
+      />
+      <button
+        type="button"
+        tabIndex="-1"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-center rounded-r-md border border-(--color-border) bg-(--color-card-alt) px-1 text-(--color-text-muted) hover:text-(--color-text) focus:outline-none"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      
+      {isOpen && (
+        <ul className="absolute top-full left-0 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-(--color-border) bg-(--color-card-alt) shadow-lg z-[60] py-1 scrollbar-thin">
+          {options.map((opt) => (
+            <li
+              key={opt}
+              className="cursor-pointer px-3 py-1.5 text-center text-sm hover:bg-[rgba(255,255,255,0.05)]"
+              onMouseDown={(e) => {
+                e.preventDefault(); // Evita que el input pierda el foco y se dispare onBlur antes de tiempo
+                onChange({ target: { value: opt } });
+                setIsOpen(false);
+                if (onBlur) setTimeout(onBlur, 0);
+              }}
+            >
+              {opt}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+const TimePicker = ({ dateStr, onChange }) => {
+  const [datePart, timePart] = dateStr ? dateStr.split('T') : ['', '00:00:00'];
+  const [h, m] = timePart.split(':');
+  
+  let initialH24 = parseInt(h || '0', 10);
+  let isPM = initialH24 >= 12;
+  let initialH12 = initialH24 % 12 || 12;
+  
+  const [hour, setHour] = useState(String(initialH12));
+  const [minute, setMinute] = useState(m || '00');
+  const [ampm, setAmpm] = useState(isPM ? 'PM' : 'AM');
+  
+  useEffect(() => {
+    if (dateStr) {
+      const parts = dateStr.split('T');
+      if (parts.length > 1) {
+        const t = parts[1];
+        const [hh, mm] = t.split(':');
+        const h24 = parseInt(hh, 10);
+        const parsedH12 = h24 % 12 || 12;
+        const parsedAmPm = h24 >= 12 ? 'PM' : 'AM';
+        
+        if (parseInt(hour, 10) !== parsedH12 || isNaN(parseInt(hour, 10))) {
+          setHour(String(parsedH12));
+        }
+        if (parseInt(minute, 10) !== parseInt(mm, 10) || isNaN(parseInt(minute, 10))) {
+          setMinute(mm);
+        }
+        if (ampm !== parsedAmPm) {
+          setAmpm(parsedAmPm);
+        }
+      }
+    }
+  }, [dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  const handleUpdate = (newHour, newMinute, newAmpm) => {
+    let h12 = parseInt(newHour, 10);
+    if (isNaN(h12)) h12 = 12; 
+    let h24 = h12;
+    if (newAmpm === 'PM' && h24 !== 12) h24 += 12;
+    if (newAmpm === 'AM' && h24 === 12) h24 = 0;
+    
+    let mInt = parseInt(newMinute, 10);
+    if (isNaN(mInt)) mInt = 0;
+    
+    const hh = String(h24).padStart(2, '0');
+    const mmStr = String(mInt).padStart(2, '0');
+    onChange(`${datePart}T${hh}:${mmStr}:00`);
+  };
+
+  const handleHourChange = (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(0, 2);
+    setHour(val);
+    if (val !== '') handleUpdate(val, minute, ampm);
+  };
+  
+  const handleMinChange = (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(0, 2);
+    setMinute(val);
+    if (val !== '') handleUpdate(hour, val, ampm);
+  };
+
+  const handleMinBlur = () => {
+    if (minute !== '') {
+      setMinute(String(parseInt(minute, 10)).padStart(2, '0'));
+    }
+  };
+
+  const handleAmpmChange = (e) => {
+    const val = e.target.value;
+    setAmpm(val);
+    handleUpdate(hour, minute, val);
+  };
+
+  return (
+    <div className="flex gap-2">
+      <CustomComboBox
+        value={hour}
+        onChange={handleHourChange}
+        options={Array.from({ length: 12 }, (_, i) => String(i + 1))}
+        placeholder="HH"
+      />
+      <span className="text-xl font-bold self-center">:</span>
+      <CustomComboBox
+        value={minute}
+        onChange={handleMinChange}
+        onBlur={handleMinBlur}
+        options={Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))}
+        placeholder="MM"
+      />
+      <select
+        value={ampm}
+        onChange={handleAmpmChange}
+        className="w-24 rounded-md border border-(--color-border) bg-(--color-card-alt) px-3 py-2 text-(--color-text) focus:outline-none focus:border-(--color-primary)"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
+
 export default function Agenda() {
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [viewDate, setViewDate] = useState(new Date());
@@ -82,7 +242,7 @@ export default function Agenda() {
     setForm((prev) => ({
       ...prev,
       start_at: `${yyyy}-${mm}-${dd}T09:00:00`,
-      end_at: `${yyyy}-${mm}-${dd}T10:00:00`,
+      end_at: '',
     }));
     setModalOpen(true);
   };
@@ -365,11 +525,11 @@ export default function Agenda() {
           <p className="text-(--color-text-muted)">Calendario de actividades y citas</p>
         </div>
         <div className="flex flex-col items-end gap-3">
-          <div className="flex p-1 bg-(--color-card) rounded-md border border-(--color-border)">
+          {/*<div className="flex p-1 bg-(--color-card) rounded-md border border-(--color-border)">
             <button onClick={() => setViewMode('month')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'month' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Mes</button>
             <button onClick={() => setViewMode('week')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'week' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Semana</button>
-            <button onClick={() => setViewMode('day')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Día</button>
-          </div>
+            <button onClick={() => setViewMode('day')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-(--color-secondary) text-white shadow' : 'text-(--color-text-muted) hover:text-(--color-text)'}`}>Día</button> 
+          </div> */}
           <div className="flex gap-2">
             <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
             <GymButton onClick={() => setViewDate(new Date())} variant="ghost">Hoy</GymButton>
@@ -569,15 +729,12 @@ export default function Agenda() {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
-              <input type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
-            </div>
-            <div>
-              <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
-              <input type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
-            </div>
+          <div>
+            <label className="block text-sm text-(--color-text-muted) mb-1">Hora de inicio</label>
+            <TimePicker
+              dateStr={form.start_at}
+              onChange={(newVal) => setForm({ ...form, start_at: newVal })}
+            />
           </div>
 
           <div>

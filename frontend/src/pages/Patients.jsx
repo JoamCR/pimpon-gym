@@ -528,7 +528,7 @@ export default function Patients() {
             >
               <option value="cash">Efectivo</option>
               <option value="transfer">Transferencia</option>
-              <option value="card">Tarjeta</option>
+              {/* <option value="card">Tarjeta</option> */}
             </select>
           </div>
           <div className="space-y-2">
