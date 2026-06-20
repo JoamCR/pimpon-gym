@@ -42,6 +42,7 @@ export default function Clients() {
     rfc: '',
     payment_method: 'cash',
     amount: '',
+    enrollment_amount: '500', //  Inicializado en 500 por defecto
     coach_fitness_level: '',
     coach_health_notes: '',
     coach_goal: '',
@@ -69,6 +70,7 @@ export default function Clients() {
       rfc: '',
       payment_method: 'cash',
       amount: '',
+      enrollment_amount: '500', // Resetear también a 500 al abrir
       coach_fitness_level: '',
       coach_health_notes: '',
       coach_goal: '',
@@ -102,7 +104,10 @@ export default function Clients() {
     };
 
     if (payload.plan_requires_enrollment) {
-      payload.enrollment_amount = 500; // Inscripción fija de $500
+      //  Tomar el valor numérico digitado en el input editable
+      payload.enrollment_amount = Number(formData.enrollment_amount) || 0;
+    } else {
+      delete payload.enrollment_amount;
     }
 
     delete payload.amount;
@@ -258,9 +263,19 @@ export default function Clients() {
             ))}
           </div>
           {!isVisitMode && (
-            <div className="rounded-[var(--radius-lg)] border p-4 text-left transition border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)] cursor-default">
-              <p className="text-base font-semibold text-[var(--color-text)]">Inscripción</p>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">$500.00 MXN (Obligatorio para nuevos clientes)</p>
+            /*  Modificado de contenedor estático a campo de entrada interactivo */
+            <div className="rounded-[var(--radius-lg)] border p-4 text-left border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)] space-y-2">
+              <label className="block text-base font-semibold text-[var(--color-text)]">
+                Monto de Inscripción (MXN)
+              </label>
+              <input
+                type="number"
+                value={formData.enrollment_amount}
+                onChange={(e) => setFormData({ ...formData, enrollment_amount: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-[var(--color-text)] focus:border-[var(--color-secondary)] focus:outline-none"
+                placeholder="500.00"
+              />
+              <p className="text-xs text-[var(--color-text-muted)]">Modifica el monto si deseas aplicar un descuento o tarifa especial.</p>
             </div>
           )}
         </div>
@@ -276,7 +291,7 @@ export default function Clients() {
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'Correo electrónico', key: 'email', type: 'email' },
-            // { label: 'RFC', key: 'rfc' },
+             // { label: 'RFC', key: 'rfc' },
           ].map((field) => (
             <div key={field.key} className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
@@ -349,7 +364,7 @@ export default function Clients() {
             >
               <option value="cash">Efectivo</option>
               <option value="transfer">Transferencia</option>
-              {/* <option value="card">Tarjeta</option> */}
+            {/* <option value="card">Tarjeta</option> */}
             </select>
           </div>
           <div className="space-y-2">
@@ -535,23 +550,23 @@ export default function Clients() {
         </div>
       </GymModal>
 
+      {/* Los modales de ViewClientModal y RenewModal se quedan exactamente igual... */}
       <GymModal isOpen={viewClientModal} onClose={() => setViewClientModal(false)} title="Detalles del Cliente" width="lg">
         {selectedClient && (
           <div className="space-y-4 text-[var(--color-text)]">
             <div className="flex flex-col md:flex-row gap-6">
-              {/* Sección del Código QR */}
+            {/* Sección del Código QR */}
               <div className="flex flex-col items-center justify-center p-4 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] border border-[var(--color-border)]">
                 <div className="p-3 bg-white rounded-lg">
                   <QRCodeSVG 
-                    value={selectedClient.id} 
-                    size={140}
-                    bgColor={"#ffffff"}
-                    fgColor={"#000000"}
-                    level={"H"}
+                  value={selectedClient.id} 
+                  size={140} 
+                  bgColor={"#ffffff"} 
+                  fgColor={"#000000"} 
+                  level={"H"} 
                   />
                 </div>
               </div>
-
               {/* Sección de Datos Personales */}
               <div className="grid grid-cols-2 gap-4 flex-1 content-start">
                 <div className="col-span-2">
@@ -613,7 +628,7 @@ export default function Clients() {
               {/* <option value="card">Tarjeta</option> */}
             </select>
           </div>
-
+          
           <div>
             <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">Monto (MXN)</label>
             <input
@@ -624,7 +639,7 @@ export default function Clients() {
               className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3 py-2 text-[var(--color-text)]"
             />
           </div>
-
+          
           <div className="flex justify-end gap-3 mt-4">
             <GymButton variant="secondary" size="sm" onClick={() => setRenewModal(false)}>Cancelar</GymButton>
             <GymButton variant="success" size="sm" onClick={confirmRenew} loading={renewSubscription.isLoading}>Renovar</GymButton>
@@ -633,4 +648,4 @@ export default function Clients() {
       </GymModal>
     </div>
   );
-}   
+}

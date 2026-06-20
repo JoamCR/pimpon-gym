@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { IconChevronDown, IconAlertCircle, IconClock } from '@tabler/icons-react';
+import { IconChevronDown, IconAlertCircle } from '@tabler/icons-react';
 
 export function HybridDateInput({ value, onChange, error }) {
   // value expected as YYYY-MM-DD string or empty string
@@ -11,6 +11,22 @@ export function HybridDateInput({ value, onChange, error }) {
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
+
+  // Arreglo de meses con sus respectivos nombres y valores
+  const monthOptions = [
+    { value: '01', name: 'Enero' },
+    { value: '02', name: 'Febrero' },
+    { value: '03', name: 'Marzo' },
+    { value: '04', name: 'Abril' },
+    { value: '05', name: 'Mayo' },
+    { value: '06', name: 'Junio' },
+    { value: '07', name: 'Julio' },
+    { value: '08', name: 'Agosto' },
+    { value: '09', name: 'Septiembre' },
+    { value: '10', name: 'Octubre' },
+    { value: '11', name: 'Noviembre' },
+    { value: '12', name: 'Diciembre' },
+  ];
 
   // Initialize from value prop
   useEffect(() => {
@@ -64,7 +80,7 @@ export function HybridDateInput({ value, onChange, error }) {
       currentAge--;
     }
     
-    // Si la fecha es en el futuro
+     // Si la fecha es en el futuro
     if (currentAge < 0) {
       setAge(null);
       setLocalError('La fecha de nacimiento no puede ser en el futuro.');
@@ -73,7 +89,7 @@ export function HybridDateInput({ value, onChange, error }) {
 
     setAge(currentAge);
     
-    // Solo disparar onChange si la fecha completa es válida y es diferente del value actual
+ // Solo disparar onChange si la fecha completa es válida y es diferente del value actual    
     const newDateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     if (newDateStr !== value) {
         onChange(newDateStr, currentAge);
@@ -120,10 +136,19 @@ export function HybridDateInput({ value, onChange, error }) {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   const displayError = error || localError;
+
+  // Función para obtener la etiqueta visible en el input
+  const getMonthInputValue = () => {
+    if (!month) return '';
+    // Formatear temporalmente el número de mes para buscarlo en la lista de opciones
+    const formattedMonth = month.padStart(2, '0');
+    const selected = monthOptions.find(m => m.value === formattedMonth);
+    // Si lo encuentra muestra el nombre, de lo contrario lo que esté digitando el usuario
+    return selected ? selected.name : month;
+  };
 
   return (
     <div className="space-y-2" ref={dropdownRef}>
@@ -137,7 +162,7 @@ export function HybridDateInput({ value, onChange, error }) {
           <div className={`flex items-center flex-1 bg-[var(--color-card-alt)] border ${displayError ? 'border-red-500' : 'border-[var(--color-border)]'} rounded-[var(--radius-md)] focus-within:border-[var(--color-text-muted)] transition-all overflow-hidden`}>
             <input 
               type="text" 
-              placeholder="DD" 
+              placeholder="Día" 
               value={day}
               onChange={handleDayChange}
               onFocus={() => setActiveDropdown('day')}
@@ -174,11 +199,11 @@ export function HybridDateInput({ value, onChange, error }) {
           <div className={`flex items-center flex-1 bg-[var(--color-card-alt)] border ${displayError ? 'border-red-500' : 'border-[var(--color-border)]'} rounded-[var(--radius-md)] focus-within:border-[var(--color-text-muted)] transition-all overflow-hidden`}>
             <input 
               type="text" 
-              placeholder="MM" 
-              value={month}
+              placeholder="Mes" 
+              /* Cambiado de value={month} a la función formateadora visual */
+              value={getMonthInputValue()} 
               onChange={handleMonthChange}
               onFocus={() => setActiveDropdown('month')}
-              maxLength="2"
               className="w-full text-center py-2.5 pl-2 pr-1 text-sm text-[var(--color-text)] bg-transparent border-none outline-none focus:ring-0"
             />
             <button 
@@ -191,15 +216,15 @@ export function HybridDateInput({ value, onChange, error }) {
           </div>
           
           {activeDropdown === 'month' && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg max-h-48 overflow-y-auto z-50 custom-scrollbar p-1">
-              {months.map(m => (
+            <div className="absolute top-full left-0 right-0 min-w-[120px] mt-1 bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg max-h-48 overflow-y-auto z-50 custom-scrollbar p-1">
+              {monthOptions.map(m => (
                 <button
-                  key={m}
+                  key={m.value}
                   type="button"
-                  onClick={() => selectOption('month', m)}
-                  className="w-full text-center py-1.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] rounded-md transition-colors"
+                  onClick={() => selectOption('month', m.value)}
+                  className="w-full text-left px-3 py-1.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] rounded-md transition-colors"
                 >
-                  {m.toString().padStart(2, '0')}
+                  {m.name}
                 </button>
               ))}
             </div>
@@ -211,7 +236,7 @@ export function HybridDateInput({ value, onChange, error }) {
           <div className={`flex items-center flex-1 bg-[var(--color-card-alt)] border ${displayError ? 'border-red-500' : 'border-[var(--color-border)]'} rounded-[var(--radius-md)] focus-within:border-[var(--color-text-muted)] transition-all overflow-hidden`}>
             <input 
               type="text" 
-              placeholder="AAAA" 
+              placeholder="Año" 
               value={year}
               onChange={handleYearChange}
               onFocus={() => setActiveDropdown('year')}
@@ -237,7 +262,7 @@ export function HybridDateInput({ value, onChange, error }) {
                   className="w-full text-center py-1.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] rounded-md transition-colors"
                 >
                   {y}
-             </button>
+                </button>
               ))}
             </div>
           )}
