@@ -289,7 +289,7 @@ export default function Agenda() {
           medium: '',
           with_whom: '',
           location: '',
-          reminder_at: '',
+          reminder_at: '', // Asegurarse de que esta propiedad siempre exista
         },
       });
     } catch (err) {

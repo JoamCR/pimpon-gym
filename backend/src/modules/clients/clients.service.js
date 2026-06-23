@@ -73,7 +73,8 @@ const create = async (data, registeredBy) => {
         amount: data.enrollment_amount,
         payment_method: data.payment_method,
         payment_type: 'enrollment',
-        registered_by: registeredBy
+        registered_by: registeredBy,
+        entity_type: 'gym' // <-- AÑADIDO: Especificar la entidad para el pago
       }, dbClient);
     }
     
@@ -85,7 +86,8 @@ const create = async (data, registeredBy) => {
       amount: data.payment_amount,
       payment_method: data.payment_method,
       payment_type: mainPaymentType,
-      registered_by: registeredBy
+      registered_by: registeredBy,
+      entity_type: 'gym' // <-- AÑADIDO: Especificar la entidad para el pago
     }, dbClient);
     
     // 6. Regla Crítica: Tope de transferencias ($30,000 MXN / mes)

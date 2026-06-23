@@ -327,31 +327,6 @@ const getDailyAttendance = async (year, month) => {
 };
 
 /**
- * 12. getGhostClients(): clientes pagados pero sin asistencia en 15+ días
- */
-const getGhostClients = async () => {
-  const sql = `
-    SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
-      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance,
-      EXTRACT(DAY FROM (NOW() - (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id)))::INT as days_without_attendance
-    FROM clients c
-    JOIN plans p ON c.plan_id = p.id
-    JOIN subscriptions s ON c.id = s.client_id
-    WHERE s.status = 'active' 
-      AND s.end_date >= CURRENT_DATE
-      AND (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) < (NOW() - INTERVAL '15 days')
-    ORDER BY days_without_attendance DESC
-  `;
-  try {
-    const result = await pool.query(sql);
-    return result.rows;
-  } catch (err) {
-    throw createError(500, 'Error obteniendo clientes inactivos');
-  }
-};
-
-/**
  * 13. getPaymentMethodsDistribution(year, month): % efectivo vs transferencia
  */
 const getPaymentMethodsDistribution = async (year, month) => {
@@ -801,55 +776,34 @@ const getNutritionConversionPaid = async () => {
 };
 
 /**
- * 22. getAbsentClients(): clientes en riesgo (con anualidad pero sin renovación de plan mensual)
+ * 23. getAlertClients(): clientes que están pagados pero sin asistencia en 7 días (en alerta)
  */
-const getAbsentClients = async () => {
+const getAlertClients = async () => {
   const sql = `
     SELECT 
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.phone,
-      p.name as plan_name,
-      s.start_date,
-      s.end_date,
+      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
       (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance,
-      EXTRACT(DAY FROM (NOW() - COALESCE((SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id), NOW())))::INT as days_without_attendance
+      EXTRACT(DAY FROM (NOW() - (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id)))::INT as days_without_attendance
     FROM clients c
     JOIN plans p ON c.plan_id = p.id
     JOIN subscriptions s ON c.id = s.client_id
-    WHERE s.status = 'active'
+    WHERE s.status = 'active' 
       AND s.end_date >= CURRENT_DATE
-      AND EXISTS (
-        SELECT 1
-        FROM payments pay
-        WHERE pay.client_id = c.id
-          AND pay.payment_type = 'enrollment'
-          AND pay.is_voided = false
-      )
-      AND NOT EXISTS (
-        SELECT 1
-        FROM payments pay
-        WHERE pay.client_id = c.id
-          AND pay.payment_type = 'monthly'
-          AND pay.is_voided = false
-          AND EXTRACT(YEAR FROM pay.paid_at) = EXTRACT(YEAR FROM CURRENT_DATE)
-          AND EXTRACT(MONTH FROM pay.paid_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-      )
-    ORDER BY days_without_attendance DESC NULLS LAST
+      AND (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) < (NOW() - INTERVAL '7 days')
+    ORDER BY days_without_attendance DESC
   `;
   try {
     const result = await pool.query(sql);
     return result.rows;
   } catch (err) {
-    throw createError(500, 'Error obteniendo clientes ausentes');
+    throw createError(500, 'Error obteniendo clientes en alerta');
   }
 };
 
 /**
- * 23. getAlertClients(): clientes que están pagados pero sin asistencia en 15 días (en alerta)
+ * getAbsentClients(): clientes pagados pero sin asistencia en 15+ días
  */
-const getAlertClients = async () => {
+const getAbsentClients = async () => {
   const sql = `
     SELECT 
       c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
@@ -867,10 +821,9 @@ const getAlertClients = async () => {
     const result = await pool.query(sql);
     return result.rows;
   } catch (err) {
-    throw createError(500, 'Error obteniendo clientes en alerta');
+    throw createError(500, 'Error obteniendo clientes ausentes');
   }
 };
-
 /**
  * 24. getNutritionFreeToConversionClients(): clientes gym que iniciaron con consulta gratuita y ahora pagan
  */
@@ -1053,7 +1006,6 @@ module.exports = {
   getRetentionRate,
   getAttendanceHeatmap,
   getDailyAttendance,
-  getGhostClients,
   getPaymentMethodsDistribution,
   getAverageTicketPerClient,
   getRecurringVsNewIncome,

@@ -230,7 +230,6 @@ const getComprehensiveStats = async (year, month) => {
       sexDistribution,
       nutritionRetention,
       dailyAttendance,
-      ghostClients,
       clientsByPlan,
       activeClients,
       monthlyIncome
@@ -246,7 +245,6 @@ const getComprehensiveStats = async (year, month) => {
       repository.getSexDistribution(),
       repository.getNutritionRetention(),
       repository.getDailyAttendance(y, m),
-      repository.getGhostClients(),
       repository.getClientsByPlan(),
       repository.getActiveClientsReal(),
       repository.getMonthlyIncome(y)
@@ -260,8 +258,7 @@ const getComprehensiveStats = async (year, month) => {
         nutritionConversion: nutritionConversion,
         nutritionStats: nutritionStats,
         activeClients: activeClients,
-        sixMonthEligible: sixMonthEligible?.length || 0,
-        ghostClients: ghostClients?.length || 0
+        sixMonthEligible: sixMonthEligible?.length || 0
       },
       charts: {
         paymentMethods,
@@ -271,10 +268,6 @@ const getComprehensiveStats = async (year, month) => {
         ageDistribution,
         sexDistribution,
         nutritionRetention
-      },
-      clients: {
-        ghostClients,
-        sixMonthEligible
       }
     };
   } catch (error) {
