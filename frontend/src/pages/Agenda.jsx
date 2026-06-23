@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 import { useAgenda, useCreateAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { usePatients } from '../hooks/usePatients';
 import { IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots } from '@tabler/icons-react';
@@ -155,14 +156,14 @@ const TimePicker = ({ dateStr, onChange }) => {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-1.5">
       <CustomComboBox
         value={hour}
         onChange={handleHourChange}
         options={Array.from({ length: 12 }, (_, i) => String(i + 1))}
         placeholder="HH"
       />
-      <span className="text-xl font-bold self-center">:</span>
+      <span className="text-lg font-bold self-center text-[var(--color-text-muted)]">:</span>
       <CustomComboBox
         value={minute}
         onChange={handleMinChange}
@@ -173,7 +174,7 @@ const TimePicker = ({ dateStr, onChange }) => {
       <select
         value={ampm}
         onChange={handleAmpmChange}
-        className="w-24 rounded-md border border-(--color-border) bg-(--color-card-alt) px-3 py-2 text-(--color-text) focus:outline-none focus:border-(--color-primary)"
+        className="w-20 rounded-md border border-(--color-border) bg-(--color-card-alt) px-2 py-2 text-sm text-(--color-text) focus:outline-none focus:border-(--color-primary)"
       >
         <option value="AM">AM</option>
         <option value="PM">PM</option>
@@ -296,6 +297,20 @@ export default function Agenda() {
       console.error(err);
       alert(err.message || 'Error al guardar evento');
     }
+  };
+
+  // Helper para combinar fecha (YYYY-MM-DD) y hora (HH:mm:ss) en un string ISO local
+  const combineDateTime = (dateStr, timeStr) => {
+    if (!dateStr) return '';
+    const timePart = timeStr ? timeStr.split('T')[1] || '00:00:00' : '00:00:00';
+    return `${dateStr}T${timePart}`;
+  };
+
+  // Helper para separar un string ISO local en [fecha, hora]
+  const splitDateTime = (dateTimeStr) => {
+    if (!dateTimeStr || !dateTimeStr.includes('T')) return [dateTimeStr, ''];
+    const [datePart, timePart] = dateTimeStr.split('T');
+    return [datePart, timePart ? `${datePart}T${timePart}` : ''];
   };
 
   // Basic browser notification scheduling for events that include metadata.reminder_at
@@ -637,12 +652,40 @@ export default function Agenda() {
                   <input type="text" value={selectedEvent.title} onChange={(e) => setSelectedEvent({ ...selectedEvent, title: e.target.value })} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
                 </div>
                 <div>
-                  <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Inicio</label>
-                  <input type="datetime-local" value={getLocalDateTimeString(selectedEvent.start_at)} onChange={(e) => setSelectedEvent({ ...selectedEvent, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
+                  <div className="grid grid-cols-1 sm:grid-cols-[2fr,1fr] gap-4">
+                    <div>
+                      <label className="block text-sm text-(--color-text-muted) mb-1">Fecha Inicio</label>
+                      <SimpleDateInput 
+                        value={splitDateTime(getLocalDateTimeString(selectedEvent.start_at))[0]}
+                        onChange={(date) => setSelectedEvent(prev => ({ ...prev, start_at: combineDateTime(date, prev.start_at) }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-(--color-text-muted) mb-1">Hora Inicio</label>
+                      <TimePicker
+                        dateStr={getLocalDateTimeString(selectedEvent.start_at)}
+                        onChange={(newVal) => setSelectedEvent(prev => ({ ...prev, start_at: newVal }))}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm text-(--color-text-muted)">Fecha y Hora Fin</label>
-                  <input type="datetime-local" value={getLocalDateTimeString(selectedEvent.end_at)} onChange={(e) => setSelectedEvent({ ...selectedEvent, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="w-full rounded border border-(--color-border) px-3 py-2 bg-(--color-card-alt) text-(--color-text)" />
+                  <div className="grid grid-cols-1 sm:grid-cols-[2fr,1fr] gap-4">
+                    <div>
+                      <label className="block text-sm text-(--color-text-muted) mb-1">Fecha Fin</label>
+                      <SimpleDateInput 
+                        value={splitDateTime(getLocalDateTimeString(selectedEvent.end_at))[0]}
+                        onChange={(date) => setSelectedEvent(prev => ({ ...prev, end_at: combineDateTime(date, prev.end_at) }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-(--color-text-muted) mb-1">Hora Fin</label>
+                      <TimePicker
+                        dateStr={getLocalDateTimeString(selectedEvent.end_at)}
+                        onChange={(newVal) => setSelectedEvent(prev => ({ ...prev, end_at: newVal }))}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-(--color-text-muted)">Notas adicionales</label>
@@ -730,21 +773,46 @@ export default function Agenda() {
           )}
 
           <div>
-            <label className="block text-sm text-(--color-text-muted) mb-1">Hora de inicio</label>
-            <TimePicker
-              dateStr={form.start_at}
-              onChange={(newVal) => setForm({ ...form, start_at: newVal })}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-[2fr,1fr] gap-4">
+              <div>
+                <label className="block text-sm text-(--color-text-muted) mb-1">Fecha de inicio</label>
+                <SimpleDateInput 
+                  value={splitDateTime(form.start_at)[0]}
+                  onChange={(date) => setForm(prev => ({ ...prev, start_at: combineDateTime(date, prev.start_at) }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-(--color-text-muted) mb-1">Hora de inicio</label>
+                <TimePicker
+                  dateStr={form.start_at}
+                  onChange={(newVal) => setForm({ ...form, start_at: newVal })}
+                />
+              </div>
+            </div>
           </div>
 
           <div>
             <label className="block text-sm text-(--color-text-muted)">Notas adicionales</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
           </div>
-
+          
           <div>
-            <label className="block text-sm text-(--color-text-muted)">Recordatorio</label>
-            <input type="datetime-local" value={form.metadata.reminder_at} onChange={(e) => setForm({ ...form, metadata: { ...form.metadata, reminder_at: e.target.value } })} className="w-full rounded-md border border-(--color-border) bg-(--color-card-alt) px-4 py-3 text-(--color-text)" />
+            <div className="grid grid-cols-1 sm:grid-cols-[2fr,1fr] gap-4">
+              <div>
+                <label className="block text-sm text-(--color-text-muted) mb-1">Fecha Recordatorio</label>
+                <SimpleDateInput 
+                  value={splitDateTime(form.metadata.reminder_at)[0]}
+                  onChange={(date) => setForm(prev => ({ ...prev, metadata: { ...prev.metadata, reminder_at: combineDateTime(date, prev.metadata.reminder_at) } }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-(--color-text-muted) mb-1">Hora Recordatorio</label>
+                <TimePicker
+                  dateStr={form.metadata.reminder_at}
+                  onChange={(newVal) => setForm(prev => ({ ...prev, metadata: { ...prev.metadata, reminder_at: newVal } }))}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
