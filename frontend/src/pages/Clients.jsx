@@ -496,8 +496,8 @@ export default function Clients() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.phone}</td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.email || '-'}</td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.birth_date ? new Date(client.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : '-'}</td>
+                    
+                    
                     <td className="px-4 py-4 text-sm text-[var(--color-text)]">
                       {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
                     </td>
