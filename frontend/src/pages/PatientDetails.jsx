@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePatients, useCreatePayment } from '../hooks/usePatients';
 import { useClients } from '../hooks/useClients';
 import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition';
-import { useCreateAgenda } from '../hooks/useAgenda';
+import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
-import { GymModal } from '../components/ui/GymModal';
 import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
+import { AgendaCalendar } from '../components/ui/AgendaCalendar';
+import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
 
 export default function PatientDetails() {
   const { slug } = useParams();
@@ -49,12 +50,33 @@ export default function PatientDetails() {
   
   // Forms state
   const [paymentForm, setPaymentForm] = useState({ amount: '', payment_method: 'cash', notes: '' });
-  const [scheduleForm, setScheduleForm] = useState({ title: '', description: '', start_at: '', end_at: '' });
+  const [initialFormState, setInitialFormState] = useState({
+    event_type: 'cita',
+    title: '',
+    description: '',
+    patient_id: null,
+    phone: '',
+    status: 'programada',
+    start_at: '',
+    end_at: '',
+    metadata: {
+      reason: '',
+      medium: '',
+      with_whom: '',
+      location: '',
+      reminder_at: '',
+    },
+  });
 
   // Mutations
   const createEvaluationMutation = useCreateEvaluation();
   const createPaymentMutation = useCreatePayment();
   const createAgendaMutation = useCreateAgenda();
+
+  // Agenda state and data
+  const [viewDate, setViewDate] = useState(new Date());
+  const { data: agendaData } = useAgenda();
+  const events = useMemo(() => agendaData?.data || [], [agendaData]);
 
   const handleSaveConsult = async (payload) => {
     const isClient = patient.userType === 'client';
@@ -110,22 +132,70 @@ export default function PatientDetails() {
     });
   };
 
-  const handleSaveSchedule = async () => {
+  const handleSaveSchedule = async (form) => {
     try {
       const isClient = patient.userType === 'client';
       await createAgendaMutation.mutateAsync({
-        event_type: 'cita',
-        title: scheduleForm.title,
-        description: scheduleForm.description,
+        ...form,
         [isClient ? 'client_id' : 'patient_id']: patient.id,
-        start_at: new Date(scheduleForm.start_at).toISOString(),
-        end_at: scheduleForm.end_at ? new Date(scheduleForm.end_at).toISOString() : null,
+        start_at: new Date(form.start_at).toISOString(),
+        end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
       });
       toast.success('Cita agendada exitosamente');
       setScheduleModalOpen(false);
     } catch (err) {
       toast.error(err.message || 'Error al agendar cita');
     }
+  };
+
+  const openNewAppointment = (day) => {
+    const d = new Date(day);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(new Date().getHours()).padStart(2, '0');
+    const min = String(new Date().getMinutes()).padStart(2, '0');
+
+    setInitialFormState({
+        event_type: 'cita',
+        title: `Cita — ${patient.first_name}`,
+        description: '',
+        patient_id: patient.id,
+        phone: patient.phone,
+        status: 'programada',
+        start_at: `${yyyy}-${mm}-${dd}T${hh}:${min}`,
+        end_at: '',
+        metadata: {
+            reason: '',
+            medium: '',
+            with_whom: '',
+            location: '',
+            reminder_at: '',
+        },
+    });
+    setScheduleModalOpen(true);
+  };
+
+  const openAppointmentDetails = (event) => {
+      // For now, just log it. We can implement a detail view later.
+      console.log('Event clicked:', event);
+      toast.success(`Cita seleccionada: ${event.title}`);
+  };
+
+  const navigatePrev = () => {
+    setViewDate(d => {
+        const newDate = new Date(d);
+        newDate.setMonth(newDate.getMonth() - 1);
+        return newDate;
+    });
+  };
+
+  const navigateNext = () => {
+    setViewDate(d => {
+        const newDate = new Date(d);
+        newDate.setMonth(newDate.getMonth() + 1);
+        return newDate;
+    });
   };
 
   if (isLoadingPatients || isLoadingClients) {
@@ -203,11 +273,12 @@ export default function PatientDetails() {
             Cobrar Consulta
           </button>
           <button
-            onClick={() => {
-              setScheduleForm({ title: `Cita — ${patient.first_name}`, description: '', start_at: '', end_at: '' });
-              setScheduleModalOpen(true);
-            }}
-            className="px-6 py-3 rounded-t-lg font-bold transition-colors bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent flex items-center gap-2"
+            onClick={() => setActiveTab('schedule')}
+            className={`px-6 py-3 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${
+              activeTab === 'schedule' 
+                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
+                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+            }`}
           >
             <IconCalendar size={18} />
             Agendar Cita
@@ -400,29 +471,36 @@ export default function PatientDetails() {
               </div>
             </div>
           )}
+          {activeTab === 'schedule' && (
+             <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-[var(--color-gold)]">
+                        Calendario de Citas — {viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}
+                    </h2>
+                    <div className="flex gap-2">
+                        <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
+                        <GymButton onClick={() => setViewDate(new Date())} variant="ghost">Hoy</GymButton>
+                        <GymButton onClick={navigateNext} variant="primary">Siguiente</GymButton>
+                    </div>
+                </div>
+                <AgendaCalendar 
+                    viewDate={viewDate}
+                    events={events}
+                    onDayClick={openNewAppointment}
+                    onEventClick={openAppointmentDetails}
+                />
+             </div>
+          )}
         </div>
       </div>
 
-      <GymModal isOpen={scheduleModalOpen} onClose={() => setScheduleModalOpen(false)} title={`Agendar Cita — ${patient.first_name}`} width="sm">
-        <div className="space-y-4 text-[var(--color-text)]">
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Título</label>
-            <input value={scheduleForm.title} onChange={(e) => setScheduleForm({ ...scheduleForm, title: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)] border-[var(--color-border)]" />
-          </div>
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Inicio</label>
-            <input type="datetime-local" value={scheduleForm.start_at} onChange={(e) => setScheduleForm({ ...scheduleForm, start_at: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)] border-[var(--color-border)]" />
-          </div>
-          <div>
-            <label className="block text-sm text-[var(--color-text-muted)]">Fecha y Hora Fin</label>
-            <input type="datetime-local" value={scheduleForm.end_at} onChange={(e) => setScheduleForm({ ...scheduleForm, end_at: e.target.value })} className="w-full rounded border px-3 py-2 bg-[var(--color-card-alt)] border-[var(--color-border)]" />
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <GymButton variant="secondary" onClick={() => setScheduleModalOpen(false)}>Cancelar</GymButton>
-            <GymButton variant="primary" onClick={handleSaveSchedule}>Agendar</GymButton>
-          </div>
-        </div>
-      </GymModal>
+      <ScheduleAppointmentModal
+        isOpen={scheduleModalOpen}
+        onClose={() => setScheduleModalOpen(false)}
+        onSubmit={handleSaveSchedule}
+        initialFormState={initialFormState}
+        patients={[patient].filter(Boolean)}
+      />
     </div>
   );
 }
