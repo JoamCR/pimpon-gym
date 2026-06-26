@@ -54,10 +54,12 @@ async function run() {
 
     // 2. Limpiar base de datos remota para evitar duplicados si ya tenía datos
     console.log('\n🧹 Limpiando tablas en Supabase...');
+    // Se trunca en orden inverso para respetar las claves foráneas (foreign keys)
     for (let i = tablesInOrder.length - 1; i >= 0; i--) {
+      const tableToTruncate = tablesInOrder[i];
       try {
-        await remotePool.query(`TRUNCATE TABLE ${tablesInOrder[i]} CASCADE`);
-      } catch(e) {
+        await remotePool.query(`TRUNCATE TABLE ${tableToTruncate} RESTART IDENTITY CASCADE`);
+      } catch (e) {
         // Ignore if table doesn't exist
       }
     }

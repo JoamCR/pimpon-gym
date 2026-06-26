@@ -128,7 +128,7 @@ export default function PatientDetails() {
     }
   };
 
-  if (isLoadingPatients) {
+  if (isLoadingPatients || isLoadingClients) {
     return <div className="min-h-screen p-6 flex items-center justify-center text-[var(--color-text)]">Cargando expediente...</div>;
   }
 
