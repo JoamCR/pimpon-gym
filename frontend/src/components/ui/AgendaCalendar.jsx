@@ -22,10 +22,10 @@ const renderEventCard = (ev, onEventClick) => {
     const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-text)]';
     
     return (
-      <button key={ev.id} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} className={`w-full text-left rounded px-2 py-1.5 border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs mb-1 hover:brightness-110 flex flex-col gap-1`}> 
+      <button key={ev.id} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} className={`w-full text-left rounded px-1 py-0.5 border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs mb-0.5 hover:brightness-110 flex flex-col gap-0`}> 
         <div className="flex justify-between items-center w-full">
-          <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
-          <div className="ml-1 opacity-80 shrink-0">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          <div className="text-[0.45rem]" title={ev.title}>{ev.title}</div>
+          <div className="ml-1 opacity-80 shrink-0 text-[0.45rem]">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
       </button>
     );
