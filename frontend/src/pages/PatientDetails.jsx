@@ -144,7 +144,11 @@ export default function PatientDetails() {
       toast.success('Cita agendada exitosamente');
       setScheduleModalOpen(false);
     } catch (err) {
-      toast.error(err.message || 'Error al agendar cita');
+      if (err.status === 409) {
+        toast.error('Este horario ya está ocupado. Por favor, elige otro.');
+      } else {
+        toast.error(err.message || 'Error al agendar cita');
+      }
     }
   };
 

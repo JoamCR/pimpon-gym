@@ -20,6 +20,12 @@ const create = async (payload) => {
     payload.title = 'Cita Agendada'; // Default title if no patient is linked or name isn't found
   }
 
+  // Check for overlapping events
+  const overlappingEvents = await repo.findOverlappingEvents(payload.start_at, payload.end_at);
+  if (overlappingEvents.length > 0) {
+    throw createError(409, 'Ya existe una cita agendada para este horario.');
+  }
+
   const ev = await repo.createEvent(payload);
   return ev;
 };
@@ -53,6 +59,16 @@ const update = async (id, changes) => {
     }
   } else if (!changes.title) { // If no patient_id and no title explicitly provided
     changes.title = 'Cita Agendada'; // Default title
+  }
+
+  // Determine effective start_at and end_at for overlap check
+  const effectiveStartAt = changes.start_at || existingEvent.start_at;
+  const effectiveEndAt = changes.end_at || existingEvent.end_at;
+
+  // Check for overlapping events, excluding the current event
+  const overlappingEvents = await repo.findOverlappingEvents(effectiveStartAt, effectiveEndAt, id);
+  if (overlappingEvents.length > 0) {
+    throw createError(409, 'Ya existe una cita agendada para este horario.');
   }
 
   const ev = await repo.updateEvent(id, changes);

@@ -35,7 +35,11 @@ export const useCreateAgenda = () => {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al crear evento');
+      if (!res.ok) {
+        const error = new Error(data.error || 'Error al crear evento');
+        error.status = res.status;
+        throw error;
+      }
       return data;
     },
     onSuccess: () => qc.invalidateQueries(['agenda'])
