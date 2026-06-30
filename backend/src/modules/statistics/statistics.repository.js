@@ -71,7 +71,11 @@ const getClientsByPlan = async () => {
 /**
  * 4. getAgeDistribution(): distribución de clientes activos por rango de edad
  */
-const getAgeDistribution = async () => {
+const getAgeDistributionFor = async (entity) => {
+  if (entity !== 'clients' && entity !== 'patients') {
+    throw createError(400, 'Entidad no válida. Debe ser "clients" o "patients"');
+  }
+
   const sql = `
     SELECT age_range, count
     FROM (
@@ -85,7 +89,7 @@ const getAgeDistribution = async () => {
           WHEN age BETWEEN 45 AND 54 THEN '45-54'
           ELSE '55+' END AS age_range,
         COUNT(*) as count
-      FROM clients
+      FROM ${entity}
       WHERE is_active = true
       GROUP BY 1
     ) AS age_sub
@@ -103,23 +107,27 @@ const getAgeDistribution = async () => {
     const result = await pool.query(sql);
     return result.rows;
   } catch (err) {
-    throw createError(500, 'Error obteniendo distribución por edad');
+    throw createError(500, `Error obteniendo distribución por edad para ${entity}`);
   }
 };
 
 /**
- * 5. getSexDistribution(): distribución de clientes por sexo derivada de client_type cuando esté disponible
+ * 5. getSexDistributionFor(): distribución por sexo para una entidad específica (clientes o pacientes)
  */
-const getSexDistribution = async () => {
+const getSexDistributionFor = async (entity) => {
+  if (entity !== 'clients' && entity !== 'patients') {
+    throw createError(400, 'Entidad no válida. Debe ser "clients" o "patients"');
+  }
+
   const sql = `
     SELECT 
       CASE
-        WHEN LOWER(client_type) IN ('male','m','hombre','h') THEN 'Hombre'
-        WHEN LOWER(client_type) IN ('female','f','mujer','f') THEN 'Mujer'
+        WHEN LOWER(gender) IN ('male','m','hombre','h') THEN 'Hombre'
+        WHEN LOWER(gender) IN ('female','f','mujer','f') THEN 'Mujer'
         ELSE 'Otro / No especificado'
       END as sex,
       COUNT(*) as count
-    FROM clients
+    FROM ${entity}
     WHERE is_active = true
     GROUP BY sex
     ORDER BY count DESC
@@ -128,7 +136,7 @@ const getSexDistribution = async () => {
     const result = await pool.query(sql);
     return result.rows;
   } catch (err) {
-    throw createError(500, 'Error obteniendo distribución por sexo');
+    throw createError(500, `Error obteniendo distribución por sexo para ${entity}`);
   }
 };
 
@@ -996,8 +1004,8 @@ module.exports = {
   getMonthlyIncome,
   getActiveClientsReal,
   getClientsByPlan,
-  getAgeDistribution,
-  getSexDistribution,
+  getAgeDistributionFor,
+  getSexDistributionFor,
   getExpiredClients,
   getEnrollmentCutoff,
   getClientsWithoutAttendance,

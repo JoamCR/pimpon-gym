@@ -4,11 +4,12 @@ const { createSchema } = require('./agenda.schema');
 
 module.exports = async function (fastify, opts) {
   fastify.get('/', async (request, reply) => {
-    const { start_at, end_at, patient_id } = request.query;
+    const { start_at, end_at, patient_id, search } = request.query;
     const filters = {};
     if (start_at) filters.start_at = start_at;
     if (end_at) filters.end_at = end_at;
     if (patient_id) filters.patient_id = patient_id;
+    if (search) filters.search = search;
     const rows = await svc.list(filters);
     return { data: rows };
   });

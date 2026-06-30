@@ -25,7 +25,7 @@ export default function Clients() {
 
   // Renew state
   const [renewModal, setRenewModal] = useState(false);
-  const [renewFormData, setRenewFormData] = useState({ payment_method: 'cash', amount: 0 });
+  const [renewFormData, setRenewFormData] = useState({ payment_method: 'cash', plan_id: null });
 
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -199,26 +199,33 @@ export default function Clients() {
 
   const handleRenewClient = (client) => {
     setSelectedClient(client);
-    setRenewFormData({ payment_method: 'cash', amount: 0 });
+    setRenewFormData({ payment_method: 'cash', plan_id: client.plan_id });
     setRenewModal(true);
   };
 
   const confirmRenew = async () => {
-    if (!renewFormData.amount || renewFormData.amount <= 0) {
-      toast.error('Ingresa un monto válido');
+    if (!renewFormData.plan_id) {
+      toast.error('Por favor, selecciona un plan para renovar.');
       return;
     }
+  
+    const selectedPlan = planOptions.find(p => p.id === renewFormData.plan_id);
+    if (!selectedPlan) {
+      toast.error('El plan seleccionado no es válido.');
+      return;
+    }
+  
     try {
       await renewSubscription.mutateAsync({
         client_id: selectedClient.id,
-        amount: parseFloat(renewFormData.amount),
+        amount: parseFloat(selectedPlan.price_monthly),
         payment_method: renewFormData.payment_method,
       });
-      toast.success('Suscripción renovada');
+      toast.success('Suscripción renovada exitosamente');
       setRenewModal(false);
       refetch();
     } catch (error) {
-      toast.error(error.message || 'Error al renovar suscripción');
+      toast.error(error.message || 'Ocurrió un error al renovar la suscripción');
     }
   };
 
@@ -614,35 +621,52 @@ export default function Clients() {
         )}
       </GymModal>
 
-      <GymModal isOpen={renewModal} onClose={() => setRenewModal(false)} title="Renovar Suscripción" width="sm">
-        <div className="space-y-4 text-[var(--color-text-muted)]">
-          <div>
-            <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">Método de Pago</label>
+      <GymModal isOpen={renewModal} onClose={() => setRenewModal(false)} title="Renovar Suscripción" width="lg">
+        <div className="space-y-6">
+          {/* Plan selection */}
+          <div className="space-y-4">
+            <p className="text-base font-semibold text-[var(--color-text)]">Selecciona el nuevo plan</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {planOptions.filter(p => !p.is_visit_based).map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => setRenewFormData({ ...renewFormData, plan_id: plan.id })}
+                  className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
+                    renewFormData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
+                  }`}
+                >
+                  <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
+                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Payment method */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Método de pago</label>
             <select
               value={renewFormData.payment_method}
               onChange={(e) => setRenewFormData({ ...renewFormData, payment_method: e.target.value })}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3 py-2 text-[var(--color-text)]"
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
             >
               <option value="cash">Efectivo</option>
               <option value="transfer">Transferencia</option>
-              {/* <option value="card">Tarjeta</option> */}
             </select>
           </div>
           
-          <div>
-            <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">Monto (MXN)</label>
-            <input
-              type="number"
-              value={renewFormData.amount}
-              onChange={(e) => setRenewFormData({ ...renewFormData, amount: e.target.value })}
-              placeholder="0.00"
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3 py-2 text-[var(--color-text)]"
-            />
-          </div>
-          
-          <div className="flex justify-end gap-3 mt-4">
-            <GymButton variant="secondary" size="sm" onClick={() => setRenewModal(false)}>Cancelar</GymButton>
-            <GymButton variant="success" size="sm" onClick={confirmRenew} loading={renewSubscription.isLoading}>Renovar</GymButton>
+          {/* Action buttons */}
+          <div className="flex justify-end gap-3 pt-4">
+            <GymButton variant="secondary" onClick={() => setRenewModal(false)}>Cancelar</GymButton>
+            <GymButton 
+              variant="success" 
+              onClick={confirmRenew} 
+              loading={renewSubscription.isLoading}
+              disabled={!renewFormData.plan_id}
+            >
+              Renovar Suscripción
+            </GymButton>
           </div>
         </div>
       </GymModal>

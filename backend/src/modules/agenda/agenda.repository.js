@@ -10,23 +10,45 @@ const createEvent = async (payload) => {
 };
 
 const getEvents = async (filters = {}) => {
-  // Support optional date range and patient_id
+  let queryText = `
+    SELECT a.*, p.first_name, p.last_name 
+    FROM agenda a 
+    LEFT JOIN patients p ON a.patient_id = p.id
+  `;
   const clauses = [];
   const params = [];
+
   if (filters.start_at) {
     params.push(filters.start_at);
-    clauses.push(`start_at >= $${params.length}`);
+    clauses.push(`a.start_at >= $${params.length}`);
   }
   if (filters.end_at) {
     params.push(filters.end_at);
-    clauses.push(`start_at <= $${params.length}`);
+    clauses.push(`a.start_at <= $${params.length}`);
   }
   if (filters.patient_id) {
     params.push(filters.patient_id);
-    clauses.push(`patient_id = $${params.length}`);
+    clauses.push(`a.patient_id = $${params.length}`);
   }
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  const res = await query(`SELECT * FROM agenda ${where} ORDER BY start_at ASC`, params);
+  if (filters.search) {
+    params.push(`%${filters.search}%`);
+    const searchClauses = [
+      `a.title ILIKE $${params.length}`,
+      `a.status ILIKE $${params.length}`,
+      `p.first_name ILIKE $${params.length}`,
+      `p.last_name ILIKE $${params.length}`,
+      `p.first_name || ' ' || p.last_name ILIKE $${params.length}`
+    ];
+    clauses.push(`(${searchClauses.join(' OR ')})`);
+  }
+
+  if (clauses.length > 0) {
+    queryText += ` WHERE ${clauses.join(' AND ')}`;
+  }
+  
+  queryText += ' ORDER BY a.start_at ASC';
+
+  const res = await query(queryText, params);
   return res.rows;
 };
 

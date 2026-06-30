@@ -12,6 +12,7 @@ import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentMo
 export default function Agenda() {
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [viewDate, setViewDate] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [initialFormState, setInitialFormState] = useState({
     event_type: 'cita',
@@ -31,7 +32,7 @@ export default function Agenda() {
     },
   });
 
-  const { data } = useAgenda();
+  const { data, isLoading } = useAgenda({ search: searchQuery });
   const events = useMemo(() => data?.data || [], [data]);
   const { data: patientsResp } = usePatients();
   const patients = useMemo(() => patientsResp?.data || [], [patientsResp]);
@@ -183,6 +184,7 @@ export default function Agenda() {
   };
 
   const getViewTitle = () => {
+    if (searchQuery) return `Resultados de búsqueda para "${searchQuery}"`;
     if (viewMode === 'month') {
       return `Vista mes — ${viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}`;
     }
@@ -294,6 +296,38 @@ export default function Agenda() {
     );
   };
 
+  const renderSearchResults = () => {
+    if (isLoading) return <div className="text-center text-[var(--color-text-muted)] py-10">Buscando...</div>;
+    if (!events.length) return <div className="text-center text-[var(--color-text-muted)] py-10">No se encontraron eventos.</div>;
+
+    return (
+        <div className="space-y-3">
+        {events.map(ev => {
+          const patient = ev.patient_id ? patients.find(p => p.id === ev.patient_id) : null;
+          const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-[var(--color-success)]' : ev.event_type === 'reunion' ? 'border-l-4 border-[var(--color-teal)]' : ev.event_type === 'videollamada' ? 'border-l-4 border-[var(--color-gold)]' : 'border-l-4 border-[var(--color-amber)]';
+          const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-text)]';
+          
+          return (
+            <div key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`flex flex-col sm:flex-row p-4 rounded border ${typeColor} border-[var(--color-border)] ${statusBg} items-start sm:items-center justify-between gap-4 hover:brightness-110 transition-all cursor-pointer`}>
+              <div>
+                <h3 className="font-bold text-lg">{ev.title}</h3>
+                <p className="opacity-90 text-sm flex items-center gap-2 mt-1">
+                  <IconClock size={16} />
+                  {new Date(ev.start_at).toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })}
+                </p>
+                {patient && <p className="mt-1 text-sm opacity-80">Paciente: {patient.first_name} {patient.last_name}</p>}
+                {ev.description && <p className="mt-2 text-sm opacity-80">{ev.description}</p>}
+              </div>
+              <div className="text-sm font-bold uppercase opacity-90 px-3 py-1 rounded bg-black/20 self-start sm:self-auto">
+                {ev.status}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   // Pre-fill dates for editing properly
   const getLocalDateTimeString = (isoString) => {
     if (!isoString) return '';
@@ -307,11 +341,18 @@ export default function Agenda() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-[var(--color-surface)]">
+    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div>
+        <div className="flex-1 space-y-3">
           <h1 className="text-4xl font-bold text-[var(--color-text)]">Agenda</h1>
           <p className="text-[var(--color-text-muted)]">Calendario de actividades y citas</p>
+          <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por título, paciente, estado..."
+              className="w-full max-w-md rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+            />
         </div>
         <div className="flex flex-col items-end gap-3">
           {/*<div className="flex p-1 bg-[var(--color-card)] rounded-md border border-[var(--color-border)]">
@@ -328,9 +369,13 @@ export default function Agenda() {
       </header>
 
       <GymCard title={getViewTitle()} variant="default">
-        {viewMode === 'month' && <AgendaCalendar viewDate={viewDate} events={events} onDayClick={openNew} onEventClick={openDetails} /> }
-        {viewMode === 'week' && renderWeekView()}
-        {viewMode === 'day' && renderDayView()}
+        {searchQuery ? renderSearchResults() : (
+            <>
+                {viewMode === 'month' && <AgendaCalendar viewDate={viewDate} events={events} onDayClick={openNew} onEventClick={openDetails} /> }
+                {viewMode === 'week' && renderWeekView()}
+                {viewMode === 'day' && renderDayView()}
+            </>
+        )}
       </GymCard>
       
       <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="lg">

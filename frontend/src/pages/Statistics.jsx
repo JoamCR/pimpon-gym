@@ -49,8 +49,10 @@ const allMetrics = [
   { id: 'retentionRate', label: 'Retención de Clientes', category: 'gym' },
   { id: 'monthlyIncome', label: 'Ingreso de Efectivo del Mes', category: 'gym' },
   { id: 'paymentMethods', label: 'Origen de Ingresos', category: 'gym' },
-  { id: 'ageDistribution', label: 'Distribución por Edad', category: 'gym' },
-  { id: 'sexDistribution', label: 'Distribución por Sexo', category: 'gym' },
+  { id: 'ageDistributionClients', label: 'Edad de Clientes', category: 'gym' },
+  { id: 'sexDistributionClients', label: 'Sexo de Clientes', category: 'gym' },
+  { id: 'ageDistributionPatients', label: 'Edad de Pacientes', category: 'nutrition' },
+  { id: 'sexDistributionPatients', label: 'Sexo de Pacientes', category: 'nutrition' },
   { id: 'absentClients', label: 'Clientes Ausentes', category: 'gym' },
   { id: 'alertClients', label: 'Clientes en Alerta', category: 'gym' },
   { id: 'nutritionFreeConsults', label: 'Consultas Gratuitas', category: 'nutrition' },
@@ -68,6 +70,7 @@ export default function Statistics() {
   const [selectedCard, setSelectedCard] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [entityType, setEntityType] = useState('clients');
 
   const now = new Date();
   const year = now.getFullYear();
@@ -146,12 +149,22 @@ export default function Statistics() {
     clientes_unicos: parseInt(d.unique_clients) || 0
   }));
 
-  const ageData = (charts.ageDistribution || []).map(d => ({
+  const ageDataClients = (charts.ageDistributionClients || []).map(d => ({
     name: d.age_range,
     value: parseInt(d.count, 10) || 0
   }));
 
-  const sexData = (charts.sexDistribution || []).map(d => ({
+  const sexDataClients = (charts.sexDistributionClients || []).map(d => ({
+    name: d.sex,
+    value: parseInt(d.count, 10) || 0
+  }));
+
+  const ageDataPatients = (charts.ageDistributionPatients || []).map(d => ({
+    name: d.age_range,
+    value: parseInt(d.count, 10) || 0
+  }));
+
+  const sexDataPatients = (charts.sexDistributionPatients || []).map(d => ({
     name: d.sex,
     value: parseInt(d.count, 10) || 0
   }));
@@ -195,15 +208,27 @@ export default function Statistics() {
       dataKey: 'visitantes',
       nameKey: 'date'
     },
-    ageDistribution: {
-      data: ageData,
-      title: 'Distribución por Edad',
+    ageDistributionClients: {
+      data: ageDataClients,
+      title: 'Distribución por Edad (Clientes)',
       dataKey: 'value',
       nameKey: 'name'
     },
-    sexDistribution: {
-      data: sexData,
-      title: 'Distribución por Sexo',
+    sexDistributionClients: {
+      data: sexDataClients,
+      title: 'Distribución por Sexo (Clientes)',
+      dataKey: 'value',
+      nameKey: 'name'
+    },
+    ageDistributionPatients: {
+      data: ageDataPatients,
+      title: 'Distribución por Edad (Pacientes)',
+      dataKey: 'value',
+      nameKey: 'name'
+    },
+    sexDistributionPatients: {
+      data: sexDataPatients,
+      title: 'Distribución por Sexo (Pacientes)',
       dataKey: 'value',
       nameKey: 'name'
     },
