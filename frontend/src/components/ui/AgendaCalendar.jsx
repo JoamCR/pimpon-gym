@@ -22,10 +22,10 @@ const renderEventCard = (ev, onEventClick) => {
     const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-text)]';
     
     return (
-      <button key={ev.id} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} className={`w-full text-left rounded border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs mb-0.5 hover:brightness-110 flex flex-col gap-0`}> 
+      <button key={ev.id} onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} className={`w-full text-left rounded border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs hover:brightness-110 flex flex-col gap-0`}> 
         <div className="flex justify-between items-center w-full">
-          <div className="text-[0.4rem]" title={ev.title}>{ev.title}</div>
-          <div className="opacity-80 shrink-0 text-[0.4rem]">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          <div className="text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={ev.title}>{ev.title}</div>
+          <div className="opacity-80 shrink-0 text-xs">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
       </button>
     );
@@ -46,7 +46,7 @@ export const AgendaCalendar = ({ viewDate, events, onDayClick, onEventClick }) =
   }, [events]);
   
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="grid grid-cols-7">
       {['Dom','Lun','Mar','Mie','Jue','Vie','Sab'].map(d => (
         <div key={d} className="text-sm text-[var(--color-text-muted)] font-semibold p-2 text-center">{d}</div>
       ))}
@@ -60,12 +60,12 @@ export const AgendaCalendar = ({ viewDate, events, onDayClick, onEventClick }) =
           <div 
             key={dayKey} 
             onClick={() => onDayClick(d)} 
-            className={`rounded-md p-2 border ${isCurrentMonth ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)] opacity-50'} border-[var(--color-border)] cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors flex flex-col`}
+            className={`rounded-md p-2 border ${isCurrentMonth ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)] opacity-50'} border-[var(--color-border)] cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors flex flex-col h-40`}
           >
             <div className="flex justify-between items-start mb-2">
               <div className={`text-sm font-semibold flex items-center justify-center w-6 h-6 rounded-full ${isToday ? 'bg-[var(--color-primary)] text-white' : ''} ${!isCurrentMonth ? 'text-[var(--color-text-muted)]' : ''}`}>{d.getDate()}</div>
             </div>
-            <div className="space-y-1 overflow-y-auto h-[100px] scrollbar-thin">
+            <div className="space-y-1 overflow-y-auto h-[110px] scrollbar-thin">
               {dayEvents.map(ev => renderEventCard(ev, onEventClick))}
             </div>
           </div>

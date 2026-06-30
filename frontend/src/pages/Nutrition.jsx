@@ -195,7 +195,7 @@ export default function Nutrition() {
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6 h-full">
           <GymCard title="Cola de Pacientes" subtitle="Pacientes de consultorio" variant="default">
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-2">
               {queueLoading ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">Cargando pacientes...</p>
               ) : patientsQueue.length === 0 ? (
@@ -209,7 +209,7 @@ export default function Nutrition() {
           </GymCard>
 
           <GymCard title="Cola de Clientes" subtitle="Clientes de gimnasio" variant="default">
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-2">
               {queueLoading ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">Cargando clientes...</p>
               ) : clientsQueue.length === 0 ? (
