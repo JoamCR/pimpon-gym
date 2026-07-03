@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Estructura inicial basada en los ejercicios de la plantilla
 const rutinasIniciales = [
@@ -115,7 +115,7 @@ const rutinasIniciales = [
   }
 ];
 
-export default function RutinaGym() {
+export default function RutinaGym({ patient, plan, onChange }) {
   const [datosGenerales, setDatosGenerales] = useState({
     nombre: '',
     fechaInicio: '',
@@ -127,6 +127,37 @@ export default function RutinaGym() {
   const [cardio, setCardio] = useState({ tipo: '', duracion: '', intensidad: '', frecuencia: '' });
   const [anotaciones, setAnotaciones] = useState('');
   const [observaciones, setObservaciones] = useState('');
+
+  useEffect(() => {
+    if (patient) {
+      setDatosGenerales(prev => ({ ...prev, nombre: patient.name }));
+    }
+    if (plan) {
+      setRutinas(plan.rutinas || rutinasIniciales);
+      setCardio(plan.cardio || { tipo: '', duracion: '', intensidad: '', frecuencia: '' });
+      setAnotaciones(plan.anotaciones || '');
+      setObservaciones(plan.observaciones || '');
+      setDatosGenerales(prev => ({
+        ...prev,
+        fechaInicio: plan.fechaInicio || '',
+        fechaCambio: plan.fechaCambio || '',
+        objetivo: plan.objetivo || '',
+      }));
+    }
+  }, [patient, plan]);
+
+  useEffect(() => {
+    if (onChange) {
+      onChange({
+        datosGenerales,
+        rutinas,
+        cardio,
+        anotaciones,
+        observaciones,
+      });
+    }
+  }, [datosGenerales, rutinas, cardio, anotaciones, observaciones, onChange]);
+
 
   // Manejador para cambiar valores en las tablas de ejercicios
   const handleEjercicioChange = (grupoIdx, ejIdx, campo, valor) => {
