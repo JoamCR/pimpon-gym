@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import { IconX } from '@tabler/icons-react';
+import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
 const getInitialEvaluation = () => ({
 
@@ -455,23 +456,8 @@ export function ConsultForm({
       )}
 
       {evaluationTab === 'exercise_plan' && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="grid gap-4 md:grid-cols-2">
-            {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
-              <ExerciseDayEditor key={day} day={day} content={planForm} onChange={handlePlanChange} />
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas del plan</label>
-            <textarea
-              rows={4}
-              value={planForm.notes}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, notes: e.target.value }))}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              placeholder="Añade observaciones o instrucciones especiales para la rutina"
-            />
-          </div>
+        <div className="animate-fade-in">
+          <RutinaGym />
         </div>
       )}
 
