@@ -380,10 +380,10 @@ export default function RutinaGym({ patient, plan, onChange }) {
 
         {/* PIE DE PÁGINA */}
         <footer className="bg-zinc-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-center text-xs border-t-4 border-orange-600">
-          <div className="space-y-1 mb-2 md:mb-0 text-gray-300">
+          {/*  <div className="space-y-1 mb-2 md:mb-0 text-gray-300">
             <div>📸 <span className="font-semibold">Pimpon Nutrition & Gym</span></div>
             <div>👍 <span className="font-semibold">Pimpon Nutrition & Gym</span></div>
-          </div>
+          </div> */}
           
           <div className="text-center mb-2 md:mb-0">
             <span className="font-black italic text-lg tracking-wider text-orange-500">
