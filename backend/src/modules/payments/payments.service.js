@@ -46,35 +46,50 @@ const registerPayment = async (data, registeredBy) => {
         if (planRes.rows.length > 0) {
           const duration = planRes.rows[0].duration_days;
           
-          const subRes = await dbClient.query("SELECT id, end_date FROM subscriptions WHERE client_id = $1 AND status = 'active'", [data.client_id]);
-          
-          let currentEndDate = new Date();
-          
+          const subRes = await dbClient.query("SELECT id, end_date FROM subscriptions WHERE client_id = $1 AND status = 'active' ORDER BY end_date DESC LIMIT 1", [data.client_id]);
+      
           if (subRes.rows.length > 0) {
-            const subEndDate = new Date(subRes.rows[0].end_date);
-            // Si la suscripción aún está activa, extenderla desde el end_date actual
-            // Si ya expiró (gap), reiniciar meses consecutivos y empezar desde hoy
-            if (subEndDate >= new Date(new Date().setHours(0,0,0,0))) {
-              currentEndDate = subEndDate;
+            const sub = subRes.rows[0];
+            const subEndDate = new Date(sub.end_date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let newStartDate;
+            let newEndDate;
+
+            if (subEndDate >= today) {
+              // Suscripción activa: extender desde la fecha de fin.
+              newStartDate = subEndDate;
               consecutiveMonths += 1;
+              
+              newEndDate = new Date(newStartDate);
+              newEndDate.setDate(newEndDate.getDate() + duration);
+
+              await dbClient.query("UPDATE subscriptions SET end_date = $1 WHERE id = $2", [newEndDate, sub.id]);
+
             } else {
+              // Suscripción expirada: la renovación es desde hoy para no "robar" días.
+              newStartDate = new Date();
               consecutiveMonths = 1;
+              
+              newEndDate = new Date(newStartDate);
+              newEndDate.setDate(newEndDate.getDate() + duration);
+
+              // Al renovar tras una pausa, se actualiza tanto el inicio como el fin.
+              await dbClient.query("UPDATE subscriptions SET start_date = $1, end_date = $2 WHERE id = $3", [newStartDate, newEndDate, sub.id]);
             }
-            
-            const newEndDate = new Date(currentEndDate);
-            newEndDate.setDate(newEndDate.getDate() + duration);
-            
-            await dbClient.query("UPDATE subscriptions SET end_date = $1 WHERE id = $2", [newEndDate, subRes.rows[0].id]);
-            data.subscription_id = subRes.rows[0].id;
+            data.subscription_id = sub.id;
+
           } else {
-            // No tiene suscripción activa, crear una nueva
+            // No tiene suscripción activa, crear una nueva.
             consecutiveMonths = 1;
-            const newEndDate = new Date(currentEndDate);
+            const newStartDate = new Date();
+            const newEndDate = new Date(newStartDate);
             newEndDate.setDate(newEndDate.getDate() + duration);
             
             const createSubRes = await dbClient.query(
-              "INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status) VALUES (gen_random_uuid(), $1, $2, CURRENT_DATE, $3, 'active') RETURNING id",
-              [data.client_id, planId, newEndDate]
+              "INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status) VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active') RETURNING id",
+              [data.client_id, planId, newStartDate, newEndDate]
             );
             data.subscription_id = createSubRes.rows[0].id;
           }
