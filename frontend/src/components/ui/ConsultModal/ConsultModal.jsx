@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
-import { IconX } from '@tabler/icons-react';
 import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
 const getInitialEvaluation = () => ({
@@ -49,6 +48,64 @@ const getInitialPlanForm = () => ({
   anotaciones: '',
   observaciones: '',
 });
+
+const HealthSlider = ({ label, value, onChange }) => {
+  const getSegmentColor = (index, val) => {
+    if (index > val) return 'bg-[var(--color-border)]';
+    const colors = [
+      'bg-red-600', 'bg-red-500', 'bg-orange-500', 'bg-orange-400',
+      'bg-yellow-500', 'bg-yellow-400', 'bg-lime-400', 'bg-lime-500',
+      'bg-green-400', 'bg-green-500'
+    ];
+    return colors[val - 1] || 'bg-gray-500';
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{label}</label>
+        <span className="text-sm font-bold text-[var(--color-text)]">{value} / 10</span>
+      </div>
+      <div className="flex gap-1 h-3 w-full">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+          <div
+            key={i}
+            className={`flex-1 rounded-sm cursor-pointer transition-colors duration-300 ${getSegmentColor(i, value)}`}
+            onClick={() => onChange(i)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ScaleSlider5 = ({ label, value, onChange }) => {
+  const getSegmentColor = (index, val) => {
+    if (index > val) return 'bg-[var(--color-border)]';
+    const colors = [
+      'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500'
+    ];
+    return colors[val - 1] || 'bg-gray-500';
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{label}</label>
+        <span className="text-sm font-bold text-[var(--color-text)]">{value || 0} / 5</span>
+      </div>
+      <div className="flex gap-1 h-3 w-full">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div
+            key={i}
+            className={`flex-1 rounded-sm cursor-pointer transition-colors duration-300 ${getSegmentColor(i, value || 0)}`}
+            onClick={() => onChange(i)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export function ConsultForm({
   patient,
@@ -325,7 +382,7 @@ export function ConsultForm({
 
       {evaluationTab === 'exercise_plan' && (
         <div className="animate-fade-in">
-          <RutinaGym />
+          <RutinaGym patient={patient} plan={planForm} onChange={setPlanForm} />
         </div>
       )}
 
