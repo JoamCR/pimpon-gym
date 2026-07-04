@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
+import { IconX } from '@tabler/icons-react';
 import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
 const getInitialEvaluation = () => ({
@@ -37,16 +38,13 @@ const getInitialEvaluation = () => ({
 });
 
 const getInitialPlanForm = () => ({
-  datosGenerales: {
-    nombre: '',
-    fechaInicio: '',
-    fechaCambio: '',
-    objetivo: '',
-  },
-  rutinas: [],
-  cardio: { tipo: '', duracion: '', intensidad: '', frecuencia: '' },
-  anotaciones: '',
-  observaciones: '',
+  monday: { exercises: [] },
+  tuesday: { exercises: [] },
+  wednesday: { exercises: [] },
+  thursday: { exercises: [] },
+  friday: { exercises: [] },
+  saturday: { exercises: [] },
+  notes: '',
 });
 
 const HealthSlider = ({ label, value, onChange }) => {
@@ -107,6 +105,79 @@ const ScaleSlider5 = ({ label, value, onChange }) => {
   );
 };
 
+const ExerciseDayEditor = ({ day, content, onChange }) => {
+  const dayNames = {
+    monday: 'Lunes',
+    tuesday: 'Martes',
+    wednesday: 'Miércoles',
+    thursday: 'Jueves',
+    friday: 'Viernes',
+    saturday: 'Sábado',
+  };
+
+  const dayContent = content[day] || { exercises: [] };
+
+  const handleAddExercise = () => {
+    const newExercises = [...(dayContent.exercises || []), { name: '', series: 3, reps: 10 }];
+    onChange(day, { ...dayContent, exercises: newExercises });
+  };
+
+  const handleUpdateExercise = (index, field, value) => {
+    const updated = [...dayContent.exercises];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange(day, { ...dayContent, exercises: updated });
+  };
+
+  const handleRemoveExercise = (index) => {
+    const updated = dayContent.exercises.filter((_, i) => i !== index);
+    onChange(day, { ...dayContent, exercises: updated });
+  };
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4">
+      <h4 className="mb-3 text-base font-semibold text-[var(--color-text)]">{dayNames[day]}</h4>
+      <div className="space-y-4">
+        {dayContent.exercises?.map((exercise, idx) => (
+          <div key={idx} className="grid gap-3 md:grid-cols-[1.5fr_0.8fr_0.8fr_auto] items-end">
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Ejercicio {idx + 1}</label>
+              <input
+                type="text"
+                value={exercise.name}
+                onChange={(e) => handleUpdateExercise(idx, 'name', e.target.value)}
+                placeholder="Ej: Flexiones"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Series</label>
+              <input
+                type="number"
+                value={exercise.series}
+                onChange={(e) => handleUpdateExercise(idx, 'series', Number(e.target.value))}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Reps</label>
+              <input
+                type="number"
+                value={exercise.reps}
+                onChange={(e) => handleUpdateExercise(idx, 'reps', Number(e.target.value))}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+              />
+            </div>
+            <div className="flex items-center justify-end">
+              <GymButton size="sm" variant="danger" icon={<IconX size={16} />} onClick={() => handleRemoveExercise(idx)} />
+            </div>
+          </div>
+        ))}
+        <GymButton size="sm" variant="secondary" onClick={handleAddExercise} className="w-full">+ Agregar Ejercicio</GymButton>
+      </div>
+    </div>
+  );
+};
+
 export function ConsultForm({
   patient,
   evaluation,
@@ -124,7 +195,7 @@ export function ConsultForm({
 
   useEffect(() => {
     setEvaluationTab(defaultTab || 'clinical_history');
-    setPlanForm(plan ? { ...getInitialPlanForm(), ...plan } : getInitialPlanForm());
+    setPlanForm(plan ? plan : getInitialPlanForm());
     if (evaluation) {
       setEvaluationForm({
         ...getInitialEvaluation(),
@@ -134,6 +205,10 @@ export function ConsultForm({
       setEvaluationForm(getInitialEvaluation());
     }
   }, [evaluation, plan, defaultTab]);
+
+  const handlePlanChange = (day, content) => {
+    setPlanForm((prev) => ({ ...prev, [day]: content }));
+  };
 
   const handleSubmit = async () => {
     if (!patient?.id) return;
@@ -382,7 +457,7 @@ export function ConsultForm({
 
       {evaluationTab === 'exercise_plan' && (
         <div className="animate-fade-in">
-          <RutinaGym patient={patient} plan={planForm} onChange={setPlanForm} />
+          <RutinaGym />
         </div>
       )}
 
