@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import { IconX } from '@tabler/icons-react';
