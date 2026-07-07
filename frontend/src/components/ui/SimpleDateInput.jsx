@@ -58,8 +58,12 @@ export function SimpleDateInput({ value, onChange, label, error }) {
       return;
     }
 
-    const date = new Date(`${y}-${m}-${d}`);
-    if (isNaN(date.getTime()) || date.getFullYear() !== parseInt(y, 10) || (date.getMonth() + 1) !== parseInt(m, 10)) {
+    const yearInt = parseInt(y, 10);
+    const monthInt = parseInt(m, 10);
+    const dayInt = parseInt(d, 10);
+    const date = new Date(yearInt, monthInt - 1, dayInt);
+
+    if (isNaN(date.getTime()) || date.getFullYear() !== yearInt || date.getMonth() + 1 !== monthInt || date.getDate() !== dayInt) {
       setLocalError('Fecha no válida.');
       onChange('');
       return;

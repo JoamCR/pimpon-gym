@@ -457,7 +457,7 @@ export function ConsultForm({
 
       {evaluationTab === 'exercise_plan' && (
         <div className="animate-fade-in">
-          <RutinaGym />
+          <RutinaGym patient={patient} />
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { SimpleDateInput } from '../SimpleDateInput';
 
 // Estructura inicial basada en los ejercicios de la plantilla
 const rutinasIniciales = [
@@ -130,7 +131,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
 
   useEffect(() => {
     if (patient) {
-      setDatosGenerales(prev => ({ ...prev, nombre: patient.name }));
+      setDatosGenerales(prev => ({ ...prev, nombre: `${patient.first_name} ${patient.last_name}` }));
     }
     if (plan) {
       setRutinas(plan.rutinas || rutinasIniciales);
@@ -204,7 +205,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
         </header>
 
         {/* DATOS GENERALES */}
-        <section className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">
+        <section className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">
           <div className="flex items-center space-x-2">
             <span>NOMBRE:</span>
             <input
@@ -213,24 +214,6 @@ export default function RutinaGym({ patient, plan, onChange }) {
               onChange={(e) => setDatosGenerales({ ...datosGenerales, nombre: e.target.value })}
               className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
               placeholder="Nombre del cliente"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>FECHA DE CAMBIO DE RUTINA:</span>
-            <input
-              type="date"
-              value={datosGenerales.fechaCambio}
-              onChange={(e) => setDatosGenerales({ ...datosGenerales, fechaCambio: e.target.value })}
-              className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>FECHA DE INICIO:</span>
-            <input
-              type="date"
-              value={datosGenerales.fechaInicio}
-              onChange={(e) => setDatosGenerales({ ...datosGenerales, fechaInicio: e.target.value })}
-              className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
             />
           </div>
           <div className="flex items-center space-x-2">
@@ -243,6 +226,16 @@ export default function RutinaGym({ patient, plan, onChange }) {
               placeholder="Hipertrofia, Pérdida de grasa, etc."
             />
           </div>
+          <SimpleDateInput
+            label="Fecha de Inicio"
+            value={datosGenerales.fechaInicio}
+            onChange={(date) => setDatosGenerales({ ...datosGenerales, fechaInicio: date })}
+          />
+          <SimpleDateInput
+            label="Fecha de Cambio de Rutina"
+            value={datosGenerales.fechaCambio}
+            onChange={(date) => setDatosGenerales({ ...datosGenerales, fechaCambio: date })}
+          />
         </section>
 
         {/* GRID DE RUTINAS */}
