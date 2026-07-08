@@ -54,9 +54,9 @@ const createExercisePlanSchema = z.object({
   entity_type: z.enum(['gym', 'consultorio'], {
     errorMap: () => ({ message: 'El tipo de entidad debe ser gym o consultorio' })
   }),
-  nutrition_record_id: z.string().uuid('El ID del registro nutricional debe ser un UUID válido'),
-  month_year: z.string().regex(/^\d{4}-\d{2}$/, 'El formato debe ser YYYY-MM'),
-  content: z.record(z.any()), // JSONB: { monday: [...], tuesday: [...], etc }
+  nutrition_record_id: z.string().uuid('El ID del registro nutricional debe ser un UUID válido').nullable().optional(),
+  month_year: z.string().regex(/^\d{4}-\d{2}$/, 'El formato debe ser YYYY-MM').optional(),
+  content: z.record(z.any()).default({}),
 });
 
 // Esquema para actualizar plan de ejercicio

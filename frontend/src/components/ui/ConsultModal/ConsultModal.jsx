@@ -1,7 +1,6 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { useState } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
-import { IconX } from '@tabler/icons-react';
 import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
 const getInitialEvaluation = () => ({
@@ -38,14 +37,43 @@ const getInitialEvaluation = () => ({
 });
 
 const getInitialPlanForm = () => ({
-  monday: { exercises: [] },
-  tuesday: { exercises: [] },
-  wednesday: { exercises: [] },
-  thursday: { exercises: [] },
-  friday: { exercises: [] },
-  saturday: { exercises: [] },
-  notes: '',
+  datosGenerales: {
+    nombre: '',
+    fechaInicio: '',
+    fechaCambio: '',
+    objetivo: '',
+  },
+  rutinas: undefined,
+  cardio: {
+    tipo: '',
+    duracion: '',
+    intensidad: '',
+    frecuencia: '',
+  },
+  anotaciones: '',
+  observaciones: '',
 });
+
+const normalizePlanForm = (plan) => {
+  if (!plan) return getInitialPlanForm();
+
+  if (plan.datosGenerales || plan.rutinas || plan.cardio || plan.anotaciones || plan.observaciones) {
+    return {
+      ...getInitialPlanForm(),
+      ...plan,
+      datosGenerales: {
+        ...getInitialPlanForm().datosGenerales,
+        ...(plan.datosGenerales || {}),
+      },
+      cardio: {
+        ...getInitialPlanForm().cardio,
+        ...(plan.cardio || {}),
+      },
+    };
+  }
+
+  return plan;
+};
 
 const HealthSlider = ({ label, value, onChange }) => {
   const getSegmentColor = (index, val) => {
@@ -105,79 +133,6 @@ const ScaleSlider5 = ({ label, value, onChange }) => {
   );
 };
 
-const ExerciseDayEditor = ({ day, content, onChange }) => {
-  const dayNames = {
-    monday: 'Lunes',
-    tuesday: 'Martes',
-    wednesday: 'Miércoles',
-    thursday: 'Jueves',
-    friday: 'Viernes',
-    saturday: 'Sábado',
-  };
-
-  const dayContent = content[day] || { exercises: [] };
-
-  const handleAddExercise = () => {
-    const newExercises = [...(dayContent.exercises || []), { name: '', series: 3, reps: 10 }];
-    onChange(day, { ...dayContent, exercises: newExercises });
-  };
-
-  const handleUpdateExercise = (index, field, value) => {
-    const updated = [...dayContent.exercises];
-    updated[index] = { ...updated[index], [field]: value };
-    onChange(day, { ...dayContent, exercises: updated });
-  };
-
-  const handleRemoveExercise = (index) => {
-    const updated = dayContent.exercises.filter((_, i) => i !== index);
-    onChange(day, { ...dayContent, exercises: updated });
-  };
-
-  return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4">
-      <h4 className="mb-3 text-base font-semibold text-[var(--color-text)]">{dayNames[day]}</h4>
-      <div className="space-y-4">
-        {dayContent.exercises?.map((exercise, idx) => (
-          <div key={idx} className="grid gap-3 md:grid-cols-[1.5fr_0.8fr_0.8fr_auto] items-end">
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Ejercicio {idx + 1}</label>
-              <input
-                type="text"
-                value={exercise.name}
-                onChange={(e) => handleUpdateExercise(idx, 'name', e.target.value)}
-                placeholder="Ej: Flexiones"
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Series</label>
-              <input
-                type="number"
-                value={exercise.series}
-                onChange={(e) => handleUpdateExercise(idx, 'series', Number(e.target.value))}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Reps</label>
-              <input
-                type="number"
-                value={exercise.reps}
-                onChange={(e) => handleUpdateExercise(idx, 'reps', Number(e.target.value))}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-              />
-            </div>
-            <div className="flex items-center justify-end">
-              <GymButton size="sm" variant="danger" icon={<IconX size={16} />} onClick={() => handleRemoveExercise(idx)} />
-            </div>
-          </div>
-        ))}
-        <GymButton size="sm" variant="secondary" onClick={handleAddExercise} className="w-full">+ Agregar Ejercicio</GymButton>
-      </div>
-    </div>
-  );
-};
-
 export function ConsultForm({
   patient,
   evaluation,
@@ -189,38 +144,35 @@ export function ConsultForm({
   submitLabel = 'Guardar Consulta',
   planSubmitLabel = 'Guardar Plan',
 }) {
-  const [evaluationForm, setEvaluationForm] = useState(getInitialEvaluation());
-  const [planForm, setPlanForm] = useState(getInitialPlanForm());
-  const [evaluationTab, setEvaluationTab] = useState(defaultTab);
-
-  useEffect(() => {
-    setEvaluationTab(defaultTab || 'clinical_history');
-    setPlanForm(plan ? plan : getInitialPlanForm());
+  const [evaluationForm, setEvaluationForm] = useState(() => {
     if (evaluation) {
-      setEvaluationForm({
+      return {
         ...getInitialEvaluation(),
         ...evaluation,
-      });
-    } else {
-      setEvaluationForm(getInitialEvaluation());
+      };
     }
-  }, [evaluation, plan, defaultTab]);
+    return getInitialEvaluation();
+  });
+  const [planForm, setPlanForm] = useState(() => normalizePlanForm(plan));
+  const [evaluationTab, setEvaluationTab] = useState(defaultTab || 'clinical_history');
 
-  const handlePlanChange = (day, content) => {
-    setPlanForm((prev) => ({ ...prev, [day]: content }));
+  const handlePlanChange = (nextPlan) => {
+    setPlanForm(nextPlan);
   };
 
   const handleSubmit = async () => {
     if (!patient?.id) return;
 
     try {
-      if (evaluationTab === 'exercise_plan') {
-        if (!onSubmitPlan) return;
-        await onSubmitPlan({ ...planForm, patient_id: patient.id });
-      } else {
-        if (!onSubmit) return;
-        await onSubmit({ ...evaluationForm, patient_id: patient.id });
-      }
+      if (!onSubmit) return;
+
+      const payload = {
+        ...evaluationForm,
+        patient_id: patient.id,
+        ...(evaluationTab === 'exercise_plan' ? { plan: planForm } : {}),
+      };
+
+      await onSubmit(payload);
       if (onCancel) onCancel();
     } catch (error) {
       console.error('Error al guardar consulta:', error);
@@ -250,7 +202,7 @@ export function ConsultForm({
     setEvaluationTab(tabOrder[currentTabIndex + 1].key);
   };
 
-  const currentSubmitLabel = evaluationTab === 'exercise_plan' ? planSubmitLabel : submitLabel;
+  const currentSubmitLabel = submitLabel || 'Guardar Consulta';
 
   return (
     <div className="space-y-6">
@@ -457,7 +409,7 @@ export function ConsultForm({
 
       {evaluationTab === 'exercise_plan' && (
         <div className="animate-fade-in">
-          <RutinaGym patient={patient} />
+          <RutinaGym patient={patient} plan={planForm} onChange={handlePlanChange} />
         </div>
       )}
 
@@ -482,9 +434,13 @@ export function ConsultModal({
 }) {
   if (!isOpen) return null;
 
+  const formKey = [props.patient?.id, props.evaluation?.id, props.plan?.month_year, props.defaultTab]
+    .filter(Boolean)
+    .join('-');
+
   return (
     <GymModal isOpen={isOpen} onClose={onClose} title={title} width="lg">
-      <ConsultForm {...props} onCancel={onClose} />
+      <ConsultForm key={formKey} {...props} onCancel={onClose} />
     </GymModal>
   );
 }

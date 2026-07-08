@@ -143,7 +143,10 @@ const createPlan = async (clientId, data, nutritionistId) => {
       ...data,
       client_id: data.entity_type === 'gym' ? (data.client_id || clientId) : null,
       patient_id: data.entity_type === 'consultorio' ? (data.patient_id || clientId) : null,
-      entity_type: data.entity_type
+      entity_type: data.entity_type || 'gym',
+      month_year: data.month_year || new Date().toISOString().slice(0, 7),
+      content: data.content || {},
+      nutrition_record_id: data.nutrition_record_id || null,
     };
     return await repository.createExercisePlan(planData, nutritionistId);
   } catch (error) {

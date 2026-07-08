@@ -5,6 +5,7 @@ const helmet = require('@fastify/helmet');
 const jwt = require('@fastify/jwt');
 const { z } = require('zod');
 const { AppError } = require('./lib/appError');
+const { runSchemaMigrations } = require('./lib/schemaMigrations');
 
 // 1. Validación estricta de variables de entorno usando Zod
 const envSchema = z.object({
@@ -64,6 +65,8 @@ const start = async () => {
         env: env.NODE_ENV,
       };
     });
+
+    await runSchemaMigrations();
 
     // Registrar módulos
     await fastify.register(require('./modules/clients/clients.routes'), { prefix: '/api/clients' });

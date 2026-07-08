@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePatients, useCreatePayment } from '../hooks/usePatients';
 import { useClients } from '../hooks/useClients';
-import { useEvaluationHistory, useCreateEvaluation } from '../hooks/useNutrition';
+import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan } from '../hooks/useNutrition';
 import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
@@ -70,6 +70,7 @@ export default function PatientDetails() {
 
   // Mutations
   const createEvaluationMutation = useCreateEvaluation();
+  const createExercisePlanMutation = useCreateExercisePlan();
   const createPaymentMutation = useCreatePayment();
   const createAgendaMutation = useCreateAgenda();
 
@@ -95,9 +96,38 @@ export default function PatientDetails() {
       if (cleanedPayload[key] === '') delete cleanedPayload[key];
     });
 
+    const planData = payload?.plan;
+    const hasPlanContent = Boolean(planData && (
+      planData?.datosGenerales?.nombre ||
+      planData?.datosGenerales?.objetivo ||
+      planData?.anotaciones ||
+      planData?.observaciones ||
+      (Array.isArray(planData?.rutinas) && planData.rutinas.length > 0) ||
+      Object.values(planData?.cardio || {}).some((value) => value && value !== '')
+    ));
+
     try {
-      await createEvaluationMutation.mutateAsync(cleanedPayload);
-      toast.success('Expediente registrado exitosamente');
+      const savedEvaluation = await createEvaluationMutation.mutateAsync(cleanedPayload);
+
+      if (hasPlanContent) {
+        const content = planData?.content || {
+          datosGenerales: planData?.datosGenerales || {},
+          rutinas: planData?.rutinas || [],
+          cardio: planData?.cardio || {},
+          anotaciones: planData?.anotaciones || '',
+          observaciones: planData?.observaciones || '',
+        };
+
+        await createExercisePlanMutation.mutateAsync({
+          entity_type: isClient ? 'gym' : 'consultorio',
+          [isClient ? 'client_id' : 'patient_id']: patient.id,
+          nutrition_record_id: savedEvaluation?.data?.id || savedEvaluation?.id || null,
+          month_year: planData?.month_year || new Date().toISOString().slice(0, 7),
+          content,
+        });
+      }
+
+      toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
       setActiveTab('history');
     } catch (error) {
       toast.error(error.message || 'Error al guardar el expediente');
@@ -471,6 +501,7 @@ export default function PatientDetails() {
                   onSubmit={handleSaveConsult}
                   onCancel={() => setActiveTab('history')}
                   submitLabel="Guardar Expediente"
+                  planSubmitLabel="Guardar Plan"
                 />
               </div>
             </div>

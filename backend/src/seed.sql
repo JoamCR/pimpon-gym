@@ -81,6 +81,28 @@ END$$;
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_payment_type_check;
 ALTER TABLE payments ADD CONSTRAINT payments_payment_type_check CHECK (payment_type IN ('enrollment', 'monthly', 'visit', 'nutrition_consult', 'nutrition_followup'));
 
+-- Ajustar tabla de exercise_plans para soportar consultorio y planes nuevos
+ALTER TABLE exercise_plans
+    ADD COLUMN IF NOT EXISTS patient_id UUID REFERENCES patients(id) ON DELETE CASCADE;
+ALTER TABLE exercise_plans
+    ADD COLUMN IF NOT EXISTS entity_type VARCHAR(50) NOT NULL DEFAULT 'gym';
+DO $$
+BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'exercise_plans_entity_type_check'
+    ) THEN
+      ALTER TABLE exercise_plans ADD CONSTRAINT exercise_plans_entity_type_check CHECK (entity_type IN ('gym', 'consultorio'));
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'exercise_plans_entity_link_check'
+    ) THEN
+      ALTER TABLE exercise_plans ADD CONSTRAINT exercise_plans_entity_link_check CHECK (
+        (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
+        (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
+      );
+    END IF;
+END$$;
+
 -- Crear la tabla de agenda si aún no existe
 CREATE TABLE IF NOT EXISTS agenda (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

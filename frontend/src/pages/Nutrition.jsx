@@ -91,15 +91,6 @@ export default function Nutrition() {
   const [modalEvaluate, setModalEvaluate] = useState(false);
   const [modalDetails, setModalDetails] = useState(false);
   const [defaultTab, setDefaultTab] = useState('composition');
-  const [planForm] = useState({
-    monday: { exercises: [] },
-    tuesday: { exercises: [] },
-    wednesday: { exercises: [] },
-    thursday: { exercises: [] },
-    friday: { exercises: [] },
-    saturday: { exercises: [] },
-    notes: '',
-  });
 
   const { data: patientsResponse, isLoading: patientsLoading } = usePatients();
   const { data: clientsResponse, isLoading: clientsLoading } = useClients();
@@ -159,26 +150,49 @@ export default function Nutrition() {
       if (cleanedPayload[key] === '') delete cleanedPayload[key];
     });
 
+    const planData = payload?.plan;
+    const hasPlanContent = Boolean(planData && (
+      planData?.datosGenerales?.nombre ||
+      planData?.datosGenerales?.objetivo ||
+      planData?.anotaciones ||
+      planData?.observaciones ||
+      (Array.isArray(planData?.rutinas) && planData.rutinas.length > 0) ||
+      Object.values(planData?.cardio || {}).some((value) => value && value !== '')
+    ));
+
     try {
+      let savedEvaluation;
       if (selectedEvaluation) {
-        await updateEvaluation.mutateAsync({ recordId: selectedEvaluation.id, data: cleanedPayload });
+        savedEvaluation = await updateEvaluation.mutateAsync({ recordId: selectedEvaluation.id, data: cleanedPayload });
       } else {
-        await createEvaluation.mutateAsync(cleanedPayload);
+        savedEvaluation = await createEvaluation.mutateAsync(cleanedPayload);
       }
-      toast.success('Evaluación guardada');
+
+      if (hasPlanContent) {
+        const content = planData?.content || {
+          datosGenerales: planData?.datosGenerales || {},
+          rutinas: planData?.rutinas || [],
+          cardio: planData?.cardio || {},
+          anotaciones: planData?.anotaciones || '',
+          observaciones: planData?.observaciones || '',
+        };
+
+        const planPayload = {
+          entity_type: entityType,
+          client_id: entityType === 'gym' ? selectedPatient?.id : undefined,
+          patient_id: entityType === 'consultorio' ? selectedPatient?.id : undefined,
+          nutrition_record_id: savedEvaluation?.data?.id || savedEvaluation?.id || selectedEvaluation?.id || null,
+          month_year: planData?.month_year || new Date().toISOString().slice(0, 7),
+          content,
+        };
+
+        await createExercisePlan.mutateAsync(planPayload);
+      }
+
+      toast.success(hasPlanContent ? 'Consulta y plan guardados' : 'Consulta guardada');
       setModalEvaluate(false);
     } catch (error) {
       toast.error(error.message || 'Error al guardar evaluación');
-    }
-  };
-
-  const handleSavePlan = async (payload) => {
-    try {
-      await createExercisePlan.mutateAsync(payload);
-      toast.success('Plan guardado');
-      setModalEvaluate(false);
-    } catch (error) {
-      toast.error(error.message || 'Error al guardar plan');
     }
   };
 
@@ -268,7 +282,7 @@ export default function Nutrition() {
         title={defaultTab === 'exercise_plan' ? `Plan de Ejercicio — ${selectedPatient?.first_name || 'Paciente'}` : `Evaluación — ${selectedPatient?.first_name || 'Paciente'}`}
         patient={selectedPatient}
         evaluation={selectedEvaluation}
-        plan={planForm}
+        plan={null}
         defaultTab={defaultTab}
         onSubmit={handleSaveEvaluation}
         onSubmitPlan={handleSavePlan}

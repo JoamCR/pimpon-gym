@@ -356,8 +356,8 @@ const createExercisePlan = async (data, nutritionistId, dbClient) => {
     data.client_id || null,
     data.patient_id || null,
     data.entity_type || 'gym',
-    data.nutrition_record_id,
-    data.month_year,
+    data.nutrition_record_id || null,
+    data.month_year || new Date().toISOString().slice(0, 7),
     JSON.stringify(data.content || {}),
     nutritionistId
   ];

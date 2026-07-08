@@ -186,14 +186,20 @@ CREATE TABLE IF NOT EXISTS nutrition_records (
 -- 9. PLANES DE EJERCICIO
 CREATE TABLE IF NOT EXISTS exercise_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    entity_type VARCHAR(50) NOT NULL DEFAULT 'gym' CHECK (entity_type IN ('gym', 'consultorio')),
     nutrition_record_id UUID REFERENCES nutrition_records(id) ON DELETE SET NULL,
     month_year VARCHAR(20) NOT NULL,
     content JSONB NOT NULL,
     pdf_url VARCHAR(255),
     sent_at TIMESTAMPTZ,
     created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CHECK (
+      (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
+      (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
+    )
 );
 
 -- 10. NOTIFICACIONES

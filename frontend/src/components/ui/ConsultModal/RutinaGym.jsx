@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SimpleDateInput } from '../SimpleDateInput';
 
 // Estructura inicial basada en los ejercicios de la plantilla
@@ -116,62 +116,118 @@ const rutinasIniciales = [
   }
 ];
 
+const getInitialDatosGenerales = (patientValue, planValue) => ({
+  nombre: planValue?.datosGenerales?.nombre || (patientValue ? `${patientValue.first_name || ''} ${patientValue.last_name || ''}`.trim() : ''),
+  fechaInicio: planValue?.datosGenerales?.fechaInicio || planValue?.fechaInicio || '',
+  fechaCambio: planValue?.datosGenerales?.fechaCambio || planValue?.fechaCambio || '',
+  objetivo: planValue?.datosGenerales?.objetivo || planValue?.objetivo || '',
+});
+
 export default function RutinaGym({ patient, plan, onChange }) {
-  const [datosGenerales, setDatosGenerales] = useState({
-    nombre: '',
-    fechaInicio: '',
-    fechaCambio: '',
-    objetivo: '',
-  });
+  const [datosGenerales, setDatosGenerales] = useState(() => getInitialDatosGenerales(patient, plan));
 
   const [rutinas, setRutinas] = useState(rutinasIniciales);
   const [cardio, setCardio] = useState({ tipo: '', duracion: '', intensidad: '', frecuencia: '' });
   const [anotaciones, setAnotaciones] = useState('');
   const [observaciones, setObservaciones] = useState('');
+  const lastPlanSignatureRef = useRef(null);
+  const lastEmittedSignatureRef = useRef(null);
 
-  useEffect(() => {
-    if (patient) {
-      setDatosGenerales(prev => ({ ...prev, nombre: `${patient.first_name} ${patient.last_name}` }));
-    }
-    if (plan) {
-      setRutinas(plan.rutinas || rutinasIniciales);
-      setCardio(plan.cardio || { tipo: '', duracion: '', intensidad: '', frecuencia: '' });
-      setAnotaciones(plan.anotaciones || '');
-      setObservaciones(plan.observaciones || '');
-      setDatosGenerales(prev => ({
-        ...prev,
-        fechaInicio: plan.fechaInicio || '',
-        fechaCambio: plan.fechaCambio || '',
-        objetivo: plan.objetivo || '',
-      }));
-    }
-  }, [patient, plan]);
+  const buildPlanPayload = (nextValues = { datosGenerales, rutinas, cardio, anotaciones, observaciones }) => ({
+    datosGenerales: nextValues.datosGenerales,
+    rutinas: nextValues.rutinas,
+    cardio: nextValues.cardio,
+    anotaciones: nextValues.anotaciones,
+    observaciones: nextValues.observaciones,
+  });
 
-  useEffect(() => {
+  const emitPlanChange = (nextValues) => {
+    const payload = buildPlanPayload(nextValues);
+    const signature = JSON.stringify(payload);
+
+    if (lastEmittedSignatureRef.current === signature) return;
+
+    lastEmittedSignatureRef.current = signature;
     if (onChange) {
-      onChange({
-        datosGenerales,
-        rutinas,
-        cardio,
-        anotaciones,
-        observaciones,
-      });
+      onChange(payload);
     }
-  }, [datosGenerales, rutinas, cardio, anotaciones, observaciones, onChange]);
+  };
 
+  useEffect(() => {
+    if (!plan) return;
+
+    const nextPayload = {
+      datosGenerales: {
+        nombre: plan.datosGenerales?.nombre ?? '',
+        fechaInicio: plan.datosGenerales?.fechaInicio ?? '',
+        fechaCambio: plan.datosGenerales?.fechaCambio ?? '',
+        objetivo: plan.datosGenerales?.objetivo ?? '',
+      },
+      rutinas: Array.isArray(plan?.rutinas) ? plan.rutinas : rutinasIniciales,
+      cardio: plan?.cardio || { tipo: '', duracion: '', intensidad: '', frecuencia: '' },
+      anotaciones: plan?.anotaciones ?? '',
+      observaciones: plan?.observaciones ?? '',
+    };
+
+    const signature = JSON.stringify(nextPayload);
+    if (lastPlanSignatureRef.current === signature) return;
+
+    lastPlanSignatureRef.current = signature;
+    lastEmittedSignatureRef.current = signature;
+    setDatosGenerales(nextPayload.datosGenerales);
+    setRutinas(nextPayload.rutinas);
+    setCardio(nextPayload.cardio);
+    setAnotaciones(nextPayload.anotaciones);
+    setObservaciones(nextPayload.observaciones);
+  }, [plan]);
+
+  const handleDatosGeneralesChange = (field, value) => {
+    const nextDatosGenerales = { ...datosGenerales, [field]: value };
+    setDatosGenerales(nextDatosGenerales);
+    emitPlanChange({ datosGenerales: nextDatosGenerales, rutinas, cardio, anotaciones, observaciones });
+  };
 
   // Manejador para cambiar valores en las tablas de ejercicios
   const handleEjercicioChange = (grupoIdx, ejIdx, campo, valor) => {
-    const nuevasRutinas = [...rutinas];
-    nuevasRutinas[grupoIdx].ejercicios[ejIdx][campo] = valor;
+    const nuevasRutinas = rutinas.map((grupo, gIdx) =>
+      gIdx === grupoIdx
+        ? {
+            ...grupo,
+            ejercicios: grupo.ejercicios.map((ej, eIdx) =>
+              eIdx === ejIdx ? { ...ej, [campo]: valor } : ej
+            ),
+          }
+        : grupo
+    );
     setRutinas(nuevasRutinas);
+    emitPlanChange({ datosGenerales, rutinas: nuevasRutinas, cardio, anotaciones, observaciones });
   };
 
   // Manejador para los días de entrenamiento
   const handleDiaChange = (grupoIdx, diaKey) => {
-    const nuevasRutinas = [...rutinas];
-    nuevasRutinas[grupoIdx].dias[diaKey] = !nuevasRutinas[grupoIdx].dias[diaKey];
+    const nuevasRutinas = rutinas.map((grupo, gIdx) =>
+      gIdx === grupoIdx
+        ? { ...grupo, dias: { ...grupo.dias, [diaKey]: !grupo.dias[diaKey] } }
+        : grupo
+    );
     setRutinas(nuevasRutinas);
+    emitPlanChange({ datosGenerales, rutinas: nuevasRutinas, cardio, anotaciones, observaciones });
+  };
+
+  const handleCardioChange = (field, value) => {
+    const nextCardio = { ...cardio, [field]: value };
+    setCardio(nextCardio);
+    emitPlanChange({ datosGenerales, rutinas, cardio: nextCardio, anotaciones, observaciones });
+  };
+
+  const handleAnotacionesChange = (value) => {
+    setAnotaciones(value);
+    emitPlanChange({ datosGenerales, rutinas, cardio, anotaciones: value, observaciones });
+  };
+
+  const handleObservacionesChange = (value) => {
+    setObservaciones(value);
+    emitPlanChange({ datosGenerales, rutinas, cardio, anotaciones, observaciones: value });
   };
 
   const etiquetasDias = [
@@ -211,7 +267,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
             <input
               type="text"
               value={datosGenerales.nombre}
-              onChange={(e) => setDatosGenerales({ ...datosGenerales, nombre: e.target.value })}
+              onChange={(e) => handleDatosGeneralesChange('nombre', e.target.value)}
               className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
               placeholder="Nombre del cliente"
             />
@@ -221,7 +277,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
             <input
               type="text"
               value={datosGenerales.objetivo}
-              onChange={(e) => setDatosGenerales({ ...datosGenerales, objetivo: e.target.value })}
+              onChange={(e) => handleDatosGeneralesChange('objetivo', e.target.value)}
               className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
               placeholder="Hipertrofia, Pérdida de grasa, etc."
             />
@@ -229,12 +285,12 @@ export default function RutinaGym({ patient, plan, onChange }) {
           <SimpleDateInput
             label="Fecha de Inicio"
             value={datosGenerales.fechaInicio}
-            onChange={(date) => setDatosGenerales({ ...datosGenerales, fechaInicio: date })}
+            onChange={(date) => handleDatosGeneralesChange('fechaInicio', date)}
           />
           <SimpleDateInput
             label="Fecha de Cambio de Rutina"
             value={datosGenerales.fechaCambio}
-            onChange={(date) => setDatosGenerales({ ...datosGenerales, fechaCambio: date })}
+            onChange={(date) => handleDatosGeneralesChange('fechaCambio', date)}
           />
         </section>
 
@@ -338,7 +394,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
                 <input
                   type="text"
                   value={cardio[campo]}
-                  onChange={(e) => setCardio({ ...cardio, [campo]: e.target.value })}
+                  onChange={(e) => handleCardioChange(campo, e.target.value)}
                   className="flex-1 border-b border-gray-300 focus:outline-none focus:border-orange-600 px-1 py-0.5 text-gray-700"
                 />
               </div>
@@ -350,7 +406,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
             <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Anotaciones y Sistema</h3>
             <textarea
               value={anotaciones}
-              onChange={(e) => setAnotaciones(e.target.value)}
+              onChange={(e) => handleAnotacionesChange(e.target.value)}
               rows="4"
               className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
               placeholder="Especificaciones técnicas, cadencia, RIR, RPE..."
@@ -362,7 +418,7 @@ export default function RutinaGym({ patient, plan, onChange }) {
             <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Observaciones Médicas</h3>
             <textarea
               value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
+              onChange={(e) => handleObservacionesChange(e.target.value)}
               rows="4"
               className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
               placeholder="Lesiones previas, molestias, restricciones..."
