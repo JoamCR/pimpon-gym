@@ -123,7 +123,7 @@ const getInitialDatosGenerales = (patientValue, planValue) => ({
   objetivo: planValue?.datosGenerales?.objetivo || planValue?.objetivo || '',
 });
 
-export default function RutinaGym({ patient, plan, onChange }) {
+export default function RutinaGym({ patient, plan, onChange, readOnly = false }) {
   const [datosGenerales, setDatosGenerales] = useState(() => getInitialDatosGenerales(patient, plan));
 
   const [rutinas, setRutinas] = useState(rutinasIniciales);
@@ -264,33 +264,45 @@ export default function RutinaGym({ patient, plan, onChange }) {
         <section className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">
           <div className="flex items-center space-x-2">
             <span>NOMBRE:</span>
-            <input
-              type="text"
-              value={datosGenerales.nombre}
-              onChange={(e) => handleDatosGeneralesChange('nombre', e.target.value)}
-              className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
-              placeholder="Nombre del cliente"
-            />
+            {readOnly ? (
+              <p className="flex-1 px-2 py-1 font-normal">{datosGenerales.nombre}</p>
+            ) : (
+              <input
+                type="text"
+                value={datosGenerales.nombre}
+                onChange={(e) => handleDatosGeneralesChange('nombre', e.target.value)}
+                className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
+                placeholder="Nombre del cliente"
+                readOnly={readOnly}
+              />
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <span>OBJETIVO:</span>
-            <input
-              type="text"
-              value={datosGenerales.objetivo}
-              onChange={(e) => handleDatosGeneralesChange('objetivo', e.target.value)}
-              className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
-              placeholder="Hipertrofia, Pérdida de grasa, etc."
-            />
+            {readOnly ? (
+              <p className="flex-1 px-2 py-1 font-normal">{datosGenerales.objetivo}</p>
+            ) : (
+              <input
+                type="text"
+                value={datosGenerales.objetivo}
+                onChange={(e) => handleDatosGeneralesChange('objetivo', e.target.value)}
+                className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
+                placeholder="Hipertrofia, Pérdida de grasa, etc."
+                readOnly={readOnly}
+              />
+            )}
           </div>
           <SimpleDateInput
             label="Fecha de Inicio"
             value={datosGenerales.fechaInicio}
             onChange={(date) => handleDatosGeneralesChange('fechaInicio', date)}
+            readOnly={readOnly}
           />
           <SimpleDateInput
             label="Fecha de Cambio de Rutina"
             value={datosGenerales.fechaCambio}
             onChange={(date) => handleDatosGeneralesChange('fechaCambio', date)}
+            readOnly={readOnly}
           />
         </section>
 
@@ -308,14 +320,17 @@ export default function RutinaGym({ patient, plan, onChange }) {
                 <div className="flex items-center space-x-1 text-xs font-bold text-gray-600">
                   <span className="mr-1">DÍA:</span>
                   {etiquetasDias.map((d) => (
-                    <label key={d.key} className="flex items-center space-x-0.5 cursor-pointer">
-                      <span>{d.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={grupo.dias[d.key]}
-                        onChange={() => handleDiaChange(gIdx, d.key)}
-                        className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
-                      />
+                    <label key={d.key} className={`flex items-center space-x-0.5 ${readOnly ? '' : 'cursor-pointer'}`}>
+                      <span className={grupo.dias[d.key] ? 'text-orange-600' : ''}>{d.label}</span>
+                      {!readOnly && (
+                        <input
+                          type="checkbox"
+                          checked={grupo.dias[d.key]}
+                          onChange={() => handleDiaChange(gIdx, d.key)}
+                          className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
+                          disabled={readOnly}
+                        />
+                      )}
                     </label>
                   ))}
                 </div>
@@ -336,39 +351,55 @@ export default function RutinaGym({ patient, plan, onChange }) {
                     <tr key={ej.id} className="hover:bg-orange-50/50">
                       <td className="py-1 px-2 font-medium text-gray-700 flex items-center">
                         <span className="font-bold mr-1.5 text-orange-600">{ej.id}</span>
-                        <input
-                          type="text"
-                          value={ej.nombre}
-                          onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'nombre', e.target.value)}
-                          className="w-full bg-transparent focus:outline-none focus:bg-white px-1 py-0.5 rounded"
-                        />
+                        {readOnly ? (
+                          <p className="w-full bg-transparent px-1 py-0.5">{ej.nombre}</p>
+                        ) : (
+                          <input
+                            type="text"
+                            value={ej.nombre}
+                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'nombre', e.target.value)}
+                            className="w-full bg-transparent focus:outline-none focus:bg-white px-1 py-0.5 rounded"
+                          />
+                        )}
                       </td>
                       <td className="p-1">
-                        <input
-                          type="text"
-                          value={ej.series}
-                          onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'series', e.target.value)}
-                          className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
-                          placeholder="-"
-                        />
+                        {readOnly ? (
+                          <p className="w-full text-center px-1 py-0.5">{ej.series || '-'}</p>
+                        ) : (
+                          <input
+                            type="text"
+                            value={ej.series}
+                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'series', e.target.value)}
+                            className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
+                            placeholder="-"
+                          />
+                        )}
                       </td>
                       <td className="p-1">
-                        <input
-                          type="text"
-                          value={ej.repeticiones}
-                          onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'repeticiones', e.target.value)}
-                          className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
-                          placeholder="-"
-                        />
+                        {readOnly ? (
+                          <p className="w-full text-center px-1 py-0.5">{ej.repeticiones || '-'}</p>
+                        ) : (
+                          <input
+                            type="text"
+                            value={ej.repeticiones}
+                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'repeticiones', e.target.value)}
+                            className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
+                            placeholder="-"
+                          />
+                        )}
                       </td>
                       <td className="p-1">
-                        <input
-                          type="text"
-                          value={ej.descanso}
-                          onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'descanso', e.target.value)}
-                          className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
-                          placeholder="-"
-                        />
+                        {readOnly ? (
+                          <p className="w-full text-center px-1 py-0.5">{ej.descanso || '-'}</p>
+                        ) : (
+                          <input
+                            type="text"
+                            value={ej.descanso}
+                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'descanso', e.target.value)}
+                            className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
+                            placeholder="-"
+                          />
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -391,12 +422,17 @@ export default function RutinaGym({ patient, plan, onChange }) {
             {['tipo', 'duracion', 'intensidad', 'frecuencia'].map((campo) => (
               <div key={campo} className="flex items-center mb-2 last:mb-0">
                 <span className="font-bold uppercase text-gray-600 w-24">{campo}:</span>
-                <input
-                  type="text"
-                  value={cardio[campo]}
-                  onChange={(e) => handleCardioChange(campo, e.target.value)}
-                  className="flex-1 border-b border-gray-300 focus:outline-none focus:border-orange-600 px-1 py-0.5 text-gray-700"
-                />
+                {readOnly ? (
+                  <p className="flex-1 px-1 py-0.5 text-gray-700">{cardio[campo] || '-'}</p>
+                ) : (
+                  <input
+                    type="text"
+                    value={cardio[campo]}
+                    onChange={(e) => handleCardioChange(campo, e.target.value)}
+                    className="flex-1 border-b border-gray-300 focus:outline-none focus:border-orange-600 px-1 py-0.5 text-gray-700"
+                    readOnly={readOnly}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -404,25 +440,35 @@ export default function RutinaGym({ patient, plan, onChange }) {
           {/* Anotaciones */}
           <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col">
             <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Anotaciones y Sistema</h3>
-            <textarea
-              value={anotaciones}
-              onChange={(e) => handleAnotacionesChange(e.target.value)}
-              rows="4"
-              className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
-              placeholder="Especificaciones técnicas, cadencia, RIR, RPE..."
-            ></textarea>
+            {readOnly ? (
+              <p className="w-full flex-1 p-2 text-gray-700">{anotaciones || 'N/A'}</p>
+            ) : (
+              <textarea
+                value={anotaciones}
+                onChange={(e) => handleAnotacionesChange(e.target.value)}
+                rows="4"
+                className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
+                placeholder="Especificaciones técnicas, cadencia, RIR, RPE..."
+                readOnly={readOnly}
+              ></textarea>
+            )}
           </div>
 
           {/* Observaciones Médicas */}
           <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col">
             <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Observaciones Médicas</h3>
-            <textarea
-              value={observaciones}
-              onChange={(e) => handleObservacionesChange(e.target.value)}
-              rows="4"
-              className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
-              placeholder="Lesiones previas, molestias, restricciones..."
-            ></textarea>
+            {readOnly ? (
+              <p className="w-full flex-1 p-2 text-gray-700">{observaciones || 'N/A'}</p>
+            ) : (
+              <textarea
+                value={observaciones}
+                onChange={(e) => handleObservacionesChange(e.target.value)}
+                rows="4"
+                className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
+                placeholder="Lesiones previas, molestias, restricciones..."
+                readOnly={readOnly}
+              ></textarea>
+            )}
           </div>
 
         </section>

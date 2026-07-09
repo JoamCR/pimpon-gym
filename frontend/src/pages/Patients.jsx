@@ -621,7 +621,6 @@ export default function Patients() {
         title={"Nueva Consulta — " + (selectedPatient?.first_name || "Paciente")}
         patient={selectedPatient}
         onSubmit={handleSaveConsult}
-        onSubmitPlan={handleSavePlan}
         submitLabel="Guardar Expediente"
         planSubmitLabel="Guardar Plan"
       />

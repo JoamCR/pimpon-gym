@@ -1,8 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { IconDownload } from '@tabler/icons-react';
 
-const PlatoEditable = ({ titulo, name, valores, onChange }) => {
+const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
   const handleChange = (e) => {
+    if (readOnly) return;
     const rawValue = e.target.value.replace(/\D/g, '').slice(0, 3);
     onChange(name, e.target.name, rawValue);
   };
@@ -20,43 +21,53 @@ const PlatoEditable = ({ titulo, name, valores, onChange }) => {
         </svg>
 
         <div className="absolute inset-0">
-          <input
-            name="cuarto1"
-            value={valores?.cuarto1 || ''}
-            onChange={handleChange}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={3}
-            placeholder="000"
-            className="absolute left-1 top-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
-          />
-          <input
-            name="cuarto2"
-            value={valores?.cuarto2 || ''}
-            onChange={handleChange}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={3}
-            placeholder="000"
-            className="absolute left-1 bottom-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
-          />
-          <input
-            name="mitad"
-            value={valores?.mitad || ''}
-            onChange={handleChange}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={3}
-            placeholder="000"
-            className="absolute right-1 top-1/2 w-14 sm:w-16 -translate-y-1/2 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
-          />
+          {readOnly ? (
+            <>
+              <p className="absolute left-1 top-1 w-10 sm:w-12 rounded bg-black/75 text-center text-xs text-white flex items-center justify-center h-6">{valores?.cuarto1 || '0'}</p>
+              <p className="absolute left-1 bottom-1 w-10 sm:w-12 rounded bg-black/75 text-center text-xs text-white flex items-center justify-center h-6">{valores?.cuarto2 || '0'}</p>
+              <p className="absolute right-1 top-1/2 w-14 sm:w-16 -translate-y-1/2 rounded bg-black/75 text-center text-xs text-white flex items-center justify-center h-6">{valores?.mitad || '0'}</p>
+            </>
+          ) : (
+            <>
+              <input
+                name="cuarto1"
+                value={valores?.cuarto1 || ''}
+                onChange={handleChange}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
+                placeholder="000"
+                className="absolute left-1 top-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+              />
+              <input
+                name="cuarto2"
+                value={valores?.cuarto2 || ''}
+                onChange={handleChange}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
+                placeholder="000"
+                className="absolute left-1 bottom-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+              />
+              <input
+                name="mitad"
+                value={valores?.mitad || ''}
+                onChange={handleChange}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
+                placeholder="000"
+                className="absolute right-1 top-1/2 w-14 sm:w-16 -translate-y-1/2 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage, isSaving }) {
+export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage, isSaving, readOnly = false }) {
   const printRef = useRef(null);
   const [isExporting, setIsExporting] = useState(false);
   // Se usarán imágenes desde la carpeta public/ del frontend
@@ -147,20 +158,22 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
 
   return (
     <div className="w-full font-sans bg-[var(--color-surface)] flex flex-col">
-      <div className="w-full flex justify-end mb-4">
-        <button 
-          onClick={exportarPlan}
-          disabled={isExporting || isSaving}
-          className={`text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-all shadow-md ${
-            isExporting || isSaving
-              ? 'bg-gray-500 cursor-not-allowed' 
-              : 'bg-orange-600 hover:bg-orange-500 hover:shadow-lg'
-          }`}
-        >
-          <IconDownload size={18} className="mr-2" />
-          {isExporting ? 'Generando PNG...' : isSaving ? 'Guardando...' : 'Generar y Descargar PNG'}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="w-full flex justify-end mb-4">
+          <button 
+            onClick={exportarPlan}
+            disabled={isExporting || isSaving}
+            className={`text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-all shadow-md ${
+              isExporting || isSaving
+                ? 'bg-gray-500 cursor-not-allowed' 
+                : 'bg-orange-600 hover:bg-orange-500 hover:shadow-lg'
+            }`}
+          >
+            <IconDownload size={18} className="mr-2" />
+            {isExporting ? 'Generando PNG...' : isSaving ? 'Guardando...' : 'Generar y Descargar PNG'}
+          </button>
+        </div>
+      )}
 
       <div className="w-full pb-6 rounded-xl border border-[var(--color-border)] overflow-hidden">
         <div 
@@ -185,11 +198,11 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
             </div>
             
             <div className="flex w-full gap-4 overflow-x-auto pb-2">
-              <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Desayuno</span>} name="desayuno" valores={platos.desayuno} onChange={handleChangePlato} />
-              <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación mañana</span>} name="colacion_manana" valores={platos.colacion_manana} onChange={handleChangePlato} />
-              <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Almuerzo</span>} name="almuerzo" valores={platos.almuerzo} onChange={handleChangePlato} />
-              <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación tarde</span>} name="colacion_tarde" valores={platos.colacion_tarde} onChange={handleChangePlato} />
-              <PlatoEditable titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Cena</span>} name="cena" valores={platos.cena} onChange={handleChangePlato} />
+              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Desayuno</span>} name="desayuno" valores={platos.desayuno} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación mañana</span>} name="colacion_manana" valores={platos.colacion_manana} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Almuerzo</span>} name="almuerzo" valores={platos.almuerzo} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación tarde</span>} name="colacion_tarde" valores={platos.colacion_tarde} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Cena</span>} name="cena" valores={platos.cena} onChange={handleChangePlato} readOnly={readOnly} />
             </div>
           </div>
 

@@ -285,7 +285,6 @@ export default function Nutrition() {
         plan={null}
         defaultTab={defaultTab}
         onSubmit={handleSaveEvaluation}
-        onSubmitPlan={handleSavePlan}
         submitLabel={defaultTab === 'exercise_plan' ? 'Guardar Plan' : 'Guardar Evaluación'}
       />
 

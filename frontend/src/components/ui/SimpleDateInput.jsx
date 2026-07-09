@@ -11,7 +11,7 @@ import { IconChevronDown, IconAlertCircle } from '@tabler/icons-react';
  * @param {string} [props.label] - Etiqueta para el grupo de inputs.
  * @param {string} [props.error] - Mensaje de error a mostrar.
  */
-export function SimpleDateInput({ value, onChange, label, error }) {
+export function SimpleDateInput({ value, onChange, label, error, isReadOnly = false }) {
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -19,6 +19,20 @@ export function SimpleDateInput({ value, onChange, label, error }) {
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
+
+  // ... (rest of the component is the same)
+
+  if (isReadOnly) {
+    const formattedDate = value ? new Date(value).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A';
+    return (
+      <div className="space-y-2 flex-grow">
+        {label && <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{label}</label>}
+        <p className="w-full rounded-[var(--radius-md)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)] min-h-[44px]">
+          {formattedDate}
+        </p>
+      </div>
+    );
+  }
 
   const monthOptions = [
     { value: '01', name: 'Enero' }, { value: '02', name: 'Febrero' }, { value: '03', name: 'Marzo' },

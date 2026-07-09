@@ -2,11 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePatients, useCreatePayment } from '../hooks/usePatients';
 import { useClients } from '../hooks/useClients';
-import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan } from '../hooks/useNutrition';
+import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan, useExercisePlans } from '../hooks/useNutrition';
 import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
+import { ConsultationViewer } from '../components/ui/ConsultModal/ConsultationViewer';
 import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
@@ -16,6 +17,7 @@ export default function PatientDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('details');
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
 
   // Find patient by slug (first_name or id)
   const { data: patientsData, isLoading: isLoadingPatients } = usePatients();
@@ -43,7 +45,19 @@ export default function PatientDetails() {
   }, [patients, clients, slug]);
 
   const { data: evaluationsData, isLoading: isLoadingEvaluations } = useEvaluationHistory(patient?.id);
+  const { data: exercisePlansData } = useExercisePlans(patient?.id);
   const evaluations = Array.isArray(evaluationsData?.data) ? evaluationsData.data : [];
+  const exercisePlans = Array.isArray(exercisePlansData?.data) ? exercisePlansData.data : [];
+
+  const selectedEvaluation = useMemo(() => {
+    if (!selectedEvaluationId) return null;
+    return evaluations.find((evaluation) => evaluation.id === selectedEvaluationId) || null;
+  }, [evaluations, selectedEvaluationId]);
+
+  const selectedPlan = useMemo(() => {
+    if (!selectedEvaluation) return null;
+    return exercisePlans.find((plan) => plan.nutrition_record_id === selectedEvaluation.id) || null;
+  }, [exercisePlans, selectedEvaluation]);
 
   // Modals state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -386,51 +400,65 @@ export default function PatientDetails() {
                 <p className="text-[var(--color-text-muted)] text-center py-8">Cargando historial...</p>
               ) : evaluations.length > 0 ? (
                 <div className="space-y-4">
-                  {evaluations.map((evaluation) => (
-                    <div key={evaluation.id} className="p-5 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-center mb-4 border-b border-[var(--color-border)] pb-3">
-                        <h3 className="font-bold text-lg text-[var(--color-text)] flex items-center gap-2">
-                          <IconStethoscope className="text-[var(--color-success)]" />
-                          Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                        </h3>
-                        <span className={`text-xs px-3 py-1 rounded-full font-bold ${evaluation.is_free_consult ? 'bg-[rgba(234,179,8,0.2)] text-yellow-500' : 'bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]'}`}>
-                          {evaluation.is_free_consult ? 'Consulta Gratuita' : 'Consulta Regular'}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-[var(--color-text)]">
-                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
-                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Peso</span> 
-                          <span className="font-bold text-lg">{evaluation.weight_kg || '—'} kg</span>
-                        </div>
-                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
-                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">% Grasa</span> 
-                          <span className="font-bold text-lg">{evaluation.body_fat_pct || '—'}%</span>
-                        </div>
-                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
-                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Masa Muscular</span> 
-                          <span className="font-bold text-lg">{evaluation.muscle_mass_kg || '—'} kg</span>
-                        </div>
-                        <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
-                          <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">IMC</span> 
-                          <span className="font-bold text-lg">
-                            {evaluation.height_cm && evaluation.weight_kg ? (evaluation.weight_kg / ((evaluation.height_cm / 100) ** 2)).toFixed(1) : '—'}
+                  {evaluations.map((evaluation) => {
+                    const isSelected = selectedEvaluationId === evaluation.id;
+
+                    return (
+                      <div key={evaluation.id} className="p-5 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-center mb-4 border-b border-[var(--color-border)] pb-3">
+                          <h3 className="font-bold text-lg text-[var(--color-text)] flex items-center gap-2">
+                            <IconStethoscope className="text-[var(--color-success)]" />
+                            Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </h3>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold ${evaluation.is_free_consult ? 'bg-[rgba(234,179,8,0.2)] text-yellow-500' : 'bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]'}`}>
+                            {evaluation.is_free_consult ? 'Consulta Gratuita' : 'Consulta Regular'}
                           </span>
                         </div>
-                      </div>
-                      
-                      {/* More details if needed could be expanded here */}
-                      {(evaluation.notes || evaluation.caloric_target) && (
-                        <div className="mt-4 pt-4 border-t border-dashed border-[var(--color-border)]">
-                          {evaluation.caloric_target && (
-                            <p className="text-sm text-[var(--color-text)]"><span className="font-semibold text-[var(--color-text-muted)]">Meta Calórica:</span> {evaluation.caloric_target} kcal</p>
-                          )}
-                          {evaluation.notes && (
-                            <p className="text-sm text-[var(--color-text)] mt-2"><span className="font-semibold text-[var(--color-text-muted)]">Notas:</span> {evaluation.notes}</p>
-                          )}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-[var(--color-text)]">
+                          <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Peso</span>
+                            <span className="font-bold text-lg">{evaluation.weight_kg || '—'} kg</span>
+                          </div>
+                          <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">% Grasa</span>
+                            <span className="font-bold text-lg">{evaluation.body_fat_pct || '—'}%</span>
+                          </div>
+                          <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Masa Muscular</span>
+                            <span className="font-bold text-lg">{evaluation.muscle_mass_kg || '—'} kg</span>
+                          </div>
+                          <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">IMC</span>
+                            <span className="font-bold text-lg">
+                              {evaluation.height_cm && evaluation.weight_kg ? (evaluation.weight_kg / ((evaluation.height_cm / 100) ** 2)).toFixed(1) : '—'}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        <div className="mt-4 flex justify-end">
+                          <GymButton
+                            variant={isSelected ? 'primary' : 'secondary'}
+                            onClick={() => setSelectedEvaluationId(isSelected ? null : evaluation.id)}
+                          >
+                            {isSelected ? 'Ocultar consulta completa' : 'Ver consulta completa'}
+                          </GymButton>
+                        </div>
+
+                        {isSelected && (
+                          <div className="mt-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+                            <ConsultationViewer
+                              key={evaluation.id}
+                              patient={patient}
+                              evaluation={evaluation}
+                              plan={selectedPlan?.content || null}
+                              defaultTab="clinical_history"
+                              onClose={() => setSelectedEvaluationId(null)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
