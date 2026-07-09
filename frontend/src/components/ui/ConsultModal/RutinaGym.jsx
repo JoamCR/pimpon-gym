@@ -163,10 +163,15 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
       setDatosGenerales(prev => ({ ...prev, nombre: newPatientName }));
     }
 
+    // Helper para obtener la fecha actual en formato YYYY-MM-DD
+    const getTodayString = () => new Date().toISOString().split('T')[0];
+
     const nextPayload = {
       datosGenerales: {
         nombre: plan.datosGenerales?.nombre ?? '',
-        fechaInicio: plan.datosGenerales?.fechaInicio ?? '',
+        // Si hay una fecha en el plan, se usa. Si no, y NO es readOnly (es nueva consulta), se usa la fecha de hoy.
+        // Si es readOnly y no hay fecha, se deja vacío para que no muestre nada.
+        fechaInicio: plan?.datosGenerales?.fechaInicio || (!readOnly ? getTodayString() : ''),
         fechaCambio: plan.datosGenerales?.fechaCambio ?? '',
         objetivo: plan.datosGenerales?.objetivo ?? '',
       },      
@@ -192,7 +197,7 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     setCardio(nextPayload.cardio);
     setAnotaciones(nextPayload.anotaciones);
     setObservaciones(nextPayload.observaciones);
-  }, [plan, patient]);
+  }, [plan, patient, readOnly]);
 
   const handleDatosGeneralesChange = (field, value) => {
     const nextDatosGenerales = { ...datosGenerales, [field]: value };
