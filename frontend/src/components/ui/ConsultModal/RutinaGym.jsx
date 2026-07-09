@@ -131,10 +131,11 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
   const [anotaciones, setAnotaciones] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const lastPlanSignatureRef = useRef(null);
-  const lastEmittedSignatureRef = useRef(null);
+  const lastEmittedSignatureRef = useRef(null);  
 
   const buildPlanPayload = (nextValues = { datosGenerales, rutinas, cardio, anotaciones, observaciones }) => ({
     datosGenerales: nextValues.datosGenerales,
+    // Aseguramos que los campos de fecha y objetivo no se pierdan al actualizar el nombre
     rutinas: nextValues.rutinas,
     cardio: nextValues.cardio,
     anotaciones: nextValues.anotaciones,
@@ -153,8 +154,14 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     }
   };
 
+  // Efecto para actualizar el nombre del paciente cuando la prop `patient` cambia.
   useEffect(() => {
-    if (!plan) return;
+    const newPatientName = patient ? `${patient.first_name || ''} ${patient.last_name || ''}`.trim() : '';
+    // Actualizamos el nombre en datosGenerales si no hay un plan cargado o si el plan no tiene un nombre específico.
+    // Esto evita sobreescribir un nombre que el nutriólogo haya editado manualmente.
+    if (newPatientName && (!plan || !plan.datosGenerales?.nombre)) {
+      setDatosGenerales(prev => ({ ...prev, nombre: newPatientName }));
+    }
 
     const nextPayload = {
       datosGenerales: {
@@ -162,7 +169,7 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
         fechaInicio: plan.datosGenerales?.fechaInicio ?? '',
         fechaCambio: plan.datosGenerales?.fechaCambio ?? '',
         objetivo: plan.datosGenerales?.objetivo ?? '',
-      },
+      },      
       rutinas: Array.isArray(plan?.rutinas) ? plan.rutinas : rutinasIniciales,
       cardio: plan?.cardio || { tipo: '', duracion: '', intensidad: '', frecuencia: '' },
       anotaciones: plan?.anotaciones ?? '',
@@ -174,12 +181,18 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
 
     lastPlanSignatureRef.current = signature;
     lastEmittedSignatureRef.current = signature;
-    setDatosGenerales(nextPayload.datosGenerales);
+
+    // Si el plan tiene un nombre, usamos ese. Si no, mantenemos el nombre del paciente ya establecido.
+    setDatosGenerales(prev => ({
+      ...prev,
+      ...nextPayload.datosGenerales,
+      nombre: nextPayload.datosGenerales.nombre || prev.nombre,
+    }));
     setRutinas(nextPayload.rutinas);
     setCardio(nextPayload.cardio);
     setAnotaciones(nextPayload.anotaciones);
     setObservaciones(nextPayload.observaciones);
-  }, [plan]);
+  }, [plan, patient]);
 
   const handleDatosGeneralesChange = (field, value) => {
     const nextDatosGenerales = { ...datosGenerales, [field]: value };
