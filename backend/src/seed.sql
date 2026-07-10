@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS patients (
     last_name VARCHAR(100) NOT NULL,
     rfc VARCHAR(13),
     age INT,
+    birth_date DATE,
     gender VARCHAR(20),
     phone VARCHAR(20),
     email VARCHAR(255),
@@ -28,6 +29,9 @@ CREATE TABLE IF NOT EXISTS patients (
     created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Añadir la columna birth_date si no existe, para asegurar compatibilidad en re-ejecuciones
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS birth_date DATE;
 
 -- Ajustar schema de nutrition_records para clientes y pacientes
 ALTER TABLE nutrition_records
