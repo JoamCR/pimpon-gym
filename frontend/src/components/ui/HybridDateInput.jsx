@@ -63,11 +63,12 @@ export function HybridDateInput({ value, onChange, error }) {
       return;
     }
 
-    const birthDate = new Date(`${y}-${m}-${d}`);
+    // Usar new Date(y, m-1, d) para evitar problemas de zona horaria (que pueden hacer que '2024-01-01' se interprete como el día anterior)
+    const birthDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
     // Check if valid date
-    if (isNaN(birthDate.getTime()) || birthDate.getFullYear() !== parseInt(y)) {
+    if (isNaN(birthDate.getTime()) || birthDate.getFullYear() !== parseInt(y) || birthDate.getMonth() + 1 !== parseInt(m) || birthDate.getDate() !== parseInt(d)) {
       setAge(null);
-      setLocalError('Fecha no válida. Por favor verifica los valores ingresados.');
+      setLocalError('Fecha no válida.');
       return;
     }
 
@@ -75,11 +76,11 @@ export function HybridDateInput({ value, onChange, error }) {
     const today = new Date();
     let currentAge = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       currentAge--;
     }
-    
+
      // Si la fecha es en el futuro
     if (currentAge < 0) {
       setAge(null);
@@ -88,51 +89,83 @@ export function HybridDateInput({ value, onChange, error }) {
     }
 
     setAge(currentAge);
-    
- // Solo disparar onChange si la fecha completa es válida y es diferente del value actual    
+
+    // Solo disparar onChange si la fecha completa es válida y es diferente del value actual
     const newDateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     if (newDateStr !== value) {
         onChange(newDateStr, currentAge);
     }
   };
 
+  const attemptToCalculateAge = (y, m, d) => {
+    // Solo intentar calcular si todos los campos tienen valores que parecen válidos
+    const isPotentiallyComplete = y && y.length === 4 && m && d;
+
+    if (isPotentiallyComplete) {
+      calculateAge(y, m, d);
+    } else {
+      // Si la fecha está incompleta (p.ej. el año tiene 3 dígitos), solo limpiamos la edad y el error.
+      setAge(null);
+      if (localError) setLocalError('');
+      // No notificamos al padre para evitar que el `value` prop reinicie los campos.
+    }
+  };
+
   const handleDayChange = (e) => {
     let d = e.target.value.replace(/\D/g, '').slice(0, 2);
     setDay(d);
-    if (d.length === 2 && month && year) calculateAge(year, month, d);
-    else if (d.length < 2) { setAge(null); onChange('', null); }
+    attemptToCalculateAge(year, month, d);
   };
 
   const handleMonthChange = (e) => {
-    let m = e.target.value.replace(/\D/g, '').slice(0, 2);
-    setMonth(m);
-    if (m.length === 2 && day && year) calculateAge(year, m, day);
-    else if (m.length < 2) { setAge(null); onChange('', null); }
+    const input = e.target.value;
+    const numericInput = input.replace(/\D/g, '').slice(0, 2);
+
+    // Intenta encontrar el mes por nombre
+    const matchedMonth = monthOptions.find(m => m.name.toLowerCase().startsWith(input.toLowerCase()));
+
+    if (matchedMonth) {
+      setMonth(matchedMonth.value);
+      attemptToCalculateAge(year, matchedMonth.value, day);
+    } else if (numericInput.length > 0) {
+      setMonth(numericInput);
+      attemptToCalculateAge(year, numericInput, day);
+    } else {
+      // Permite que el input visualmente muestre lo que el usuario escribe
+      setMonth(input);
+      setAge(null);
+      if (localError) setLocalError('');
+    }
   };
 
   const handleYearChange = (e) => {
     let y = e.target.value.replace(/\D/g, '').slice(0, 4);
     setYear(y);
-    if (y.length === 4 && day && month) calculateAge(y, month, day);
-    else if (y.length < 4) { setAge(null); onChange('', null); }
-  };
+    attemptToCalculateAge(y, month, day);
+  };  
 
   const selectOption = (type, val) => {
-    if (type === 'day') {
-      const d = val.toString().padStart(2, '0');
-      setDay(d);
-      if (month && year) calculateAge(year, month, d);
-    } else if (type === 'month') {
-      const m = val.toString().padStart(2, '0');
-      setMonth(m);
-      if (day && year) calculateAge(year, m, day);
-    } else if (type === 'year') {
-      const y = val.toString();
-      setYear(y);
-      if (day && month) calculateAge(y, month, day);
-    }
+    const d = type === 'day' ? val.toString().padStart(2, '0') : day;
+    const m = type === 'month' ? val.toString().padStart(2, '0') : month;
+    const y = type === 'year' ? val.toString() : year;
+    setDay(d); setMonth(m); setYear(y);
     setActiveDropdown(null);
+    attemptToCalculateAge(y, m, d);
   };
+
+  // Formatear al salir del campo (onBlur)
+  const handleBlur = (type) => {
+    if (type === 'day' && day.length === 1) {
+      const paddedDay = day.padStart(2, '0');
+      setDay(paddedDay);
+      attemptToCalculateAge(year, month, paddedDay);
+    }
+    if (type === 'month' && month.length === 1) {
+      const paddedMonth = month.padStart(2, '0');
+      setMonth(paddedMonth);
+      attemptToCalculateAge(year, paddedMonth, day);
+    }
+  }
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
@@ -165,6 +198,7 @@ export function HybridDateInput({ value, onChange, error }) {
               placeholder="Día" 
               value={day}
               onChange={handleDayChange}
+              onBlur={() => handleBlur('day')}
               onFocus={() => setActiveDropdown('day')}
               maxLength="2"
               className="w-full text-center py-2.5 pl-2 pr-1 text-sm text-[var(--color-text)] bg-transparent border-none outline-none focus:ring-0"
@@ -179,7 +213,7 @@ export function HybridDateInput({ value, onChange, error }) {
           </div>
           
           {activeDropdown === 'day' && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg max-h-48 overflow-y-auto z-50 custom-scrollbar p-1">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--color-card)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg max-h-40 overflow-y-auto z-50 custom-scrollbar p-1">
               {days.map(d => (
                 <button
                   key={d}
@@ -203,6 +237,7 @@ export function HybridDateInput({ value, onChange, error }) {
               /* Cambiado de value={month} a la función formateadora visual */
               value={getMonthInputValue()} 
               onChange={handleMonthChange}
+              onBlur={() => handleBlur('month')}
               onFocus={() => setActiveDropdown('month')}
               className="w-full text-center py-2.5 pl-2 pr-1 text-sm text-[var(--color-text)] bg-transparent border-none outline-none focus:ring-0"
             />
@@ -239,6 +274,7 @@ export function HybridDateInput({ value, onChange, error }) {
               placeholder="Año" 
               value={year}
               onChange={handleYearChange}
+              onBlur={() => handleBlur('year')}
               onFocus={() => setActiveDropdown('year')}
               maxLength="4"
               className="w-full text-center py-2.5 pl-2 pr-1 text-sm text-[var(--color-text)] bg-transparent border-none outline-none focus:ring-0"

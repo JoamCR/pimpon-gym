@@ -361,8 +361,8 @@ export default function Clients() {
 
     if (step === 3) {
       return (
-        <div className="grid gap-4">
-          <div className="space-y-2">
+        <div className="space-y-4">
+          <div className="space-y-2 mb-6">
             <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Método de pago</label>
             <select
               value={formData.payment_method}
@@ -371,17 +371,30 @@ export default function Clients() {
             >
               <option value="cash">Efectivo</option>
               <option value="transfer">Transferencia</option>
-            {/* <option value="card">Tarjeta</option> */}
             </select>
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Monto</label>
+
+          {/* Desglose de costos */}
+          <div className="space-y-3">
+            {formData.plan_requires_enrollment && (
+              <div className="flex justify-between items-center p-3 rounded-lg bg-[var(--color-card-alt)] border border-[var(--color-border)]">
+                <span className="text-sm text-[var(--color-text-muted)]">Costo de Inscripción</span>
+                <span className="font-semibold text-[var(--color-text)]">${parseFloat(formData.enrollment_amount || 0).toFixed(2)} MXN</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center p-3 rounded-lg bg-[var(--color-card-alt)] border border-[var(--color-border)]">
+              <span className="text-sm text-[var(--color-text-muted)]">Costo del Plan</span>
+              <span className="font-semibold text-[var(--color-text)]">${parseFloat(formData.amount || 0).toFixed(2)} MXN</span>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-4 border-t border-[var(--color-border)]">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Monto Total a Pagar</label>
             <input
               type="number"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              placeholder="0.00"
+              value={( (formData.plan_requires_enrollment ? parseFloat(formData.enrollment_amount || 0) : 0) + parseFloat(formData.amount || 0) ).toFixed(2)}
+              readOnly
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-lg font-bold text-[var(--color-success)] focus:outline-none"
             />
           </div>
         </div>
