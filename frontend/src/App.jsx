@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { Login } from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Patients from './pages/Patients';
@@ -29,8 +30,12 @@ function App() {
       />      
       {/* Sistema de Rutas con Layout Principal */}
       <Routes>
+        {/* Rutas públicas (sin layout) */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Rutas privadas (con layout) */}
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to="/login" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="clients" element={<Clients />} />
           <Route path="patients" element={<Patients />} />
@@ -42,6 +47,9 @@ function App() {
           <Route path="finanzas" element={<Finanzas />} />
           <Route path="config" element={<Config />} />
         </Route>
+
+        {/* Redirección por defecto si no se encuentra la ruta */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
   );

@@ -69,6 +69,7 @@ const start = async () => {
     await runSchemaMigrations();
 
     // Registrar módulos
+    await fastify.register(require('./modules/auth/auth.routes'), { prefix: '/api/auth' });
     await fastify.register(require('./modules/clients/clients.routes'), { prefix: '/api/clients' });
     await fastify.register(require('./modules/patients/patients.routes'), { prefix: '/api/patients' });
     await fastify.register(require('./modules/attendance/attendance.routes'), { prefix: '/api/attendance' });
