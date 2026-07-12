@@ -28,8 +28,8 @@ async function createAdminUser(hashedPassword) {
   const values = [
     'administrador',
     hashedPassword,
-    'Administrador del Gimnasio',
-    'admin'
+    'Administrador Principal',
+    'owner'
   ];
   const result = await pool.query(query, values);
   return result.rows[0];

@@ -6,7 +6,7 @@ const { createError } = require('../../lib/appError');
  * Verifica si ya existe un usuario con el rol 'admin'.
  */
 async function checkSetupStatus() {
-  const adminUser = await repo.findUserByRole('admin');
+  const adminUser = await repo.findUserByRole('owner');
   return !!adminUser;
 }
 

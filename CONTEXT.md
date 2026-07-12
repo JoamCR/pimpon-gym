@@ -114,8 +114,8 @@ id, name, description, price_monthly, price_enrollment,
 includes_nutrition, requires_enrollment, is_visit_based,
 duration_days, is_active, created_at
 
-### app_users (sin cambios)
-id, email, password_hash, full_name, role, is_active, created_at
+### app_users (actualizado)
+id, username, password_hash, full_name, role, is_active, created_at
 
 ### clients — CLIENTES DEL GYM (actualizado)
 id                    UUID PK
