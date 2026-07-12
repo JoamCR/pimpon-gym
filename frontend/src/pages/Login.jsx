@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { IconUser, IconLock, IconBolt, IconEye, IconEyeOff, IconAlertTriangle, IconSun, IconMoon, IconShieldLock, IconUserPlus } from '@tabler/icons-react';
+import { IconUser, IconLock, IconBolt, IconEye, IconEyeOff, IconAlertTriangle, IconSun, IconMoon, IconShieldLock, IconUserPlus, IconCheck } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { GymButton } from '../components/ui/GymButton';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -141,6 +141,8 @@ export function Login() {
         const timer = setTimeout(() => {
           setView('login');
           setSetupSuccess(false);
+          setPassword('');
+          setConfirmPassword('');
         }, 3000);
       }
     });
