@@ -66,7 +66,7 @@ const start = async () => {
       };
     });
 
-    // await runSchemaMigrations();
+    await runSchemaMigrations();
 
     // Registrar módulos
     await fastify.register(require('./modules/auth/auth.routes'), { prefix: '/api/auth' });
