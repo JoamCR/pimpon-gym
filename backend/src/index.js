@@ -66,7 +66,10 @@ const start = async () => {
       };
     });
 
-    await runSchemaMigrations();
+    // Las migraciones de esquema ahora se manejan a través de scripts dedicados
+    // como 'migrate_to_supabase.js' o 'seed.js', no en el arranque de la aplicación
+    // para evitar problemas en entornos de producción como Render.
+    // await runSchemaMigrations();
 
     // Registrar módulos
     await fastify.register(require('./modules/auth/auth.routes'), { prefix: '/api/auth' });

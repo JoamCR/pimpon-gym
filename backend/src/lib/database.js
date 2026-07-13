@@ -9,7 +9,14 @@ let pool = null;
 let isConfigured = false;
 if (process.env.DATABASE_URL) {
   isConfigured = true;
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const poolConfig = {
+    connectionString: process.env.DATABASE_URL,
+  };
+  // En producción (Render, Vercel, etc.), Supabase requiere SSL.
+  if (process.env.NODE_ENV === 'production') {
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+  pool = new Pool(poolConfig);
 
   // Manejo de errores en el pool (clientes inactivos que pierden conexión)
   pool.on('error', (err, client) => {
