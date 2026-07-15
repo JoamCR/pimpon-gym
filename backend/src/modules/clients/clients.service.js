@@ -130,8 +130,69 @@ const update = async (id, data) => {
     throw createError(404, 'Cliente no encontrado para actualizar');
   }
   
-  const updated = await repository.update(id, data);
-  return updated;
+  // Validaciones de duplicidad de teléfono y RFC
+  if (data.phone && data.phone !== exists.phone) {
+    const existingPhone = await repository.findByPhoneOrRfc(data.phone, null);
+    if (existingPhone && existingPhone.id !== id) {
+      throw createError(400, 'Este número de teléfono ya está registrado');
+    }
+  }
+  if (data.rfc && data.rfc !== exists.rfc) {
+    const existingRfc = await repository.findByPhoneOrRfc(null, data.rfc);
+    if (existingRfc && existingRfc.id !== id) {
+      throw createError(400, 'Este RFC ya está registrado');
+    }
+  }
+
+  // Filtrar solo las columnas de la tabla 'clients'
+  const clientFields = [
+    'first_name', 'last_name', 'age', 'phone', 'email', 'rfc', 'gender',
+    'client_type', 'plan_id', 'notes', 'coach_fitness_level', 
+    'coach_health_notes', 'coach_goal', 'is_active',
+    'birth_date', 'enrollment_date', 'enrollment_expires_at'
+  ];
+  
+  const updateData = {};
+  for (const field of clientFields) {
+    if (data[field] !== undefined) {
+      updateData[field] = data[field];
+    }
+  }
+  
+  await repository.update(id, updateData);
+
+  // Manejar fechas de mensualidad (suscripción activa)
+  if (data.subscription_start_date !== undefined || data.subscription_end_date !== undefined) {
+    const { rows: existingSubs } = await pool.query(
+      `SELECT * FROM subscriptions WHERE client_id = $1 AND status = 'active' LIMIT 1`,
+      [id]
+    );
+
+    if (existingSubs.length > 0) {
+      const sub = existingSubs[0];
+      const newStartDate = data.subscription_start_date !== undefined ? data.subscription_start_date : sub.start_date;
+      const newEndDate = data.subscription_end_date !== undefined ? data.subscription_end_date : sub.end_date;
+      
+      await pool.query(
+        `UPDATE subscriptions SET start_date = $1, end_date = $2 WHERE id = $3`,
+        [newStartDate, newEndDate, sub.id]
+      );
+    } else {
+      const planId = updateData.plan_id || exists.plan_id;
+      if (planId) {
+        const start = data.subscription_start_date || new Date().toISOString().split('T')[0];
+        const end = data.subscription_end_date || new Date(new Date(start).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        await pool.query(
+          `INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active')`,
+          [id, planId, start, end]
+        );
+      }
+    }
+  }
+
+  return await repository.findById(id);
 };
 
 /**

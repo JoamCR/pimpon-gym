@@ -26,11 +26,11 @@ async function clientRoutes(fastify, options) {
 
   // GET /api/clients/validate
   fastify.get('/validate', async (request, reply) => {
-    const { phone, rfc } = request.query;
+    const { phone, rfc, excludeId } = request.query;
     if (phone || rfc) {
       const repository = require('./clients.repository');
       const existingClient = await repository.findByPhoneOrRfc(phone, rfc);
-      if (existingClient) {
+      if (existingClient && existingClient.id !== excludeId) {
         if (existingClient.phone === phone && phone) {
           return reply.status(400).send({ error: 'Este número de teléfono ya está registrado' });
         }

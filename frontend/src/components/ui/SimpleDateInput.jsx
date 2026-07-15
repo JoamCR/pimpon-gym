@@ -11,7 +11,7 @@ import { IconChevronDown, IconAlertCircle } from '@tabler/icons-react';
  * @param {string} [props.label] - Etiqueta para el grupo de inputs.
  * @param {string} [props.error] - Mensaje de error a mostrar.
  */
-export function SimpleDateInput({ value, onChange, label, error, isReadOnly = false }) {
+export function SimpleDateInput({ value, onChange, label, error, isReadOnly = false, minYear, maxYear }) {
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -134,7 +134,16 @@ export function SimpleDateInput({ value, onChange, label, error, isReadOnly = fa
   };
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => currentYear + 5 - i).sort((a, b) => b - a);
+  const defaultMaxYear = currentYear + 5;
+  const defaultMinYear = currentYear - 4;
+
+  const startYear = maxYear !== undefined ? maxYear : defaultMaxYear;
+  const endYear = minYear !== undefined ? minYear : defaultMinYear;
+
+  const years = Array.from(
+    { length: Math.abs(startYear - endYear) + 1 },
+    (_, i) => startYear - i
+  );
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   const displayError = error || localError;

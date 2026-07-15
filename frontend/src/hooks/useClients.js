@@ -98,7 +98,7 @@ export const useUpdateClient = () => {
       
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || 'Error al actualizar el cliente');
+        throw new Error(data.error || data.message || 'Error al actualizar el cliente');
       }
       return data;
     },
@@ -109,9 +109,12 @@ export const useUpdateClient = () => {
   });
 };
 
-export const validateClientField = async (field, value) => {
+export const validateClientField = async (field, value, excludeId = null) => {
   if (!value) return true;
-  const url = `${API_URL}/clients/validate?${field}=${encodeURIComponent(value)}`;
+  let url = `${API_URL}/clients/validate?${field}=${encodeURIComponent(value)}`;
+  if (excludeId) {
+    url += `&excludeId=${encodeURIComponent(excludeId)}`;
+  }
   const response = await fetch(url, { headers: getHeaders() });
   if (!response.ok) {
     const data = await response.json();

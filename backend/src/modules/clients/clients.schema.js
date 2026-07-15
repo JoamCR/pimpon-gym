@@ -29,10 +29,15 @@ const createClientSchema = z.object({
   quick_health_notes: z.string().optional(),
   quick_assessed_at: z.string().datetime().optional(),
   notes: z.string().optional(),
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').optional(),
 });
 
-// Esquema para actualización (todos los campos son opcionales)
-const updateClientSchema = createClientSchema.partial();
+// Esquema para actualización (todos los campos son opcionales y extendidos)
+const updateClientSchema = createClientSchema.partial().extend({
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').nullable().optional(),
+  subscription_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').nullable().optional(),
+  subscription_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').nullable().optional(),
+});
 
 module.exports = {
   createClientSchema,

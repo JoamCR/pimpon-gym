@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { useClients, useCreateClient, usePlans, validateClientField } from '../hooks/useClients';
+import { useClients, useCreateClient, useUpdateClient, usePlans, validateClientField } from '../hooks/useClients';
 import { useRenewSubscription } from '../hooks/useDashboard';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -9,19 +9,38 @@ import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh } f
 import { QRCodeSVG } from 'qrcode.react';
 
 import { HybridDateInput } from '../components/ui/HybridDateInput';
+import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 
 export default function Clients() {
   const [filterTab, setFilterTab] = useState('enrolled');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isVisitMode, setIsVisitMode] = useState(false);
-  
+
   // Sort state
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   // View state
   const [viewClientModal, setViewClientModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+
+  // Edit state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [editFieldErrors, setEditFieldErrors] = useState({});
+  const [editFormData, setEditFormData] = useState({
+    first_name: '',
+    last_name: '',
+    gender: 'Masculino',
+    phone: '',
+    email: '',
+    rfc: '',
+    age: '',
+    coach_fitness_level: '',
+    coach_health_notes: '',
+    coach_goal: '',
+    notes: '',
+  });
 
   // Renew state
   const [renewModal, setRenewModal] = useState(false);
@@ -53,7 +72,142 @@ export default function Clients() {
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const planOptions = Array.isArray(plansData?.data) ? plansData.data : [];
   const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
   const renewSubscription = useRenewSubscription();
+
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    return dateStr.split('T')[0];
+  };
+
+  const handleEditClient = (client) => {
+    setEditingClient(client);
+    setEditFormData({
+      first_name: client.first_name || '',
+      last_name: client.last_name || '',
+      gender: client.gender || 'Masculino',
+      phone: client.phone || '',
+      email: client.email || '',
+      rfc: client.rfc || '',
+      age: client.age || '',
+      coach_fitness_level: client.coach_fitness_level || '',
+      coach_health_notes: client.coach_health_notes || '',
+      coach_goal: client.coach_goal || '',
+      notes: client.notes || '',
+      birth_date: formatDateForInput(client.birth_date),
+      enrollment_date: formatDateForInput(client.enrollment_date),
+      enrollment_expires_at: formatDateForInput(client.enrollment_expires_at),
+      subscription_start_date: formatDateForInput(client.start_date),
+      subscription_end_date: formatDateForInput(client.end_date),
+    });
+    setEditFieldErrors({});
+    setIsEditModalOpen(true);
+  };
+
+  const handleBirthDateChange = (dateVal) => {
+    let calculatedAge = '';
+    if (dateVal) {
+      const birthDate = new Date(dateVal);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      calculatedAge = age >= 0 ? age.toString() : '';
+    }
+    setEditFormData(prev => ({
+      ...prev,
+      birth_date: dateVal,
+      age: calculatedAge
+    }));
+  };
+
+  const handleEnrollmentDateChange = (dateVal) => {
+    let expires = '';
+    if (dateVal) {
+      const d = new Date(dateVal + 'T00:00:00');
+      d.setFullYear(d.getFullYear() + 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      expires = `${y}-${m}-${day}`;
+    }
+    setEditFormData(prev => ({
+      ...prev,
+      enrollment_date: dateVal,
+      enrollment_expires_at: expires
+    }));
+  };
+
+  const handleSubscriptionStartDateChange = (dateVal) => {
+    let expires = '';
+    if (dateVal) {
+      const plan = planOptions.find(p => p.id === editingClient?.plan_id);
+      const days = plan?.duration_days || 30;
+
+      const d = new Date(dateVal + 'T00:00:00');
+      d.setDate(d.getDate() + days);
+
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      expires = `${y}-${m}-${day}`;
+    }
+    setEditFormData(prev => ({
+      ...prev,
+      subscription_start_date: dateVal,
+      subscription_end_date: expires
+    }));
+  };
+
+  const handleUpdateSubmit = () => {
+    if (!editFormData.first_name || !editFormData.last_name) {
+      toast.error('Por favor, ingresa el nombre y los apellidos');
+      return;
+    }
+    if (editFieldErrors.phone || editFieldErrors.rfc) {
+      toast.error('Por favor, corrige los errores en el formulario');
+      return;
+    }
+
+    const payload = {
+      id: editingClient.id,
+      ...editFormData,
+    };
+
+    if (payload.age) {
+      payload.age = Number(payload.age);
+    } else {
+      payload.age = null;
+    }
+
+    // Sanitize empty strings to avoid Zod schema validation errors
+    if (!payload.phone) delete payload.phone;
+    if (!payload.rfc) delete payload.rfc;
+    if (!payload.email) delete payload.email;
+    if (!payload.coach_fitness_level) delete payload.coach_fitness_level;
+    if (!payload.coach_health_notes) delete payload.coach_health_notes;
+    if (!payload.coach_goal) delete payload.coach_goal;
+    if (!payload.notes) delete payload.notes;
+
+    payload.birth_date = payload.birth_date || null;
+    payload.enrollment_date = payload.enrollment_date || null;
+    payload.enrollment_expires_at = payload.enrollment_expires_at || null;
+    payload.subscription_start_date = payload.subscription_start_date || null;
+    payload.subscription_end_date = payload.subscription_end_date || null;
+
+    updateClientMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success('Cliente actualizado exitosamente');
+        setIsEditModalOpen(false);
+        refetch();
+      },
+      onError: (error) => {
+        toast.error(error.message || 'Error al actualizar el cliente');
+      },
+    });
+  };
 
   const openModal = (isVisit = false) => {
     setIsVisitMode(isVisit);
@@ -112,7 +266,7 @@ export default function Clients() {
 
     delete payload.amount;
     delete payload.plan_requires_enrollment;
-    
+
     // Sanitize empty strings to avoid Zod schema validation errors
     if (!payload.age) delete payload.age;
     if (!payload.phone) delete payload.phone;
@@ -167,7 +321,7 @@ export default function Clients() {
           aVal = `${a.first_name} ${a.last_name}`.toLowerCase();
           bVal = `${b.first_name} ${b.last_name}`.toLowerCase();
         }
-        
+
         if (sortConfig.key === 'end_date') {
           aVal = a.end_date ? new Date(a.end_date).getTime() : 0;
           bVal = b.end_date ? new Date(b.end_date).getTime() : 0;
@@ -208,13 +362,13 @@ export default function Clients() {
       toast.error('Por favor, selecciona un plan para renovar.');
       return;
     }
-  
+
     const selectedPlan = planOptions.find(p => p.id === renewFormData.plan_id);
     if (!selectedPlan) {
       toast.error('El plan seleccionado no es válido.');
       return;
     }
-  
+
     try {
       await renewSubscription.mutateAsync({
         client_id: selectedClient.id,
@@ -260,9 +414,8 @@ export default function Clients() {
                   plan_requires_enrollment: plan.requires_enrollment,
                   amount: plan.price_monthly,
                 })}
-                className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
-                  formData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
-                }`}
+                className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${formData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
+                  }`}
               >
                 <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
                 <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
@@ -298,7 +451,7 @@ export default function Clients() {
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'Correo electrónico', key: 'email', type: 'email' },
-             // { label: 'RFC', key: 'rfc' },
+            // { label: 'RFC', key: 'rfc' },
           ].map((field) => (
             <div key={field.key} className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
@@ -340,10 +493,10 @@ export default function Clients() {
               )}
             </div>
           ))}
-          
+
           <div className="sm:col-span-2 mt-2">
-            <HybridDateInput 
-              value={formData.birth_date} 
+            <HybridDateInput
+              value={formData.birth_date}
               error={fieldErrors.birth_date}
               onChange={(dateStr, calculatedAge) => {
                 setFormData({
@@ -352,7 +505,7 @@ export default function Clients() {
                   age: calculatedAge !== null ? calculatedAge.toString() : ''
                 });
                 if (fieldErrors.birth_date) setFieldErrors({ ...fieldErrors, birth_date: null });
-              }} 
+              }}
             />
           </div>
         </div>
@@ -392,7 +545,7 @@ export default function Clients() {
             <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Monto Total a Pagar</label>
             <input
               type="number"
-              value={( (formData.plan_requires_enrollment ? parseFloat(formData.enrollment_amount || 0) : 0) + parseFloat(formData.amount || 0) ).toFixed(2)}
+              value={((formData.plan_requires_enrollment ? parseFloat(formData.enrollment_amount || 0) : 0) + parseFloat(formData.amount || 0)).toFixed(2)}
               readOnly
               className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-lg font-bold text-[var(--color-success)] focus:outline-none"
             />
@@ -497,45 +650,47 @@ export default function Clients() {
               </thead>
               <tbody>
                 {isLoading ? (
-                   <tr>
-                     <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">Cargando clientes...</td>
-                   </tr>
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">Cargando clientes...</td>
+                  </tr>
                 ) : sortedClients.map((client, index) => {
                   const currentStatus = getClientStatus(client);
                   return (
-                  <tr key={client.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-secondary)] text-white font-bold">{client.first_name?.[0]}{client.last_name?.[0]}</div>
-                        <div>
-                          <p className="font-semibold text-[var(--color-text)]">{client.first_name} {client.last_name}</p>
-                          <p className="text-sm text-[var(--color-text-muted)]">
-                            {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
-                          </p>
+                    <tr key={client.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-secondary)] text-white font-bold">{client.first_name?.[0]}{client.last_name?.[0]}</div>
+                          <div>
+                            <p className="font-semibold text-[var(--color-text)]">{client.first_name} {client.last_name}</p>
+                            <p className="text-sm text-[var(--color-text-muted)]">
+                              {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.phone}</td>
-                    
-                    
-                    <td className="px-4 py-4 text-sm text-[var(--color-text)]">
-                      {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${currentStatus === 'active' ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : currentStatus === 'expiring' ? 'bg-[rgba(245,158,11,0.15)] text-[var(--color-warning)]' : 'bg-[rgba(239,68,68,0.15)] text-[var(--color-danger)]'}`}>
-                        {currentStatus === 'active' ? 'Activo' : currentStatus === 'expiring' ? 'Por vencer' : 'Vencido'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text)]">
-                      {client.end_date ? new Date(client.end_date).toLocaleDateString('es-MX') : 'N/A'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.consecutive_months ?? 0}</td>
-                    <td className="px-4 py-4 space-x-2 whitespace-nowrap">
-                      <GymButton size="xs" variant="secondary" onClick={() => handleViewClient(client)}>Ver</GymButton>
-                      <GymButton size="xs" variant="warning" icon={<IconRefresh size={14} />} onClick={() => handleRenewClient(client)}>Renovar</GymButton>
-                    </td>
-                  </tr>
-                )})}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.phone}</td>
+
+
+                      <td className="px-4 py-4 text-sm text-[var(--color-text)]">
+                        {client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : client.plan_name}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${currentStatus === 'active' ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : currentStatus === 'expiring' ? 'bg-[rgba(245,158,11,0.15)] text-[var(--color-warning)]' : 'bg-[rgba(239,68,68,0.15)] text-[var(--color-danger)]'}`}>
+                          {currentStatus === 'active' ? 'Activo' : currentStatus === 'expiring' ? 'Por vencer' : 'Vencido'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-[var(--color-text)]">
+                        {client.end_date ? new Date(client.end_date).toLocaleDateString('es-MX') : 'N/A'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{client.consecutive_months ?? 0}</td>
+                      <td className="px-4 py-4 space-x-2 whitespace-nowrap">
+                        <GymButton size="xs" variant="secondary" onClick={() => handleViewClient(client)}>Ver</GymButton>
+                        <GymButton size="xs" variant="primary" onClick={() => handleEditClient(client)}>Editar</GymButton>
+                        <GymButton size="xs" variant="warning" icon={<IconRefresh size={14} />} onClick={() => handleRenewClient(client)}>Renovar</GymButton>
+                      </td>
+                    </tr>
+                  )
+                })}
                 {!isLoading && sortedClients.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">No se encontraron clientes.</td>
@@ -575,15 +730,15 @@ export default function Clients() {
         {selectedClient && (
           <div className="space-y-4 text-[var(--color-text)]">
             <div className="flex flex-col md:flex-row gap-6">
-            {/* Sección del Código QR */}
+              {/* Sección del Código QR */}
               <div className="flex flex-col items-center justify-center p-4 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] border border-[var(--color-border)]">
                 <div className="p-3 bg-white rounded-lg">
-                  <QRCodeSVG 
-                  value={selectedClient.id} 
-                  size={140} 
-                  bgColor={"#ffffff"} 
-                  fgColor={"#000000"} 
-                  level={"H"} 
+                  <QRCodeSVG
+                    value={selectedClient.id}
+                    size={140}
+                    bgColor={"#ffffff"}
+                    fgColor={"#000000"}
+                    level={"H"}
                   />
                 </div>
               </div>
@@ -645,9 +800,8 @@ export default function Clients() {
                   key={plan.id}
                   type="button"
                   onClick={() => setRenewFormData({ ...renewFormData, plan_id: plan.id })}
-                  className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
-                    renewFormData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
-                  }`}
+                  className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${renewFormData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
+                    }`}
                 >
                   <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
                   <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
@@ -655,7 +809,7 @@ export default function Clients() {
               ))}
             </div>
           </div>
-          
+
           {/* Payment method */}
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Método de pago</label>
@@ -668,13 +822,13 @@ export default function Clients() {
               <option value="transfer">Transferencia</option>
             </select>
           </div>
-          
+
           {/* Action buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <GymButton variant="secondary" onClick={() => setRenewModal(false)}>Cancelar</GymButton>
-            <GymButton 
-              variant="success" 
-              onClick={confirmRenew} 
+            <GymButton
+              variant="success"
+              onClick={confirmRenew}
               loading={renewSubscription.isLoading}
               disabled={!renewFormData.plan_id}
             >
@@ -682,6 +836,199 @@ export default function Clients() {
             </GymButton>
           </div>
         </div>
+      </GymModal>
+
+      <GymModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Cliente" width="lg">
+        <form onSubmit={(e) => { e.preventDefault(); handleUpdateSubmit(); }} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Nombre</label>
+              <input
+                type="text"
+                value={editFormData.first_name || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Apellidos</label>
+              <input
+                type="text"
+                value={editFormData.last_name || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Sexo</label>
+              <select
+                value={editFormData.gender || 'Masculino'}
+                onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              >
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Teléfono</label>
+              <input
+                type="text"
+                value={editFormData.phone || ''}
+                onChange={(e) => {
+                  setEditFormData({ ...editFormData, phone: e.target.value });
+                  if (editFieldErrors.phone) setEditFieldErrors({ ...editFieldErrors, phone: null });
+                }}
+                onBlur={async (e) => {
+                  if (e.target.value && e.target.value !== editingClient?.phone) {
+                    try {
+                      await validateClientField('phone', e.target.value, editingClient?.id);
+                    } catch (error) {
+                      setEditFieldErrors((prev) => ({ ...prev, phone: error.message }));
+                    }
+                  }
+                }}
+                className={`w-full rounded-[var(--radius-md)] border ${editFieldErrors.phone ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
+              />
+              {editFieldErrors.phone && (
+                <p className="text-red-500 text-xs mt-1">{editFieldErrors.phone}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Correo electrónico</label>
+              <input
+                type="email"
+                value={editFormData.email || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">RFC</label>
+              <input
+                type="text"
+                value={editFormData.rfc || ''}
+                onChange={(e) => {
+                  setEditFormData({ ...editFormData, rfc: e.target.value });
+                  if (editFieldErrors.rfc) setEditFieldErrors({ ...editFieldErrors, rfc: null });
+                }}
+                onBlur={async (e) => {
+                  if (e.target.value && e.target.value !== editingClient?.rfc) {
+                    try {
+                      await validateClientField('rfc', e.target.value, editingClient?.id);
+                    } catch (error) {
+                      setEditFieldErrors((prev) => ({ ...prev, rfc: error.message }));
+                    }
+                  }
+                }}
+                className={`w-full rounded-[var(--radius-md)] border ${editFieldErrors.rfc ? 'border-red-500' : 'border-[var(--color-border)]'} bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]`}
+              />
+              {editFieldErrors.rfc && (
+                <p className="text-red-500 text-xs mt-1">{editFieldErrors.rfc}</p>
+              )}
+            </div>
+            {/* Configuración de Fechas */}
+            <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1 font-[var(--font-display)]">Configuración de Fechas e Historial</h3>
+              <p className="text-xs text-[var(--color-text-muted)]">Ajusta las fechas de nacimiento, anualidad (inscripción) y mensualidad (plan activo).</p>
+            </div>
+
+            <div className="sm:col-span-2 mt-2">
+              <HybridDateInput
+                value={editFormData.birth_date || ''}
+                error={editFieldErrors.birth_date}
+                onChange={(dateStr, calculatedAge) => {
+                  setEditFormData({
+                    ...editFormData,
+                    birth_date: dateStr,
+                    age: calculatedAge !== null ? calculatedAge.toString() : ''
+                  });
+                  if (editFieldErrors.birth_date) {
+                    setEditFieldErrors({ ...editFieldErrors, birth_date: null });
+                  }
+                }}
+              />
+            </div>
+
+            <SimpleDateInput
+              label="Fecha Inicio Inscripción (Anualidad)"
+              value={editFormData.enrollment_date || ''}
+              onChange={handleEnrollmentDateChange}
+            />
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fecha Fin Inscripción (Anualidad)</label>
+              <input
+                type="date"
+                value={editFormData.enrollment_expires_at || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, enrollment_expires_at: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+
+            <SimpleDateInput
+              label="Fecha Inicio Plan (Mensualidad)"
+              value={editFormData.subscription_start_date || ''}
+              onChange={handleSubscriptionStartDateChange}
+            />
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fecha Fin Plan (Mensualidad)</label>
+              <input
+                type="date"
+                value={editFormData.subscription_end_date || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, subscription_end_date: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+
+            <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1 font-[var(--font-display)]">Encuesta de Coach y Notas</h3>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Condición física</label>
+              <input
+                type="text"
+                value={editFormData.coach_fitness_level || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, coach_fitness_level: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas de salud</label>
+              <textarea
+                rows={2}
+                value={editFormData.coach_health_notes || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, coach_health_notes: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Objetivo principal</label>
+              <textarea
+                rows={2}
+                value={editFormData.coach_goal || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, coach_goal: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas adicionales</label>
+              <textarea
+                rows={2}
+                value={editFormData.notes || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
+            <GymButton type="button" variant="secondary" onClick={() => setIsEditModalOpen(false)}>Cancelar</GymButton>
+            <GymButton type="submit" variant="primary" loading={updateClientMutation.isLoading}>Guardar Cambios</GymButton>
+          </div>
+        </form>
       </GymModal>
     </div>
   );

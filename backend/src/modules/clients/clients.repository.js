@@ -10,6 +10,7 @@ const findAll = async (filters = {}) => {
       c.*, 
       p.name as plan_name, 
       s.status as subscription_status, 
+      s.start_date, 
       s.end_date
     FROM clients c
     LEFT JOIN plans p ON c.plan_id = p.id
@@ -101,9 +102,10 @@ const create = async (data, dbClient) => {
     INSERT INTO clients (
       id, first_name, last_name, age, phone, plan_id,
       email, rfc, gender, enrollment_date, enrollment_expires_at,
-      coach_fitness_level, coach_health_notes, coach_goal, created_by
+      coach_fitness_level, coach_health_notes, coach_goal, created_by,
+      birth_date
     ) VALUES (
-      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
     ) RETURNING *
   `;
   const params = [
@@ -120,7 +122,8 @@ const create = async (data, dbClient) => {
     data.coach_fitness_level || null,
     data.coach_health_notes || null,
     data.coach_goal || null,
-    data.created_by
+    data.created_by,
+    data.birth_date || null
   ];
   
   const executor = dbClient || { query };
