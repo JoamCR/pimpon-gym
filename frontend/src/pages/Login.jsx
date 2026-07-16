@@ -54,14 +54,10 @@ const useLoginMutation = () => {
 
   return useMutation({
     mutationFn: async ({ username, password }) => {
-      // Asumimos que tienes un cliente de API configurado.
-      // La ruta '/auth/login' es un estándar, ajústala si es necesario.
-      const { data } = await api.post('/auth/login', { username, password });
-      return data;
+      // Llamar directamente al login de Zustand que realiza la petición correcta
+      return await loginAction({ username, password });
     },
-    onSuccess: (data) => {
-      // Guardar token y usuario en el store de Zustand
-      loginAction(data.token, data.user);
+    onSuccess: () => {
       // Redirigir al dashboard
       navigate('/dashboard', { replace: true });
     },
