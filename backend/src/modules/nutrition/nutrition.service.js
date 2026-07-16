@@ -46,7 +46,7 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
       const clientCheckSql = `
         SELECT c.*, p.includes_nutrition, c.first_consult_used
         FROM clients c
-        JOIN plans p ON c.plan_id = p.id
+        LEFT JOIN plans p ON c.plan_id = p.id
         WHERE c.id = $1
       `;
       const clientResult = await dbClient.query(clientCheckSql, [data.client_id]);
@@ -202,7 +202,7 @@ const getClientById = async (clientId) => {
   try {
     const clientsRepo = require('../clients/clients.repository');
     const patientRepo = require('../patients/patients.repository');
-    const client = await clientsRepo.getById(clientId);
+    const client = await clientsRepo.findById(clientId);
     if (client) return client;
     return await patientRepo.findById(clientId);
   } catch (error) {
