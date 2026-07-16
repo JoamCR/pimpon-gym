@@ -98,7 +98,13 @@ export const useUpdateClient = () => {
       
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Error al actualizar el cliente');
+        // Mapear los detalles de Zod (si existen) o mostrar el error general
+        let errorMessage = data.error || data.message || 'Error al actualizar el cliente';
+        if (data.details) {
+          const firstError = Object.values(data.details).find(val => Array.isArray(val) && val._errors)?.['_errors']?.[0];
+          if (firstError) errorMessage = firstError;
+        }
+        throw new Error(errorMessage);
       }
       return data;
     },
