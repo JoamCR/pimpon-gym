@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS patients (
 -- Añadir la columna birth_date si no existe, para asegurar compatibilidad en re-ejecuciones
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS birth_date DATE;
 
+-- Asegurar columnas de assessment rápido y fecha de nacimiento en tabla clients para v2.0
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS birth_date DATE;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS quick_weight_kg NUMERIC(5,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS quick_height_cm NUMERIC(5,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS quick_assessed_at TIMESTAMPTZ;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS quick_goal VARCHAR(255);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS quick_health_notes TEXT;
+
 -- Ajustar schema de nutrition_records para clientes y pacientes
 ALTER TABLE nutrition_records
     ALTER COLUMN client_id DROP NOT NULL;

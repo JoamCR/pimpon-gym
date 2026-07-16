@@ -5,7 +5,7 @@
 -- 1. TABLA DE USUARIOS DEL SISTEMA
 CREATE TABLE IF NOT EXISTS app_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'admin', 'receptionist', 'nutritionist')),
@@ -50,6 +50,12 @@ CREATE TABLE IF NOT EXISTS clients (
     coach_fitness_level VARCHAR(50),
     coach_health_notes TEXT,
     coach_goal TEXT,
+    birth_date DATE,
+    quick_weight_kg NUMERIC(5,2),
+    quick_height_cm NUMERIC(5,2),
+    quick_assessed_at TIMESTAMPTZ,
+    quick_goal VARCHAR(255),
+    quick_health_notes TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_by UUID REFERENCES app_users(id) ON DELETE SET NULL
 );
