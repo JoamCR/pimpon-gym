@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -16,7 +16,7 @@ import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
-import { IconClipboardHeart, IconEye } from '@tabler/icons-react';
+import { IconClipboardHeart, IconEye, IconSearch, IconX, IconSortAscending, IconClock } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
 const ClientCard = ({ patient, onEvaluate, onShowDetails, onViewPatient }) => {
@@ -91,6 +91,10 @@ export default function Nutrition() {
   const [modalEvaluate, setModalEvaluate] = useState(false);
   const [modalDetails, setModalDetails] = useState(false);
   const [defaultTab, setDefaultTab] = useState('composition');
+  const [patientSearch, setPatientSearch] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
+  const [patientSort, setPatientSort] = useState('recent'); // 'recent' | 'name'
+  const [clientSort, setClientSort] = useState('recent'); // 'recent' | 'name'
 
   const { data: patientsResponse, isLoading: patientsLoading } = usePatients();
   const { data: clientsResponse, isLoading: clientsLoading } = useClients();
@@ -107,6 +111,38 @@ export default function Nutrition() {
   const patientsQueue = rawPatients.map(p => ({ ...p, userType: 'patient', consultType: p.is_free_consult ? 'Primera consulta gratis' : 'Consulta regular' }));
   const clientsQueue = rawClients.map(c => ({ ...c, userType: 'client', consultType: 'Cliente de gimnasio' }));
   const queue = [...patientsQueue, ...clientsQueue];
+
+  const filteredPatients = patientsQueue
+    .filter(p => {
+      const fullName = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+      const phone = (p.phone || '').toLowerCase();
+      const search = patientSearch.toLowerCase();
+      return fullName.includes(search) || phone.includes(search);
+    })
+    .sort((a, b) => {
+      if (patientSort === 'name') {
+        const nameA = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase();
+        const nameB = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+  const filteredClients = clientsQueue
+    .filter(c => {
+      const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+      const phone = (c.phone || '').toLowerCase();
+      const search = clientSearch.toLowerCase();
+      return fullName.includes(search) || phone.includes(search);
+    })
+    .sort((a, b) => {
+      if (clientSort === 'name') {
+        const nameA = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase();
+        const nameB = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
 
   const history = Array.isArray(evaluationsResponse) ? evaluationsResponse : evaluationsResponse?.data || [];
   const plans = Array.isArray(plansResponse) ? plansResponse : plansResponse?.data || [];
@@ -209,13 +245,49 @@ export default function Nutrition() {
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6 h-full">
           <GymCard title="Cola de Pacientes" subtitle="Pacientes de consultorio" variant="default">
+            {/* Buscador y Ordenamiento */}
+            <div className="flex gap-2 mb-6">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-[var(--color-text-muted)]">
+                  <IconSearch size={18} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Buscar paciente..."
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-secondary)] transition-colors text-sm"
+                />
+                {patientSearch && (
+                  <button
+                    onClick={() => setPatientSearch('')}
+                    className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  >
+                    <IconX size={16} />
+                  </button>
+                )}
+              </div>
+              <GymButton
+                size="sm"
+                variant="secondary"
+                icon={patientSort === 'name' ? <IconSortAscending size={18} /> : <IconClock size={18} />}
+                onClick={() => setPatientSort(prev => prev === 'recent' ? 'name' : 'recent')}
+                className="whitespace-nowrap px-3"
+                title={patientSort === 'name' ? 'Ordenar por: Recientes' : 'Ordenar por: Nombre'}
+              >
+                {patientSort === 'name' ? 'A-Z' : 'Recientes'}
+              </GymButton>
+            </div>
+
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-2">
               {queueLoading ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">Cargando pacientes...</p>
               ) : patientsQueue.length === 0 ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">No hay pacientes registrados.</p>
+              ) : filteredPatients.length === 0 ? (
+                <p className="text-[var(--color-text-muted)] col-span-full">No se encontraron pacientes para la búsqueda.</p>
               ) : (
-                patientsQueue.map((patient) => (
+                filteredPatients.map((patient) => (
                   <ClientCard key={`patient-${patient.id}`} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} onViewPatient={handleViewPatient} />
                 ))
               )}
@@ -223,13 +295,49 @@ export default function Nutrition() {
           </GymCard>
 
           <GymCard title="Cola de Clientes" subtitle="Clientes de gimnasio" variant="default">
+            {/* Buscador y Ordenamiento */}
+            <div className="flex gap-2 mb-6">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-[var(--color-text-muted)]">
+                  <IconSearch size={18} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-secondary)] transition-colors text-sm"
+                />
+                {clientSearch && (
+                  <button
+                    onClick={() => setClientSearch('')}
+                    className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  >
+                    <IconX size={16} />
+                  </button>
+                )}
+              </div>
+              <GymButton
+                size="sm"
+                variant="secondary"
+                icon={clientSort === 'name' ? <IconSortAscending size={18} /> : <IconClock size={18} />}
+                onClick={() => setClientSort(prev => prev === 'recent' ? 'name' : 'recent')}
+                className="whitespace-nowrap px-3"
+                title={clientSort === 'name' ? 'Ordenar por: Recientes' : 'Ordenar por: Nombre'}
+              >
+                {clientSort === 'name' ? 'A-Z' : 'Recientes'}
+              </GymButton>
+            </div>
+
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-2">
               {queueLoading ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">Cargando clientes...</p>
               ) : clientsQueue.length === 0 ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">No hay clientes registrados.</p>
+              ) : filteredClients.length === 0 ? (
+                <p className="text-[var(--color-text-muted)] col-span-full">No se encontraron clientes para la búsqueda.</p>
               ) : (
-                clientsQueue.map((client) => (
+                filteredClients.map((client) => (
                   <ClientCard key={`client-${client.id}`} patient={client} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} onViewPatient={handleViewPatient} />
                 ))
               )}
