@@ -81,11 +81,16 @@ export default function Clients() {
   };
 
   const handleEditClient = (client) => {
+    let genderVal = client.gender || 'Masculino';
+    if (genderVal === 'M') genderVal = 'Masculino';
+    if (genderVal === 'F') genderVal = 'Femenino';
+    if (genderVal === 'O') genderVal = 'Otro';
+
     setEditingClient(client);
     setEditFormData({
       first_name: client.first_name || '',
       last_name: client.last_name || '',
-      gender: client.gender || 'Masculino',
+      gender: genderVal,
       phone: client.phone || '',
       email: client.email || '',
       rfc: client.rfc || '',
