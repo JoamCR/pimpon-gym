@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
 export const useAuthStore = create(
   persist(
     (set) => ({
@@ -9,7 +11,7 @@ export const useAuthStore = create(
       isAuthenticated: false,
 
       login: async (credentials) => {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(`${API_URL}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(credentials)
@@ -21,7 +23,8 @@ export const useAuthStore = create(
           throw new Error(result.error || 'Error al iniciar sesión');
         }
 
-        const { user, token } = result.data;
+        // El backend devuelve { user, token } en la raíz del objeto
+        const { user, token } = result;
         
         set({ user, token, isAuthenticated: true });
         
