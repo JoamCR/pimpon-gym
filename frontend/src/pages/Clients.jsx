@@ -94,6 +94,7 @@ export default function Clients() {
       phone: client.phone || '',
       email: client.email || '',
       rfc: client.rfc || '',
+      plan_id: client.plan_id || '',
       age: client.age || '',
       coach_fitness_level: client.coach_fitness_level || '',
       coach_health_notes: client.coach_health_notes || '',
@@ -965,6 +966,22 @@ export default function Clients() {
                 <p className="text-red-500 text-xs mt-1">{editFieldErrors.rfc}</p>
               )}
             </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Plan Activo</label>
+              <select
+                value={editFormData.plan_id || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, plan_id: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                required
+              >
+                <option value="" disabled>Selecciona un plan</option>
+                {planOptions.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} (${plan.price_monthly} MXN)
+                  </option>
+                ))}
+              </select>
+            </div>
             {/* Configuración de Fechas */}
             <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
               <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1 font-[var(--font-display)]">Configuración de Fechas e Historial</h3>
@@ -988,36 +1005,68 @@ export default function Clients() {
               />
             </div>
 
-            <SimpleDateInput
-              label="Inicio Inscripción (Anualidad)"
-              value={editFormData.enrollment_date || ''}
-              onChange={handleEnrollmentDateChange}
-            />
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fin Inscripción (Anualidad)</label>
-              <input
-                type="date"
-                value={editFormData.enrollment_expires_at || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, enrollment_expires_at: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+            {/* Configuración de Fechas */}
+            <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1 font-[var(--font-display)]">Configuración de Fechas e Historial</h3>
+              <p className="text-xs text-[var(--color-text-muted)]">Ajusta las fechas de nacimiento, anualidad (inscripción) y mensualidad (plan activo).</p>
+            </div>
+
+            <div className="sm:col-span-2 mt-2">
+              <HybridDateInput
+                value={editFormData.birth_date || ''}
+                error={editFieldErrors.birth_date}
+                onChange={(dateStr, calculatedAge) => {
+                  setEditFormData({
+                    ...editFormData,
+                    birth_date: dateStr,
+                    age: calculatedAge !== null ? calculatedAge.toString() : ''
+                  });
+                  if (editFieldErrors.birth_date) {
+                    setEditFieldErrors({ ...editFieldErrors, birth_date: null });
+                  }
+                }}
               />
             </div>
 
-            <SimpleDateInput
-              label="Inicio Plan (Mensualidad)"
-              value={editFormData.subscription_start_date || ''}
-              onChange={handleSubscriptionStartDateChange}
-            />
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fin Plan (Mensualidad)</label>
-              <input
-                type="date"
-                value={editFormData.subscription_end_date || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, subscription_end_date: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+            {/* CAMBIO AQUÍ: Contenedor Inscripción agrupado con proporción 8 a 4 */}
+            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-12">
+              <div className="sm:col-span-8">
+                <SimpleDateInput
+                  label="Inicio Inscripción (Anualidad)"
+                  value={editFormData.enrollment_date || ''}
+                  onChange={handleEnrollmentDateChange}
+                />
+              </div>
+              <div className="sm:col-span-4 space-y-2">
+                <label className="block text-sm font-semibold text-[var(--color-text-muted)] truncate">Fin Inscripción</label>
+                <input
+                  type="text"
+                  value={editFormData.enrollment_expires_at ? new Date(editFormData.enrollment_expires_at + 'T00:00:00').toLocaleDateString('es-MX') : 'N/A'}
+                  readOnly
+                  className="w-full text-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[var(--color-text-muted)] cursor-not-allowed focus:outline-none"
+                />
+              </div>
             </div>
 
+            {/* CAMBIO AQUÍ: Contenedor Plan agrupado con proporción 8 a 4 */}
+            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-12">
+              <div className="sm:col-span-8">
+                <SimpleDateInput
+                  label="Inicio Plan (Mensualidad)"
+                  value={editFormData.subscription_start_date || ''}
+                  onChange={handleSubscriptionStartDateChange}
+                />
+              </div>
+              <div className="sm:col-span-4 space-y-2">
+                <label className="block text-sm font-semibold text-[var(--color-text-muted)] truncate">Fin Plan</label>
+                <input
+                  type="text"
+                  value={editFormData.subscription_end_date ? new Date(editFormData.subscription_end_date + 'T00:00:00').toLocaleDateString('es-MX') : 'N/A'}
+                  readOnly
+                  className="w-full text-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[var(--color-text-muted)] cursor-not-allowed focus:outline-none"
+                />
+              </div>
+            </div>
             <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
               <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1 font-[var(--font-display)]">Encuesta de Coach y Notas</h3>
             </div>

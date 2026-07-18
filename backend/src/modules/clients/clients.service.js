@@ -161,8 +161,8 @@ const update = async (id, data) => {
   
   await repository.update(id, updateData);
 
-  // Manejar fechas de mensualidad (suscripción activa)
-  if (data.subscription_start_date !== undefined || data.subscription_end_date !== undefined) {
+  // Manejar fechas de mensualidad (suscripción activa) y cambio de plan
+  if (data.subscription_start_date !== undefined || data.subscription_end_date !== undefined || data.plan_id !== undefined) {
     const { rows: existingSubs } = await pool.query(
       `SELECT * FROM subscriptions WHERE client_id = $1 AND status = 'active' LIMIT 1`,
       [id]
@@ -172,10 +172,11 @@ const update = async (id, data) => {
       const sub = existingSubs[0];
       const newStartDate = data.subscription_start_date !== undefined ? data.subscription_start_date : sub.start_date;
       const newEndDate = data.subscription_end_date !== undefined ? data.subscription_end_date : sub.end_date;
+      const newPlanId = data.plan_id !== undefined ? data.plan_id : sub.plan_id;
       
       await pool.query(
-        `UPDATE subscriptions SET start_date = $1, end_date = $2 WHERE id = $3`,
-        [newStartDate, newEndDate, sub.id]
+        `UPDATE subscriptions SET start_date = $1, end_date = $2, plan_id = $4 WHERE id = $3`,
+        [newStartDate, newEndDate, sub.id, newPlanId]
       );
     } else {
       const planId = updateData.plan_id || exists.plan_id;
