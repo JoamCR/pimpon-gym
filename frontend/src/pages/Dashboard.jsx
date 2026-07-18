@@ -384,7 +384,18 @@ export default function Dashboard() {
 
                     {expandedSection === 'renewals' && renewalsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay renovaciones este mes.</p>}
                     {expandedSection === 'renewals' && renewalsThisMonthList.map(renewal => (
-                      <ClientRow key={renewal.id} client={{...renewal, plan_name: 'Renovación'}} />
+                      <ClientRow 
+                        key={renewal.id} 
+                        client={{
+                          ...renewal, 
+                          plan_name: renewal.plan_name ? `Renovación (${renewal.plan_name})` : 'Renovación'
+                        }} 
+                        customDetail={
+                          renewal.start_date && renewal.end_date
+                            ? `Periodo: ${new Date(renewal.start_date).toLocaleDateString('es-MX')} al ${new Date(renewal.end_date).toLocaleDateString('es-MX')} • Vence: ${new Date(renewal.end_date).toLocaleDateString('es-MX')}`
+                            : ''
+                        }
+                      />
                     ))}
 
                     {expandedSection === 'cancellations' && cancellationsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones/expiraciones este mes.</p>}

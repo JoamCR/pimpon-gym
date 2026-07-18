@@ -338,9 +338,21 @@ const countTodayVisitors = async () => {
 const countRenewalsThisMonth = async () => {
   const query = `
     SELECT 
-      p.id, p.amount, p.paid_at, c.first_name, c.last_name, c.phone
+      p.id, 
+      p.amount, 
+      p.paid_at, 
+      c.first_name, 
+      c.last_name, 
+      c.phone,
+      pl.name as plan_name,
+      s.start_date,
+      s.end_date
     FROM payments p
     JOIN clients c ON p.client_id = c.id
+    LEFT JOIN subscriptions s ON s.id = COALESCE(p.subscription_id, (
+      SELECT id FROM subscriptions WHERE client_id = c.id ORDER BY end_date DESC LIMIT 1
+    ))
+    LEFT JOIN plans pl ON pl.id = COALESCE(s.plan_id, c.plan_id)
     WHERE p.payment_type = 'monthly' 
       AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
     ORDER BY p.paid_at DESC
