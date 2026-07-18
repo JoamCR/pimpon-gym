@@ -6,7 +6,7 @@ import { useDashboard, useSendNotification, useRenewSubscription } from '../hook
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
-import { IconChartBar, IconSpeakerphone, IconSend, IconCreditCard, IconCheck, IconAlertTriangle } from '@tabler/icons-react';
+import { IconChartBar, IconSpeakerphone, IconSend, IconCreditCard, IconCheck, IconAlertTriangle, IconSearch } from '@tabler/icons-react';
 import '../styles/dashboard.css';
 
 const ProgressBar = ({ used, limit, percentage }) => {
@@ -113,6 +113,23 @@ export default function Dashboard() {
     amount: 0,
   });
   const [expandedSection, setExpandedSection] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filterItems = (items, term) => {
+    if (!items) return [];
+    if (!term) return items;
+    const lowerTerm = term.toLowerCase().trim();
+    return items.filter(item => {
+      const fullName = `${item.first_name || ''} ${item.last_name || ''}`.toLowerCase();
+      const phone = (item.phone || '').toLowerCase();
+      const planName = (item.plan_name || '').toLowerCase();
+      const method = (item.method || '').toLowerCase();
+      return fullName.includes(lowerTerm) || 
+             phone.includes(lowerTerm) || 
+             planName.includes(lowerTerm) ||
+             method.includes(lowerTerm);
+    });
+  };
 
   const { data: dashboardResponse, isLoading, isError, refetch } = useDashboard();
   const sendNotification = useSendNotification();
@@ -141,6 +158,25 @@ export default function Dashboard() {
   const annualCancellationsList = dashboard.annualCancellationsList || [];
   const annualExpiringCount = dashboard.annualExpiringCount || 0;
   const annualExpiringList = dashboard.annualExpiringList || [];
+
+  const mappedVisitorsList = todayVisitorsList.map(visitor => ({ ...visitor, plan_name: 'Visita' }));
+  const mappedRenewalsList = renewalsThisMonthList.map(renewal => ({
+    ...renewal,
+    plan_name: renewal.plan_name ? `Renovación (${renewal.plan_name})` : 'Renovación'
+  }));
+
+  const filteredActive = filterItems(activeClientsList, searchTerm);
+  const filteredExpiring3Days = filterItems(expiring3Days, searchTerm);
+  const filteredExpiringToday = filterItems(expiringToday, searchTerm);
+  const filteredExpired = filterItems(expiredClients, searchTerm);
+  const filteredAttendance = filterItems(todayAttendance.all, searchTerm);
+  const filteredTotalClients = filterItems(totalClientsList, searchTerm);
+  const filteredTodayVisitors = filterItems(mappedVisitorsList, searchTerm);
+  const filteredRenewals = filterItems(mappedRenewalsList, searchTerm);
+  const filteredCancellations = filterItems(cancellationsThisMonthList, searchTerm);
+  const filteredAnnualCancellations = filterItems(annualCancellationsList, searchTerm);
+  const filteredAnnualExpiring = filterItems(annualExpiringList, searchTerm);
+  const filteredNewClients = filterItems(newClientsThisMonthList, searchTerm);
 
   const handleNotify = (client) => {
     setSelectedClient(client);
@@ -185,6 +221,7 @@ export default function Dashboard() {
   };
 
   const toggleSection = (section) => {
+    setSearchTerm('');
     if (expandedSection === section) {
       setExpandedSection(null);
     } else {
@@ -346,50 +383,77 @@ export default function Dashboard() {
                   } 
                   variant="default"
                 >
+                  {/* Buscador */}
+                  <div className="relative mt-4">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-[var(--color-text-muted)]">
+                      <IconSearch size={18} />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre, teléfono o plan..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] pl-10 pr-3 py-2 text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-secondary)] text-sm"
+                    />
+                  </div>
+
                   <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 mt-4">
-                    {expandedSection === 'active' && activeClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes activos.</p>}
-                    {expandedSection === 'active' && activeClientsList.map(client => (
+                    {expandedSection === 'active' && filteredActive.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay clientes activos.'}</p>
+                    )}
+                    {expandedSection === 'active' && filteredActive.map(client => (
                       <ClientRow key={client.id} client={client} />
                     ))}
 
-                    {expandedSection === 'expiring3Days' && expiring3Days.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer en 3 días.</p>}
-                    {expandedSection === 'expiring3Days' && expiring3Days.map(client => (
+                    {expandedSection === 'expiring3Days' && filteredExpiring3Days.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay clientes por vencer en 3 días.'}</p>
+                    )}
+                    {expandedSection === 'expiring3Days' && filteredExpiring3Days.map(client => (
                       <ClientRow key={client.id} client={client} onAction={handleNotify} actionLabel="Notificar" actionVariant="warning" actionIcon={<IconSend size={18} />} />
                     ))}
 
-                    {expandedSection === 'expiringToday' && expiringToday.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes por vencer hoy.</p>}
-                    {expandedSection === 'expiringToday' && expiringToday.map(client => (
+                    {expandedSection === 'expiringToday' && filteredExpiringToday.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay clientes por vencer hoy.'}</p>
+                    )}
+                    {expandedSection === 'expiringToday' && filteredExpiringToday.map(client => (
                       <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
                     ))}
 
-                    {expandedSection === 'expired' && expiredClients.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes vencidos.</p>}
-                    {expandedSection === 'expired' && expiredClients.map(client => (
+                    {expandedSection === 'expired' && filteredExpired.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay clientes vencidos.'}</p>
+                    )}
+                    {expandedSection === 'expired' && filteredExpired.map(client => (
                       <ClientRow key={client.id} client={client} onAction={handleRenew} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
                     ))}
 
-                    {expandedSection === 'attendance' && todayAttendance.all.length === 0 && <p className="text-[var(--color-text-muted)]">No hay asistencias registradas hoy.</p>}
-                    {expandedSection === 'attendance' && todayAttendance.all.map(record => (
+                    {expandedSection === 'attendance' && filteredAttendance.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay asistencias registradas hoy.'}</p>
+                    )}
+                    {expandedSection === 'attendance' && filteredAttendance.map(record => (
                       <AttendanceRow key={record.id} record={record} />
                     ))}
 
-                    {expandedSection === 'totalClients' && totalClientsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes registrados.</p>}
-                    {expandedSection === 'totalClients' && totalClientsList.map(client => (
+                    {expandedSection === 'totalClients' && filteredTotalClients.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay clientes registrados.'}</p>
+                    )}
+                    {expandedSection === 'totalClients' && filteredTotalClients.map(client => (
                       <ClientRow key={client.id} client={client} />
                     ))}
 
-                    {expandedSection === 'todayVisitors' && todayVisitorsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay visitantes hoy.</p>}
-                    {expandedSection === 'todayVisitors' && todayVisitorsList.map(visitor => (
-                      <ClientRow key={visitor.id} client={{...visitor, plan_name: 'Visita'}} />
+                    {expandedSection === 'todayVisitors' && filteredTodayVisitors.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay visitantes hoy.'}</p>
+                    )}
+                    {expandedSection === 'todayVisitors' && filteredTodayVisitors.map(visitor => (
+                      <ClientRow key={visitor.id} client={visitor} />
                     ))}
 
-                    {expandedSection === 'renewals' && renewalsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay renovaciones este mes.</p>}
-                    {expandedSection === 'renewals' && renewalsThisMonthList.map(renewal => (
+                    {expandedSection === 'renewals' && filteredRenewals.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay renovaciones este mes.'}</p>
+                    )}
+                    {expandedSection === 'renewals' && filteredRenewals.map(renewal => (
                       <ClientRow 
                         key={renewal.id} 
-                        client={{
-                          ...renewal, 
-                          plan_name: renewal.plan_name ? `Renovación (${renewal.plan_name})` : 'Renovación'
-                        }} 
+                        client={renewal} 
                         customDetail={
                           renewal.start_date && renewal.end_date
                             ? `Periodo: ${new Date(renewal.start_date).toLocaleDateString('es-MX')} al ${new Date(renewal.end_date).toLocaleDateString('es-MX')} • Vence: ${new Date(renewal.end_date).toLocaleDateString('es-MX')}`
@@ -398,23 +462,31 @@ export default function Dashboard() {
                       />
                     ))}
 
-                    {expandedSection === 'cancellations' && cancellationsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones/expiraciones este mes.</p>}
-                    {expandedSection === 'cancellations' && cancellationsThisMonthList.map(cancel => (
+                    {expandedSection === 'cancellations' && filteredCancellations.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay cancelaciones/expiraciones este mes.'}</p>
+                    )}
+                    {expandedSection === 'cancellations' && filteredCancellations.map(cancel => (
                       <ClientRow key={cancel.id} client={cancel} />
                     ))}
 
-                    {expandedSection === 'annualCancellations' && annualCancellationsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones de anualidad.</p>}
-                    {expandedSection === 'annualCancellations' && annualCancellationsList.map(client => (
+                    {expandedSection === 'annualCancellations' && filteredAnnualCancellations.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay cancelaciones de anualidad.'}</p>
+                    )}
+                    {expandedSection === 'annualCancellations' && filteredAnnualCancellations.map(client => (
                       <ClientRow key={client.id} client={client} />
                     ))}
 
-                    {expandedSection === 'annualExpiring' && annualExpiringList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay anualidades por vencer en los próximos 3 meses.</p>}
-                    {expandedSection === 'annualExpiring' && annualExpiringList.map(client => (
+                    {expandedSection === 'annualExpiring' && filteredAnnualExpiring.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay anualidades por vencer en los próximos 3 meses.'}</p>
+                    )}
+                    {expandedSection === 'annualExpiring' && filteredAnnualExpiring.map(client => (
                       <ClientRow key={client.id} client={client} customDetail={getMonthsRemainingText(client.end_date)} />
                     ))}
 
-                    {expandedSection === 'newClients' && newClientsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes nuevos este mes.</p>}
-                    {expandedSection === 'newClients' && newClientsThisMonthList.map(client => (
+                    {expandedSection === 'newClients' && filteredNewClients.length === 0 && (
+                      <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay clientes nuevos este mes.'}</p>
+                    )}
+                    {expandedSection === 'newClients' && filteredNewClients.map(client => (
                       <ClientRow key={client.id} client={client} />
                     ))}
                   </div>
