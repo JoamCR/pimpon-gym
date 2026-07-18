@@ -982,28 +982,7 @@ export default function Clients() {
                 ))}
               </select>
             </div>
-            {/* Configuración de Fechas */}
-            <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
-              <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1 font-[var(--font-display)]">Configuración de Fechas e Historial</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Ajusta las fechas de nacimiento, anualidad (inscripción) y mensualidad (plan activo).</p>
-            </div>
 
-            <div className="sm:col-span-2 mt-2">
-              <HybridDateInput
-                value={editFormData.birth_date || ''}
-                error={editFieldErrors.birth_date}
-                onChange={(dateStr, calculatedAge) => {
-                  setEditFormData({
-                    ...editFormData,
-                    birth_date: dateStr,
-                    age: calculatedAge !== null ? calculatedAge.toString() : ''
-                  });
-                  if (editFieldErrors.birth_date) {
-                    setEditFieldErrors({ ...editFieldErrors, birth_date: null });
-                  }
-                }}
-              />
-            </div>
 
             {/* Configuración de Fechas */}
             <div className="col-span-2 border-t border-[var(--color-border)] pt-4 mt-2">
