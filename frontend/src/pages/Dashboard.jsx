@@ -33,11 +33,12 @@ const ProgressBar = ({ used, limit, percentage }) => {
   );
 };
 
-const ClientRow = ({ client, onAction, actionLabel, actionVariant, actionIcon }) => {
+const ClientRow = ({ client, onAction, actionLabel, actionVariant, actionIcon, customDetail }) => {
   let dateText = '';
   if (client.end_date) {
     dateText = new Date(client.end_date).toLocaleDateString('es-MX');
   }
+  const displayDetail = customDetail || (dateText ? `Vence: ${dateText}` : '');
 
   return (
     <motion.div
@@ -46,13 +47,38 @@ const ClientRow = ({ client, onAction, actionLabel, actionVariant, actionIcon })
       className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="font-semibold text-[var(--color-text)]">{client.first_name} {client.last_name}</p>
-        <p className="text-sm text-[var(--color-text-muted)]">{client.plan_name} • {client.phone} {dateText ? `• Vence: ${dateText}` : ''}</p>
+        <p className="text-sm text-[var(--color-text-muted)]">{client.plan_name} • {client.phone} {displayDetail ? `• ${displayDetail}` : ''}</p>
       </div>
       {onAction && actionLabel && (
         <GymButton size="sm" variant={actionVariant} icon={actionIcon} onClick={() => onAction(client)}>{actionLabel}</GymButton>
       )}
     </motion.div>
   );
+};
+
+const getMonthsRemainingText = (endDateStr) => {
+  if (!endDateStr) return '';
+  const endDate = new Date(endDateStr);
+  const today = new Date();
+  
+  endDate.setHours(0,0,0,0);
+  today.setHours(0,0,0,0);
+
+  const diffTime = endDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 0) return 'Vencido';
+  
+  const months = Math.floor(diffDays / 30);
+  const remainingDays = diffDays % 30;
+  
+  if (months === 0) {
+    return `vence en ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+  } else if (remainingDays === 0) {
+    return `vence en ${months} ${months === 1 ? 'mes' : 'meses'}`;
+  } else {
+    return `vence en ${months} ${months === 1 ? 'mes' : 'meses'} y ${remainingDays} ${remainingDays === 1 ? 'día' : 'días'}`;
+  }
 };
 
 const AttendanceRow = ({ record }) => {
@@ -113,6 +139,8 @@ export default function Dashboard() {
   const newClientsThisMonthList = dashboard.newClientsThisMonthList || [];
   const annualCancellationsCount = dashboard.annualCancellationsCount || 0;
   const annualCancellationsList = dashboard.annualCancellationsList || [];
+  const annualExpiringCount = dashboard.annualExpiringCount || 0;
+  const annualExpiringList = dashboard.annualExpiringList || [];
 
   const handleNotify = (client) => {
     setSelectedClient(client);
@@ -274,6 +302,13 @@ export default function Dashboard() {
           </GymCard>
         </div>
 
+        <div onClick={() => toggleSection('annualExpiring')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'annualExpiring' ? 'ring-2 ring-[var(--color-text-muted)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Anualidades por Vencer" subtitle="Próximos 3 meses" variant="default" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{annualExpiringCount}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Próximos vencimientos.</p>
+          </GymCard>
+        </div>
+
         <div onClick={() => toggleSection('newClients')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'newClients' ? 'ring-2 ring-[var(--color-secondary)] rounded-[var(--radius-lg)]' : ''}`}>
           <GymCard title="Nuevos Clientes" subtitle="Mes actual" variant="default" className="h-full">
             <div className="text-4xl font-bold text-[var(--color-text)]">{newClientsThisMonth}</div>
@@ -306,6 +341,7 @@ export default function Dashboard() {
                     expandedSection === 'renewals' ? 'Renovaciones del Mes' :
                     expandedSection === 'cancellations' ? 'Cancelaciones / Expiraciones del Mes' :
                     expandedSection === 'annualCancellations' ? 'Cancelaciones de Anualidad' :
+                    expandedSection === 'annualExpiring' ? 'Anualidades por Vencer en los Próximos 3 Meses' :
                     expandedSection === 'newClients' ? 'Nuevos Clientes del Mes' : ''
                   } 
                   variant="default"
@@ -359,6 +395,11 @@ export default function Dashboard() {
                     {expandedSection === 'annualCancellations' && annualCancellationsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones de anualidad.</p>}
                     {expandedSection === 'annualCancellations' && annualCancellationsList.map(client => (
                       <ClientRow key={client.id} client={client} />
+                    ))}
+
+                    {expandedSection === 'annualExpiring' && annualExpiringList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay anualidades por vencer en los próximos 3 meses.</p>}
+                    {expandedSection === 'annualExpiring' && annualExpiringList.map(client => (
+                      <ClientRow key={client.id} client={client} customDetail={getMonthsRemainingText(client.end_date)} />
                     ))}
 
                     {expandedSection === 'newClients' && newClientsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes nuevos este mes.</p>}

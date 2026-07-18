@@ -440,6 +440,31 @@ const findAnnualCancellations = async () => {
   }
 };
 
+/**
+ * Obtiene los clientes cuyas anualidades vencen en los próximos 3 meses
+ */
+const findAnnualExpiringIn3Months = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at >= CURRENT_DATE
+      AND c.enrollment_expires_at <= (CURRENT_DATE + INTERVAL '3 months')::date
+    ORDER BY c.enrollment_expires_at ASC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAnnualExpiringIn3Months:', err);
+    return [];
+  }
+};
+
 module.exports = {
   findExpiringIn3Days,
   findExpiringToday,
@@ -456,4 +481,5 @@ module.exports = {
   countCancellationsThisMonth,
   countNewClientsThisMonth,
   findAnnualCancellations,
+  findAnnualExpiringIn3Months,
 };
