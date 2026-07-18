@@ -427,6 +427,22 @@ export default function Clients() {
               </button>
             ))}
           </div>
+          {formData.plan_id && (
+            <div className="rounded-[var(--radius-lg)] border p-4 text-left border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)] space-y-2">
+              <label className="block text-base font-semibold text-[var(--color-text)]">
+                Precio del Plan (MXN)
+              </label>
+              <input
+                type="number"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-[var(--color-text)] focus:border-[var(--color-secondary)] focus:outline-none"
+                placeholder="0.00"
+              />
+              <p className="text-xs text-[var(--color-text-muted)]">Modifica el precio del plan si deseas aplicar un descuento o tarifa especial.</p>
+            </div>
+          )}
+
           {!isVisitMode && (
             /*  Modificado de contenedor estático a campo de entrada interactivo */
             <div className="rounded-[var(--radius-lg)] border p-4 text-left border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)] space-y-2">
@@ -535,14 +551,28 @@ export default function Clients() {
           {/* Desglose de costos */}
           <div className="space-y-3">
             {formData.plan_requires_enrollment && (
-              <div className="flex justify-between items-center p-3 rounded-lg bg-[var(--color-card-alt)] border border-[var(--color-border)]">
-                <span className="text-sm text-[var(--color-text-muted)]">Costo de Inscripción</span>
-                <span className="font-semibold text-[var(--color-text)]">${parseFloat(formData.enrollment_amount || 0).toFixed(2)} MXN</span>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">
+                  Costo de Inscripción (MXN)
+                </label>
+                <input
+                  type="number"
+                  value={formData.enrollment_amount}
+                  onChange={(e) => setFormData({ ...formData, enrollment_amount: e.target.value })}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-[var(--color-text)] focus:border-[var(--color-secondary)] focus:outline-none"
+                />
               </div>
             )}
-            <div className="flex justify-between items-center p-3 rounded-lg bg-[var(--color-card-alt)] border border-[var(--color-border)]">
-              <span className="text-sm text-[var(--color-text-muted)]">Costo del Plan</span>
-              <span className="font-semibold text-[var(--color-text)]">${parseFloat(formData.amount || 0).toFixed(2)} MXN</span>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">
+                Costo del Plan (MXN)
+              </label>
+              <input
+                type="number"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-[var(--color-text)] focus:border-[var(--color-secondary)] focus:outline-none"
+              />
             </div>
           </div>
 
