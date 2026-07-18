@@ -25,6 +25,7 @@ const findExpiringIn3Days = async () => {
       FROM subscriptions s
       JOIN clients c ON s.client_id = c.id
       JOIN plans p ON s.plan_id = p.id
+      WHERE c.is_active = true AND p.is_visit_based = false
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'active'
@@ -62,6 +63,7 @@ const findExpiringToday = async () => {
       FROM subscriptions s
       JOIN clients c ON s.client_id = c.id
       JOIN plans p ON s.plan_id = p.id
+      WHERE c.is_active = true AND p.is_visit_based = false
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'active'
@@ -124,10 +126,14 @@ const getTransferControlCurrentMonth = async () => {
  */
 const countActiveClients = async () => {
   const query = `
-    SELECT COUNT(DISTINCT client_id) as count
-    FROM subscriptions
-    WHERE status = 'active'
-      AND end_date >= CURRENT_DATE;
+    SELECT COUNT(DISTINCT s.client_id) as count
+    FROM subscriptions s
+    JOIN clients c ON s.client_id = c.id
+    JOIN plans p ON s.plan_id = p.id
+    WHERE s.status = 'active'
+      AND s.end_date >= CURRENT_DATE
+      AND c.is_active = true
+      AND p.is_visit_based = false;
   `;
   
   try {
@@ -186,6 +192,7 @@ const findActiveClients = async () => {
       FROM subscriptions s
       JOIN clients c ON s.client_id = c.id
       JOIN plans p ON s.plan_id = p.id
+      WHERE c.is_active = true AND p.is_visit_based = false
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'active'
@@ -220,6 +227,7 @@ const findExpiredClients = async () => {
       FROM subscriptions s
       JOIN clients c ON s.client_id = c.id
       JOIN plans p ON s.plan_id = p.id
+      WHERE c.is_active = true AND p.is_visit_based = false
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'expired' OR (status = 'active' AND end_date < CURRENT_DATE)
@@ -351,13 +359,32 @@ const countRenewalsThisMonth = async () => {
  */
 const countCancellationsThisMonth = async () => {
   const query = `
-    SELECT 
-      s.id, s.end_date, s.status, c.first_name, c.last_name, c.phone, p.name as plan_name
-    FROM subscriptions s
-    JOIN clients c ON s.client_id = c.id
-    JOIN plans p ON s.plan_id = p.id
-    WHERE (s.status = 'cancelled' OR (s.status = 'expired' AND DATE_TRUNC('month', s.end_date) = DATE_TRUNC('month', CURRENT_DATE)))
-    ORDER BY s.end_date DESC
+    SELECT * FROM (
+      SELECT DISTINCT ON (c.id)
+        s.id,
+        s.end_date,
+        s.status,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        p.name as plan_name,
+        p.is_visit_based,
+        c.is_active
+      FROM subscriptions s
+      JOIN clients c ON s.client_id = c.id
+      JOIN plans p ON s.plan_id = p.id
+      ORDER BY c.id, s.end_date DESC
+    ) latest_subs
+    WHERE is_active = true 
+      AND is_visit_based = false
+      AND (
+        status = 'cancelled'
+        OR (
+          end_date < CURRENT_DATE
+          AND DATE_TRUNC('month', end_date) = DATE_TRUNC('month', CURRENT_DATE)
+        )
+      )
+    ORDER BY end_date DESC;
   `;
   try {
     const result = await pool.query(query);
@@ -389,6 +416,30 @@ const countNewClientsThisMonth = async () => {
   }
 };
 
+/**
+ * Obtiene los clientes con inscripción/anualidad vencida
+ */
+const findAnnualCancellations = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at < CURRENT_DATE
+    ORDER BY c.enrollment_expires_at DESC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAnnualCancellations:', err);
+    return [];
+  }
+};
+
 module.exports = {
   findExpiringIn3Days,
   findExpiringToday,
@@ -404,4 +455,5 @@ module.exports = {
   countRenewalsThisMonth,
   countCancellationsThisMonth,
   countNewClientsThisMonth,
+  findAnnualCancellations,
 };

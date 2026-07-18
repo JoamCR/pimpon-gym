@@ -111,6 +111,8 @@ export default function Dashboard() {
   const cancellationsThisMonthList = dashboard.cancellationsThisMonthList || [];
   const newClientsThisMonth = dashboard.newClientsThisMonth || 0;
   const newClientsThisMonthList = dashboard.newClientsThisMonthList || [];
+  const annualCancellationsCount = dashboard.annualCancellationsCount || 0;
+  const annualCancellationsList = dashboard.annualCancellationsList || [];
 
   const handleNotify = (client) => {
     setSelectedClient(client);
@@ -265,6 +267,13 @@ export default function Dashboard() {
           </GymCard>
         </div>
 
+        <div onClick={() => toggleSection('annualCancellations')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'annualCancellations' ? 'ring-2 ring-[var(--color-text-muted)] rounded-[var(--radius-lg)]' : ''}`}>
+          <GymCard title="Cancelaciones Anualidad" subtitle="Expiradas" variant="default" className="h-full">
+            <div className="text-4xl font-bold text-[var(--color-text)]">{annualCancellationsCount}</div>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Inscripciones vencidas.</p>
+          </GymCard>
+        </div>
+
         <div onClick={() => toggleSection('newClients')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'newClients' ? 'ring-2 ring-[var(--color-secondary)] rounded-[var(--radius-lg)]' : ''}`}>
           <GymCard title="Nuevos Clientes" subtitle="Mes actual" variant="default" className="h-full">
             <div className="text-4xl font-bold text-[var(--color-text)]">{newClientsThisMonth}</div>
@@ -296,6 +305,7 @@ export default function Dashboard() {
                     expandedSection === 'todayVisitors' ? 'Lista de Visitantes de Hoy' :
                     expandedSection === 'renewals' ? 'Renovaciones del Mes' :
                     expandedSection === 'cancellations' ? 'Cancelaciones / Expiraciones del Mes' :
+                    expandedSection === 'annualCancellations' ? 'Cancelaciones de Anualidad' :
                     expandedSection === 'newClients' ? 'Nuevos Clientes del Mes' : ''
                   } 
                   variant="default"
@@ -344,6 +354,11 @@ export default function Dashboard() {
                     {expandedSection === 'cancellations' && cancellationsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones/expiraciones este mes.</p>}
                     {expandedSection === 'cancellations' && cancellationsThisMonthList.map(cancel => (
                       <ClientRow key={cancel.id} client={cancel} />
+                    ))}
+
+                    {expandedSection === 'annualCancellations' && annualCancellationsList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay cancelaciones de anualidad.</p>}
+                    {expandedSection === 'annualCancellations' && annualCancellationsList.map(client => (
+                      <ClientRow key={client.id} client={client} />
                     ))}
 
                     {expandedSection === 'newClients' && newClientsThisMonthList.length === 0 && <p className="text-[var(--color-text-muted)]">No hay clientes nuevos este mes.</p>}

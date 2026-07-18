@@ -32,8 +32,11 @@ const getActiveClientsReal = async () => {
     SELECT COUNT(DISTINCT c.id) as active_count
     FROM clients c
     JOIN subscriptions s ON c.id = s.client_id
+    JOIN plans p ON c.plan_id = p.id
     WHERE s.status = 'active' 
       AND s.end_date >= CURRENT_DATE
+      AND c.is_active = true
+      AND p.is_visit_based = false
   `;
   try {
     const result = await pool.query(sql);
