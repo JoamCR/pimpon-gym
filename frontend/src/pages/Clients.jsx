@@ -989,12 +989,12 @@ export default function Clients() {
             </div>
 
             <SimpleDateInput
-              label="Fecha Inicio Inscripción (Anualidad)"
+              label="Inicio Inscripción (Anualidad)"
               value={editFormData.enrollment_date || ''}
               onChange={handleEnrollmentDateChange}
             />
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fecha Fin Inscripción (Anualidad)</label>
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fin Inscripción (Anualidad)</label>
               <input
                 type="date"
                 value={editFormData.enrollment_expires_at || ''}
@@ -1004,12 +1004,12 @@ export default function Clients() {
             </div>
 
             <SimpleDateInput
-              label="Fecha Inicio Plan (Mensualidad)"
+              label="Inicio Plan (Mensualidad)"
               value={editFormData.subscription_start_date || ''}
               onChange={handleSubscriptionStartDateChange}
             />
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fecha Fin Plan (Mensualidad)</label>
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Fin Plan (Mensualidad)</label>
               <input
                 type="date"
                 value={editFormData.subscription_end_date || ''}
