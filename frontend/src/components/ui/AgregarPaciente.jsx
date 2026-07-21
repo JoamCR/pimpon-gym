@@ -66,7 +66,7 @@ export const AgregarPaciente = ({ isOpen, onClose, onPatientCreated }) => {
     if (formData.family_history) healthNotesParts.push(`Antecedentes familiares: ${formData.family_history}`);
     if (formData.pathological_history) healthNotesParts.push(`Antecedentes patológicos: ${formData.pathological_history}`);
     if (formData.personal_history) healthNotesParts.push(`Antecedentes personales: ${formData.personal_history}`);
-    if (formData.quick_health_notes) healthNotesParts.push(formData.quick_health_notes);
+    if (formData.quick_health_notes) healthNotesParts.push(`Notas adicionales: ${formData.quick_health_notes}`);
 
     const payload = {
       ...formData,

@@ -3,6 +3,38 @@ import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import { IconStethoscope, IconCoin } from '@tabler/icons-react';
 
+const parseAntecedentes = (notesStr) => {
+  if (!notesStr) return { family: null, pathological: null, personal: null, other: null };
+  
+  let family = null;
+  let pathological = null;
+  let personal = null;
+  let other = [];
+
+  const blocks = notesStr.split('\n\n');
+  blocks.forEach(block => {
+    const trimmed = block.trim();
+    if (trimmed.startsWith('Antecedentes familiares:')) {
+      family = trimmed.replace('Antecedentes familiares:', '').trim();
+    } else if (trimmed.startsWith('Antecedentes patológicos:')) {
+      pathological = trimmed.replace('Antecedentes patológicos:', '').trim();
+    } else if (trimmed.startsWith('Antecedentes personales:')) {
+      personal = trimmed.replace('Antecedentes personales:', '').trim();
+    } else if (trimmed.startsWith('Notas adicionales:')) {
+      other.push(trimmed.replace('Notas adicionales:', '').trim());
+    } else if (trimmed) {
+      other.push(trimmed);
+    }
+  });
+
+  return {
+    family,
+    pathological,
+    personal,
+    other: other.join('\n\n') || null
+  };
+};
+
 export function PatientDetailsModal({
   isOpen,
   onClose,
@@ -14,6 +46,8 @@ export function PatientDetailsModal({
   onSchedule,
 }) {
   if (!patient) return null;
+
+  const antecedenteData = parseAntecedentes(patient.quick_health_notes);
 
   return (
     <GymModal
@@ -44,20 +78,38 @@ export function PatientDetailsModal({
             <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad</p>
             <p>{patient.age ? `${patient.age} años` : 'N/A'}</p>
           </div>
-          {/* <div>
-            <p className="text-sm text-[var(--color-text-muted)] font-semibold">RFC</p>
-            <p>{patient.rfc || 'No registrado'}</p>
-          </div> */}
-          {/* <div>
-            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Ocupación</p>
-            <p>{patient.occupation || 'No registrado'}</p>
-          </div> */}
-          <div className="col-span-2">
-            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Evaluación Rápida</p>
-            <p className="text-sm">Peso: {patient.quick_weight_kg ? `${patient.quick_weight_kg} kg` : 'N/A'}</p>
-            <p className="text-sm">Estatura: {patient.quick_height_cm ? `${patient.quick_height_cm} cm` : 'N/A'}</p>
-            <p className="text-sm">Objetivo: {patient.quick_goal || 'N/A'}</p>
-            <p className="text-sm">Notas de salud: {patient.quick_health_notes || 'N/A'}</p>
+
+          <div className="col-span-2 space-y-2 pt-2 border-t border-[var(--color-border)]">
+            <p className="text-sm text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Medidas y Objetivos</p>
+            <div className="grid grid-cols-3 gap-2 text-sm bg-[var(--color-surface)] p-3 rounded-md border border-[var(--color-border)]">
+              <div><span className="font-semibold">Peso:</span> {patient.quick_weight_kg ? `${patient.quick_weight_kg} kg` : 'N/A'}</div>
+              <div><span className="font-semibold">Estatura:</span> {patient.quick_height_cm ? `${patient.quick_height_cm} cm` : 'N/A'}</div>
+              <div><span className="font-semibold text-[var(--color-success)]">Objetivo:</span> {patient.quick_goal || 'N/A'}</div>
+            </div>
+          </div>
+
+          <div className="col-span-2 space-y-2 pt-2 border-t border-[var(--color-border)]">
+            <p className="text-sm text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes Clínicos</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-[var(--color-surface)] p-2.5 rounded-md border border-[var(--color-border)]">
+                <span className="font-bold text-[var(--color-text-muted)] block mb-0.5">Familiares</span>
+                <p className="text-sm whitespace-pre-line">{antecedenteData.family || 'Sin registro'}</p>
+              </div>
+              <div className="bg-[var(--color-surface)] p-2.5 rounded-md border border-[var(--color-border)]">
+                <span className="font-bold text-[var(--color-text-muted)] block mb-0.5">Patológicos</span>
+                <p className="text-sm whitespace-pre-line">{antecedenteData.pathological || 'Sin registro'}</p>
+              </div>
+              <div className="bg-[var(--color-surface)] p-2.5 rounded-md border border-[var(--color-border)]">
+                <span className="font-bold text-[var(--color-text-muted)] block mb-0.5">Personales</span>
+                <p className="text-sm whitespace-pre-line">{antecedenteData.personal || 'Sin registro'}</p>
+              </div>
+            </div>
+            {antecedenteData.other && (
+              <div className="bg-[var(--color-surface)] p-2.5 rounded-md border border-[var(--color-border)] text-xs italic">
+                <span className="font-bold text-[var(--color-text-muted)] not-italic block mb-0.5">Notas adicionales</span>
+                {antecedenteData.other}
+              </div>
+            )}
           </div>
         </div>
 

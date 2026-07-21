@@ -12,6 +12,37 @@ import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } fr
 import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
+const parseAntecedentes = (notesStr) => {
+  if (!notesStr) return { family: null, pathological: null, personal: null, other: null };
+  
+  let family = null;
+  let pathological = null;
+  let personal = null;
+  let other = [];
+
+  const blocks = notesStr.split('\n\n');
+  blocks.forEach(block => {
+    const trimmed = block.trim();
+    if (trimmed.startsWith('Antecedentes familiares:')) {
+      family = trimmed.replace('Antecedentes familiares:', '').trim();
+    } else if (trimmed.startsWith('Antecedentes patológicos:')) {
+      pathological = trimmed.replace('Antecedentes patológicos:', '').trim();
+    } else if (trimmed.startsWith('Antecedentes personales:')) {
+      personal = trimmed.replace('Antecedentes personales:', '').trim();
+    } else if (trimmed.startsWith('Notas adicionales:')) {
+      other.push(trimmed.replace('Notas adicionales:', '').trim());
+    } else if (trimmed) {
+      other.push(trimmed);
+    }
+  });
+
+  return {
+    family,
+    pathological,
+    personal,
+    other: other.join('\n\n') || null
+  };
+};
 
 export default function PatientDetails() {
   const { slug } = useParams();
@@ -382,7 +413,7 @@ export default function PatientDetails() {
               </div>
 
               <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 mt-8 text-[var(--color-gold)]">
-                Evaluación Rápida
+                Evaluación Rápida y Antecedentes Médicos
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
@@ -391,13 +422,41 @@ export default function PatientDetails() {
                   <p className="text-md">Estatura: <span className="font-bold">{patient.quick_height_cm ? `${patient.quick_height_cm} cm` : 'N/A'}</span></p>
                 </div>
                 <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Objetivo</p>
+                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Objetivo Principal</p>
                   <p className="text-md font-bold text-[var(--color-success)]">{patient.quick_goal || 'N/A'}</p>
                 </div>
-                <div className="md:col-span-2 bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Notas de salud</p>
-                  <p className="text-md italic">{patient.quick_health_notes || 'Sin notas registradas.'}</p>
-                </div>
+
+                {/* Antecedentes Clínicos del Paciente */}
+                {(() => {
+                  const antecedenteData = parseAntecedentes(patient.quick_health_notes);
+                  return (
+                    <div className="md:col-span-2 bg-[var(--color-surface)] p-5 rounded-lg border border-[var(--color-border)] space-y-4">
+                      <h3 className="text-md font-bold text-[var(--color-gold)] border-b border-[var(--color-border)] pb-2 uppercase tracking-wider">
+                        Antecedentes Clínicos del Paciente
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-[var(--color-card-alt)] p-4 rounded-md border border-[var(--color-border)] space-y-1">
+                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes familiares</p>
+                          <p className="text-sm text-[var(--color-text)] whitespace-pre-line">{antecedenteData.family || 'Sin registro'}</p>
+                        </div>
+                        <div className="bg-[var(--color-card-alt)] p-4 rounded-md border border-[var(--color-border)] space-y-1">
+                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes patológicos</p>
+                          <p className="text-sm text-[var(--color-text)] whitespace-pre-line">{antecedenteData.pathological || 'Sin registro'}</p>
+                        </div>
+                        <div className="bg-[var(--color-card-alt)] p-4 rounded-md border border-[var(--color-border)] space-y-1">
+                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes personales</p>
+                          <p className="text-sm text-[var(--color-text)] whitespace-pre-line">{antecedenteData.personal || 'Sin registro'}</p>
+                        </div>
+                      </div>
+                      {antecedenteData.other && (
+                        <div className="pt-3 border-t border-[var(--color-border)]/60">
+                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider mb-1">Notas adicionales de salud</p>
+                          <p className="text-sm text-[var(--color-text)] italic whitespace-pre-line">{antecedenteData.other}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
