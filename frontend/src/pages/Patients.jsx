@@ -7,6 +7,7 @@ import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan } from
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { AgregarPaciente } from '../components/ui/AgregarPaciente';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { HybridDateInput } from '../components/ui/HybridDateInput';
@@ -514,28 +515,10 @@ export default function Patients() {
         </div>
       </GymCard>
 
-      <GymModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Nuevo Paciente" width="lg">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Paso {step} de 3</p>
-              <div className="mt-2 h-2 w-full rounded-full bg-[var(--color-border)] overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--color-success)]" style={{ width: `${(step / 3) * 100}%` }} />
-              </div>
-            </div>
-            <p className="text-sm text-[var(--color-text-muted)]">{step === 1 ? 'Datos personales' : step === 2 ? 'Datos adicionales' : 'Evaluación rápida'}</p>
-          </div>
-
-          {renderStep()}
-
-          <div className="flex justify-between gap-3">
-            <GymButton variant="secondary" onClick={() => setStep(Math.max(step - 1, 1))} disabled={step === 1}>Atrás</GymButton>
-            <GymButton variant="primary" onClick={nextStep}>
-              {step < 3 ? 'Siguiente' : 'Registrar paciente'}
-            </GymButton>
-          </div>
-        </div>
-      </GymModal>
+      <AgregarPaciente 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
 
       <GymModal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title={`Pago de Consulta — ${selectedPatient?.first_name || 'Paciente'}`} width="sm">
         <div className="space-y-4 text-[var(--color-text)]">

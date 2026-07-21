@@ -1,17 +1,21 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 import { useAgenda, useCreateAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { usePatients } from '../hooks/usePatients';
-import { IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots, IconPlus } from '@tabler/icons-react';
+import { IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots, IconPlus, IconStethoscope } from '@tabler/icons-react';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal, TimePicker } from '../components/ui/ScheduleAppointmentModal';
+import { TodayAgendaList } from '../components/ui/TodayAgendaList';
 
 export default function Agenda() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [viewDate, setViewDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [initialFormState, setInitialFormState] = useState({
@@ -173,6 +177,7 @@ export default function Agenda() {
     if (viewMode === 'week') d.setDate(d.getDate() - 7);
     if (viewMode === 'day') d.setDate(d.getDate() - 1);
     setViewDate(d);
+    setSelectedDate(d);
   };
 
   const navigateNext = () => {
@@ -181,6 +186,7 @@ export default function Agenda() {
     if (viewMode === 'week') d.setDate(d.getDate() + 7);
     if (viewMode === 'day') d.setDate(d.getDate() + 1);
     setViewDate(d);
+    setSelectedDate(d);
   };
 
   const getViewTitle = () => {
@@ -371,29 +377,78 @@ export default function Agenda() {
             />
         </div>
         <div className="flex flex-col items-end gap-3">
-          {/*<div className="flex p-1 bg-[var(--color-card)] rounded-md border border-[var(--color-border)]">
-            <button onClick={() => setViewMode('month')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'month' ? 'bg-[var(--color-secondary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}>Mes</button>
-            <button onClick={() => setViewMode('week')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'week' ? 'bg-[var(--color-secondary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}>Semana</button>
-            <button onClick={() => setViewMode('day')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-[var(--color-secondary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}>Día</button> 
-          </div> */}
+          <div className="flex p-1 bg-[var(--color-card)] rounded-md border border-[var(--color-border)]">
+            <button 
+              type="button"
+              onClick={() => setViewMode('month')} 
+              className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'month' ? 'bg-[var(--color-primary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+            >
+              Mes
+            </button>
+            <button 
+              type="button"
+              onClick={() => setViewMode('week')} 
+              className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'week' ? 'bg-[var(--color-primary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+            >
+              Semana
+            </button>
+            <button 
+              type="button"
+              onClick={() => setViewMode('day')} 
+              className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-[var(--color-primary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+            >
+              Día
+            </button> 
+          </div>
           <div className="flex gap-2">
             <GymButton onClick={() => openNew(new Date())} variant="primary"><IconPlus size={18} className="mr-1 inline" /> Nueva Agenda</GymButton>
             <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
-            <GymButton onClick={() => setViewDate(new Date())} variant="ghost">Hoy</GymButton>
+            <GymButton onClick={() => { setViewDate(new Date()); setSelectedDate(new Date()); }} variant="ghost">Hoy</GymButton>
             <GymButton onClick={navigateNext} variant="primary">Siguiente</GymButton>
           </div>
         </div>
       </header>
 
-      <GymCard title={getViewTitle()} variant="default">
-        {searchQuery ? renderSearchResults() : (
-            <>
-                {viewMode === 'month' && <AgendaCalendar viewDate={viewDate} events={events} onDayClick={openNew} onEventClick={openDetails} /> }
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+        {/* Vista principal (Calendario / Búsqueda) */}
+        <div className="flex-1 min-w-0 space-y-6">
+          <GymCard title={getViewTitle()} variant="default">
+            {searchQuery ? renderSearchResults() : (
+              <>
+                {viewMode === 'month' && (
+                  <AgendaCalendar 
+                    viewDate={viewDate} 
+                    selectedDate={selectedDate}
+                    onSelectDate={setSelectedDate}
+                    events={events} 
+                    onDayClick={openNew} 
+                    onEventClick={openDetails} 
+                  /> 
+                )}
                 {viewMode === 'week' && renderWeekView()}
                 {viewMode === 'day' && renderDayView()}
-            </>
-        )}
-      </GymCard>
+              </>
+            )}
+          </GymCard>
+        </div>
+
+        {/* Panel Lateral de Agendas del Día */}
+        <div className="w-full md:w-[290px] lg:w-[270px] shrink-0 sticky top-6">
+          <TodayAgendaList 
+            events={events}
+            patients={patients}
+            selectedDate={selectedDate}
+            onSelectDate={(d) => {
+              setSelectedDate(d);
+              if (d.getMonth() !== viewDate.getMonth() || d.getFullYear() !== viewDate.getFullYear()) {
+                setViewDate(d);
+              }
+            }}
+            onEventClick={openDetails}
+            onStatusChange={(ev, newStatus) => applyStatusChange(ev, newStatus)}
+          />
+        </div>
+      </div>
       
       <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="lg">
         {selectedEvent && (
@@ -477,7 +532,18 @@ export default function Agenda() {
                   <p className="text-sm text-[var(--color-text-muted)]">Notas</p>
                   <p className="whitespace-pre-wrap">{selectedEvent.description || '—'}</p>
                 </div>
-                <div className="pt-4 flex justify-end gap-3">
+                <div className="pt-4 flex justify-between items-center gap-3">
+                  {selectedPatient ? (
+                    <GymButton 
+                      variant="primary" 
+                      onClick={() => { 
+                        setDetailModalOpen(false); 
+                        navigate(`/patients/${selectedPatient.id}?tab=consult`); 
+                      }}
+                    >
+                      <IconStethoscope size={18} className="mr-1 inline" /> Nueva Consulta
+                    </GymButton>
+                  ) : <div />}
                   <GymButton variant="secondary" onClick={() => setDetailModalOpen(false)}>Cerrar</GymButton>
                 </div>
               </div>

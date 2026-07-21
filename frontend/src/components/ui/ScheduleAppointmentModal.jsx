@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { GymModal } from './GymModal';
 import { GymButton } from './GymButton';
 import { SimpleDateInput } from './SimpleDateInput';
-import { IconSearch, IconUser, IconChevronDown, IconX, IconCheck } from '@tabler/icons-react';
+import { AgregarPaciente } from './AgregarPaciente';
+import { IconSearch, IconUser, IconChevronDown, IconX, IconCheck, IconUserPlus } from '@tabler/icons-react';
 
 const eventStatusOptions = ['programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso'];
 
@@ -459,6 +460,7 @@ export const TimePicker = ({ dateStr, onChange }) => {
 
 export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFormState, patients = [] }) => {
     const [form, setForm] = useState(initialFormState);
+    const [isAgregarPacienteOpen, setIsAgregarPacienteOpen] = useState(false);
 
     useEffect(() => {
         setForm(initialFormState);
@@ -469,17 +471,22 @@ export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFor
         setForm((prev) => ({
           ...prev,
           patient_id: patientId || null,
-          title: patient ? `Cita — ${patient.first_name} ${patient.last_name}` : prev.title,
+          title: patient ? `Cita — ${patient.first_name} ${patient.last_name || ''}`.trim() : prev.title,
           phone: patient?.phone || prev.phone,
         }));
     };
 
     const handleSubmit = () => {
-        if (!form.title || form.title.trim() === '') {
-            alert('Por favor, ingresa un título para el evento.');
-            return;
+        let finalTitle = form.title;
+        if (!finalTitle || finalTitle.trim() === '') {
+            const selectedPatient = patients.find(p => String(p.id) === String(form.patient_id));
+            if (selectedPatient) {
+                finalTitle = `Cita — ${selectedPatient.first_name} ${selectedPatient.last_name || ''}`.trim();
+            } else {
+                finalTitle = `Evento de Agenda (${form.event_type})`;
+            }
         }
-        onSubmit(form);
+        onSubmit({ ...form, title: finalTitle });
     };
 
     const combineDateTime = (dateStr, timeStr) => {
@@ -495,48 +502,65 @@ export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFor
     };
 
     return (
-        <GymModal isOpen={isOpen} onClose={onClose} title={form.event_type === 'cita' ? 'Agendar Cita' : `Nueva ${form.event_type}`} width="lg">
-            <div className="space-y-6 text-[var(--color-text)]">
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Tipo de agenda</label>
-                        <CustomSelectDropdown
-                            value={form.event_type}
-                            onChange={(val) => setForm({ ...form, event_type: val })}
-                            options={eventTypeOptions}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Estado</label>
-                        <CustomSelectDropdown
-                            value={form.status}
-                            onChange={(val) => setForm({ ...form, status: val })}
-                            options={eventStatusOptionsList}
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm text-[var(--color-text-muted)]">Título</label>
-                    <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]" />
-                </div>
-
-                {form.event_type === 'cita' && (
+        <>
+            <GymModal isOpen={isOpen} onClose={onClose} title={form.event_type === 'cita' ? 'Agendar Cita' : `Nueva ${form.event_type}`} width="lg">
+                <div className="space-y-6 text-[var(--color-text)]">
                     <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Paciente</label>
-                        <PatientSelectDropdown
-                            patients={patients}
-                            selectedPatientId={form.patient_id}
-                            onSelectPatient={handlePatientSelection}
-                        />
+                        <div>
+                            <label className="block text-sm text-[var(--color-text-muted)] mb-1">Tipo de agenda</label>
+                            <CustomSelectDropdown
+                                value={form.event_type}
+                                onChange={(val) => setForm({ ...form, event_type: val })}
+                                options={eventTypeOptions}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-[var(--color-text-muted)] mb-1">Estado</label>
+                            <CustomSelectDropdown
+                                value={form.status}
+                                onChange={(val) => setForm({ ...form, status: val })}
+                                options={eventStatusOptionsList}
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Teléfono</label>
-                        <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]" />
-                    </div>
-                    </div>
-                )}
+
+                    {/* Campo Título (Comentado por requerimiento) */}
+                    {/* <div>
+                        <label className="block text-sm text-[var(--color-text-muted)]">Título</label>
+                        <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]" />
+                    </div> */}
+
+                    {form.event_type === 'cita' && (
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Paciente</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAgregarPacienteOpen(true)}
+                                    className="text-xs font-bold text-[var(--color-secondary)] hover:underline flex items-center gap-1 transition-colors"
+                                >
+                                    <IconUserPlus size={14} /> + Agregar nuevo Paciente
+                                </button>
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <PatientSelectDropdown
+                                        patients={patients}
+                                        selectedPatientId={form.patient_id}
+                                        onSelectPatient={handlePatientSelection}
+                                    />
+                                </div>
+                                <div>
+                                    <input 
+                                        value={form.phone} 
+                                        onChange={(e) => setForm({ ...form, phone: e.target.value })} 
+                                        placeholder="Teléfono de contacto"
+                                        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]" 
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                 {(form.event_type === 'videollamada' || form.event_type === 'reunion' || form.event_type === 'otro') && (
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -613,5 +637,16 @@ export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFor
                 </div>
             </div>
         </GymModal>
+
+        <AgregarPaciente
+          isOpen={isAgregarPacienteOpen}
+          onClose={() => setIsAgregarPacienteOpen(false)}
+          onPatientCreated={(newPatient) => {
+            if (newPatient && newPatient.id) {
+              handlePatientSelection(newPatient.id);
+            }
+          }}
+        />
+      </>
     );
 };

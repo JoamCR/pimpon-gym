@@ -257,6 +257,8 @@ export function ConsultForm({
           </div>
 
           <div className="space-y-4">
+            {/* Antecedentes movidos a Nuevo Paciente por requerimiento */}
+            {/* 
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes familiares</label>
               <textarea
@@ -284,6 +286,7 @@ export function ConsultForm({
                 className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
               />
             </div>
+            */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas generales</label>
               <textarea

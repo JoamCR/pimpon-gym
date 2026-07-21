@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { usePatients, useCreatePayment } from '../hooks/usePatients';
 import { useClients } from '../hooks/useClients';
 import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan, useExercisePlans } from '../hooks/useNutrition';
@@ -16,7 +16,18 @@ import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentMo
 export default function PatientDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('details');
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  
+  const tabFromQuery = searchParams.get('tab') || location.state?.tab;
+  const [activeTab, setActiveTab] = useState(tabFromQuery || 'details');
+
+  useEffect(() => {
+    if (tabFromQuery) {
+      setActiveTab(tabFromQuery);
+    }
+  }, [tabFromQuery]);
+
   const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
 
   // Find patient by slug (first_name or id)
