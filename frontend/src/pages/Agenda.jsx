@@ -5,9 +5,9 @@ import { GymButton } from '../components/ui/GymButton';
 import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 import { useAgenda, useCreateAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { usePatients } from '../hooks/usePatients';
-import { IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots } from '@tabler/icons-react';
+import { IconCalendarEvent, IconCalendarTime, IconCheck, IconUserX, IconRefresh, IconClock, IconX, IconDots, IconPlus } from '@tabler/icons-react';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
-import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
+import { ScheduleAppointmentModal, TimePicker } from '../components/ui/ScheduleAppointmentModal';
 
 export default function Agenda() {
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
@@ -245,11 +245,21 @@ export default function Agenda() {
 
           return (
             <div key={dayKey} className="flex flex-col">
-              <div className={`text-center p-2 mb-2 rounded ${isToday ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-muted)]'}`}>
-                <div className="text-xs uppercase font-semibold">{d.toLocaleDateString('es-MX', { weekday: 'short' })}</div>
-                <div className="text-xl font-bold">{d.getDate()}</div>
+              <div className={`p-2 mb-2 rounded flex items-center justify-between ${isToday ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)]'}`}>
+                <div>
+                  <div className="text-xs uppercase font-semibold">{d.toLocaleDateString('es-MX', { weekday: 'short' })}</div>
+                  <div className="text-xl font-bold">{d.getDate()}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openNew(d)}
+                  className="w-7 h-7 rounded flex items-center justify-center bg-[rgba(255,255,255,0.1)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                  title="Agendar cita para este día"
+                >
+                  <IconPlus size={16} />
+                </button>
               </div>
-              <div onClick={() => openNew(d)} className="flex-1 min-h-[400px] border border-[var(--color-border)] rounded bg-[var(--color-card-alt)] p-2 space-y-1 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+              <div className="flex-1 min-h-[400px] border border-[var(--color-border)] rounded bg-[var(--color-card-alt)] p-2 space-y-1">
                 {dayEvents.map(ev => renderEventCard(ev, true))}
               </div>
             </div>
@@ -264,7 +274,13 @@ export default function Agenda() {
     const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a,b) => new Date(a.start_at) - new Date(b.start_at));
 
     return (
-      <div onClick={() => openNew(viewDate)} className="min-h-[400px] bg-[var(--color-card-alt)] border border-[var(--color-border)] rounded p-4 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+      <div className="min-h-[400px] bg-[var(--color-card-alt)] border border-[var(--color-border)] rounded p-4 space-y-4">
+        <div className="flex justify-between items-center pb-3 border-b border-[var(--color-border)]">
+          <span className="text-sm font-semibold text-[var(--color-text-muted)]">Eventos del día</span>
+          <GymButton variant="primary" size="sm" onClick={() => openNew(viewDate)}>
+            <IconPlus size={16} className="mr-1 inline" /> Agendar Cita
+          </GymButton>
+        </div>
         {dayEvents.length === 0 ? (
           <div className="text-center text-[var(--color-text-muted)] py-10">No hay eventos programados para este día.</div>
         ) : (
@@ -274,7 +290,7 @@ export default function Agenda() {
               const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-text)]';
               
               return (
-                <div key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`flex flex-col sm:flex-row p-4 rounded border ${typeColor} border-[var(--color-border)] ${statusBg} items-start sm:items-center justify-between gap-4 hover:brightness-110 transition-all`}>
+                <div key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`flex flex-col sm:flex-row p-4 rounded border ${typeColor} border-[var(--color-border)] ${statusBg} items-start sm:items-center justify-between gap-4 hover:brightness-110 transition-all cursor-pointer`}>
                   <div>
                     <h3 className="font-bold text-lg">{ev.title}</h3>
                     <p className="opacity-90 text-sm flex items-center gap-2 mt-1">
@@ -361,6 +377,7 @@ export default function Agenda() {
             <button onClick={() => setViewMode('day')} className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-[var(--color-secondary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}>Día</button> 
           </div> */}
           <div className="flex gap-2">
+            <GymButton onClick={() => openNew(new Date())} variant="primary"><IconPlus size={18} className="mr-1 inline" /> Nueva Agenda</GymButton>
             <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
             <GymButton onClick={() => setViewDate(new Date())} variant="ghost">Hoy</GymButton>
             <GymButton onClick={navigateNext} variant="primary">Siguiente</GymButton>
@@ -481,10 +498,10 @@ export default function Agenda() {
                     </div>
                     <div>
                       <label className="block text-sm text-[var(--color-text-muted)] mb-1">Hora Inicio</label>
-                      {/* <TimePicker
+                      <TimePicker
                         dateStr={getLocalDateTimeString(selectedEvent.start_at)}
                         onChange={(newVal) => setSelectedEvent(prev => ({ ...prev, start_at: newVal }))}
-                      /> */}
+                      />
                     </div>
                   </div>
                 </div>
@@ -499,10 +516,10 @@ export default function Agenda() {
                     </div>
                     <div>
                       <label className="block text-sm text-[var(--color-text-muted)] mb-1">Hora Fin</label>
-                      {/* <TimePicker
+                      <TimePicker
                         dateStr={getLocalDateTimeString(selectedEvent.end_at)}
                         onChange={(newVal) => setSelectedEvent(prev => ({ ...prev, end_at: newVal }))}
-                      /> */}
+                      />
                     </div>
                   </div>
                 </div>

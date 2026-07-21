@@ -219,7 +219,17 @@ const getPlanById = async (planId, dbClient) => {
 const createSubscription = async (data, dbClient) => {
   const sql = `
     INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status)
-    VALUES (gen_random_uuid(), $1, $2, CURRENT_DATE, CURRENT_DATE + $3::integer, 'active')
+    VALUES (
+      gen_random_uuid(), 
+      $1, 
+      $2, 
+      CURRENT_DATE, 
+      CASE 
+        WHEN $3::integer >= 28 THEN CURRENT_DATE + INTERVAL '1 month'
+        ELSE CURRENT_DATE + ($3::integer || ' days')::interval
+      END, 
+      'active'
+    )
     RETURNING *
   `;
   const executor = dbClient || { query };
@@ -271,6 +281,27 @@ const updateTransferControl = async (amount, dbClient) => {
   }
 };
 
+const findClientHistory = async (clientId) => {
+  const subsSql = `
+    SELECT s.id, s.plan_id, p.name as plan_name, s.start_date, s.end_date, s.status, s.created_at
+    FROM subscriptions s
+    JOIN plans p ON s.plan_id = p.id
+    WHERE s.client_id = $1
+    ORDER BY s.start_date ASC
+  `;
+  const { rows: subscriptions } = await query(subsSql, [clientId]);
+
+  const paymentsSql = `
+    SELECT id, amount, payment_method, payment_type, paid_at, notes, subscription_id
+    FROM payments
+    WHERE client_id = $1
+    ORDER BY paid_at DESC
+  `;
+  const { rows: payments } = await query(paymentsSql, [clientId]);
+
+  return { subscriptions, payments };
+};
+
 module.exports = {
   findAll,
   findById,
@@ -283,5 +314,6 @@ module.exports = {
   getPlanById,
   createSubscription,
   createPayment,
-  updateTransferControl
+  updateTransferControl,
+  findClientHistory
 };

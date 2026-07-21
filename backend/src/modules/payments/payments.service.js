@@ -3,6 +3,99 @@ const { pool } = require('../../lib/database');
 const { createError } = require('../../lib/appError');
 
 /**
+ * Helpers para manejo de fechas de suscripción y día de corte sin desfase de zona horaria UTC
+ */
+const parseLocalDate = (dateInput) => {
+  if (!dateInput) return new Date();
+  if (typeof dateInput === 'string') {
+    const parts = dateInput.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+  }
+  if (dateInput instanceof Date) {
+    return new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate());
+  }
+  return new Date(dateInput);
+};
+
+const formatLocalDate = (dateObj) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const addOneMonthPreservingDay = (dateObj, targetDay) => {
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth();
+
+  let nextYear = year;
+  let nextMonth = month + 1;
+  if (nextMonth > 11) {
+    nextYear += Math.floor(nextMonth / 12);
+    nextMonth = nextMonth % 12;
+  }
+
+  const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
+  const dayToSet = Math.min(targetDay, daysInNextMonth);
+
+  return new Date(nextYear, nextMonth, dayToSet);
+};
+
+const calculateRenewalEndDate = (subEndDateInput, todayInput = new Date(), isVisit = false, durationDays = 30) => {
+  const subEnd = parseLocalDate(subEndDateInput);
+  const today = parseLocalDate(todayInput);
+
+  if (isVisit || durationDays < 28) {
+    const baseDate = subEnd >= today ? subEnd : today;
+    const newEnd = new Date(baseDate);
+    newEnd.setDate(newEnd.getDate() + durationDays);
+    return newEnd;
+  }
+
+  const targetDay = subEnd.getDate();
+  let candidate = new Date(subEnd);
+
+  if (candidate >= today) {
+    candidate = addOneMonthPreservingDay(candidate, targetDay);
+  } else {
+    while (candidate <= today) {
+      candidate = addOneMonthPreservingDay(candidate, targetDay);
+    }
+  }
+
+  return candidate;
+};
+
+const addOneYearPreservingDayAndMonth = (dateObj, targetMonth, targetDay) => {
+  const nextYear = dateObj.getFullYear() + 1;
+  const daysInNextMonth = new Date(nextYear, targetMonth + 1, 0).getDate();
+  const dayToSet = Math.min(targetDay, daysInNextMonth);
+  return new Date(nextYear, targetMonth, dayToSet);
+};
+
+const calculateAnnualRenewalEndDate = (enrollmentExpiresInput, todayInput = new Date()) => {
+  const currentEnd = parseLocalDate(enrollmentExpiresInput);
+  const today = parseLocalDate(todayInput);
+
+  const targetMonth = currentEnd.getMonth();
+  const targetDay = currentEnd.getDate();
+
+  let candidate = new Date(currentEnd);
+
+  if (candidate >= today) {
+    candidate = addOneYearPreservingDayAndMonth(candidate, targetMonth, targetDay);
+  } else {
+    while (candidate <= today) {
+      candidate = addOneYearPreservingDayAndMonth(candidate, targetMonth, targetDay);
+    }
+  }
+
+  return candidate;
+};
+
+/**
  * Registra un pago evaluando la regla del tope de transferencias.
  */
 const registerPayment = async (data, registeredBy) => {
@@ -34,62 +127,104 @@ const registerPayment = async (data, registeredBy) => {
       // Actualizamos el registro de control de transferencias del mes
       await repository.updateTransferControl(today, data.amount, dbClient);
     }
-    
+
+    // Lógica para RENOVAR ANUALIDAD / INSCRIPCIÓN
+    if (data.entity_type === 'gym' && data.client_id && data.payment_type === 'enrollment') {
+      const clientRes = await dbClient.query('SELECT enrollment_date, enrollment_expires_at FROM clients WHERE id = $1', [data.client_id]);
+      if (clientRes.rows.length > 0) {
+        const clientRow = clientRes.rows[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const baseExpiresAt = clientRow.enrollment_expires_at 
+          ? clientRow.enrollment_expires_at 
+          : (clientRow.enrollment_date || today);
+
+        const newEnrollmentExpiresAt = calculateAnnualRenewalEndDate(baseExpiresAt, today);
+        const newEnrollmentDate = clientRow.enrollment_date || formatLocalDate(today);
+
+        await dbClient.query(
+          "UPDATE clients SET enrollment_date = $1, enrollment_expires_at = $2 WHERE id = $3",
+          [formatLocalDate(parseLocalDate(newEnrollmentDate)), formatLocalDate(newEnrollmentExpiresAt), data.client_id]
+        );
+      }
+    }
+
     // Lógica para RENOVAR SUSCRIPCIÓN si el pago es mensual o de visita
     if (data.entity_type === 'gym' && data.client_id && (data.payment_type === 'monthly' || data.payment_type === 'visit')) {
-      const clientRes = await dbClient.query('SELECT plan_id, consecutive_months FROM clients WHERE id = $1', [data.client_id]);
+      const clientRes = await dbClient.query('SELECT plan_id, consecutive_months, enrollment_expires_at FROM clients WHERE id = $1', [data.client_id]);
       if (clientRes.rows.length > 0) {
-        const planId = clientRes.rows[0].plan_id;
+        const effectivePlanId = data.plan_id || clientRes.rows[0].plan_id;
         let consecutiveMonths = clientRes.rows[0].consecutive_months || 0;
-        const planRes = await dbClient.query('SELECT duration_days FROM plans WHERE id = $1', [planId]);
+        const enrollmentExpiresAt = clientRes.rows[0].enrollment_expires_at;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // REGLA CRÍTICA: Todo pago de mensualidad requiere tener la Anualidad pagada y vigente.
+        if (data.payment_type === 'monthly') {
+          if (!enrollmentExpiresAt || parseLocalDate(enrollmentExpiresAt) < today) {
+            throw createError(400, 'El cliente no cuenta con la anualidad (inscripción) pagada y vigente. Debe renovar la anualidad primero.');
+          }
+        }
+
+        // Si cambió el plan, actualizarlo en la ficha del cliente
+        if (data.plan_id && data.plan_id !== clientRes.rows[0].plan_id) {
+          await dbClient.query('UPDATE clients SET plan_id = $1 WHERE id = $2', [data.plan_id, data.client_id]);
+        }
+
+        const planRes = await dbClient.query('SELECT duration_days, is_visit_based FROM plans WHERE id = $1', [effectivePlanId]);
         
         if (planRes.rows.length > 0) {
           const duration = planRes.rows[0].duration_days;
+          const isVisit = planRes.rows[0].is_visit_based;
           
-          const subRes = await dbClient.query("SELECT id, end_date FROM subscriptions WHERE client_id = $1 AND status = 'active' ORDER BY end_date DESC LIMIT 1", [data.client_id]);
+          // Se busca la última suscripción (activa o expirada) para preservar su día de corte N
+          const subRes = await dbClient.query("SELECT id, start_date, end_date FROM subscriptions WHERE client_id = $1 ORDER BY end_date DESC LIMIT 1", [data.client_id]);
       
+          let newStartDate;
+          let newEndDate;
+
           if (subRes.rows.length > 0) {
             const sub = subRes.rows[0];
-            const subEndDate = new Date(sub.end_date);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const subEndDate = parseLocalDate(sub.end_date);
+            const diffDays = Math.floor((today - subEndDate) / (1000 * 60 * 60 * 24));
 
-            let newStartDate;
-            let newEndDate;
-
-            if (subEndDate >= today) {
-              // Suscripción activa: extender desde la fecha de fin.
-              newStartDate = subEndDate;
+            if (diffDays <= 31) {
+              // Racha continua: renovación a tiempo o atrasada dentro del margen del mes (con penalización si aplica)
+              newStartDate = subEndDate >= today ? subEndDate : today;
+              newEndDate = calculateRenewalEndDate(sub.end_date, today, isVisit, duration);
               consecutiveMonths += 1;
-              
-              newEndDate = new Date(newStartDate);
-              newEndDate.setDate(newEndDate.getDate() + duration);
-
-              await dbClient.query("UPDATE subscriptions SET end_date = $1 WHERE id = $2", [newEndDate, sub.id]);
-
             } else {
-              // Suscripción expirada: la renovación es desde hoy para no "robar" días.
-              newStartDate = new Date();
+              // Abandono de un mes completo o más (ej. temas de salud o ausencia de 32+ días)
+              // Se reinicia la racha a 1 y la nueva fecha de inicio es el día de regreso
+              newStartDate = today;
+              newEndDate = calculateRenewalEndDate(today, today, isVisit, duration);
               consecutiveMonths = 1;
-              
-              newEndDate = new Date(newStartDate);
-              newEndDate.setDate(newEndDate.getDate() + duration);
-
-              // Al renovar tras una pausa, se actualiza tanto el inicio como el fin.
-              await dbClient.query("UPDATE subscriptions SET start_date = $1, end_date = $2 WHERE id = $3", [newStartDate, newEndDate, sub.id]);
             }
-            data.subscription_id = sub.id;
+
+            // Marcar suscripciones activas anteriores como 'expired' para conservar el historial intacto
+            await dbClient.query(
+              "UPDATE subscriptions SET status = 'expired' WHERE client_id = $1 AND status = 'active'",
+              [data.client_id]
+            );
+
+            // Crear una NUEVA fila en la tabla de suscripciones para registrar el historial imborrable de cada renovación
+            const createSubRes = await dbClient.query(
+              "INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status) VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active') RETURNING id",
+              [data.client_id, effectivePlanId, formatLocalDate(newStartDate), formatLocalDate(newEndDate)]
+            );
+            data.subscription_id = createSubRes.rows[0].id;
 
           } else {
-            // No tiene suscripción activa, crear una nueva.
+            // No tiene suscripción previa
             consecutiveMonths = 1;
-            const newStartDate = new Date();
-            const newEndDate = new Date(newStartDate);
-            newEndDate.setDate(newEndDate.getDate() + duration);
+            newStartDate = today;
+            newEndDate = calculateRenewalEndDate(today, today, isVisit, duration);
             
             const createSubRes = await dbClient.query(
               "INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status) VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active') RETURNING id",
-              [data.client_id, planId, newStartDate, newEndDate]
+              [data.client_id, effectivePlanId, formatLocalDate(newStartDate), formatLocalDate(newEndDate)]
             );
             data.subscription_id = createSubRes.rows[0].id;
           }

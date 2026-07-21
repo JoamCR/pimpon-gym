@@ -66,14 +66,16 @@ export const useRenewSubscription = () => {
         headers: getHeaders(),
         body: JSON.stringify({
           client_id: data.client_id,
+          plan_id: data.plan_id || undefined,
           amount: data.amount,
           payment_method: data.payment_method,
-          payment_type: 'monthly',
+          payment_type: data.payment_type || 'monthly',
           entity_type: 'gym',
+          ...(data.notes ? { notes: data.notes } : {}),
         }),
       });
       if (!response.ok) {
-        throw new Error('Error al renovar suscripción');
+        throw new Error('Error al renovar');
       }
       return response.json();
     },

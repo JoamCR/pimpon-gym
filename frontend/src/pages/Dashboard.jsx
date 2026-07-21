@@ -107,6 +107,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [modalNotify, setModalNotify] = useState(false);
   const [modalRenew, setModalRenew] = useState(false);
+  const [renewTab, setRenewTab] = useState('monthly');
   const [selectedClient, setSelectedClient] = useState(null);
   const [renewFormData, setRenewFormData] = useState({
     payment_method: 'cash',
@@ -195,29 +196,7 @@ export default function Dashboard() {
   };
 
   const handleRenew = (client) => {
-    setSelectedClient(client);
-    setRenewFormData({ payment_method: 'cash', amount: 0 });
-    setModalRenew(true);
-  };
-
-  const handleConfirmRenew = async () => {
-    if (!renewFormData.amount || renewFormData.amount <= 0) {
-      toast.error('Ingresa un monto válido');
-      return;
-    }
-
-    try {
-      await renewSubscription.mutateAsync({
-        client_id: selectedClient.id,
-        amount: parseFloat(renewFormData.amount),
-        payment_method: renewFormData.payment_method,
-      });
-      toast.success('Suscripción renovada');
-      setModalRenew(false);
-      refetch();
-    } catch (error) {
-      toast.error(error.message || 'Error al renovar suscripción');
-    }
+    navigate('/clients', { state: { renewClientId: client?.id } });
   };
 
   const toggleSection = (section) => {
@@ -522,46 +501,6 @@ export default function Dashboard() {
           <div className="flex justify-end gap-3">
             <GymButton variant="secondary" size="sm" onClick={() => setModalNotify(false)}>Cancelar</GymButton>
             <GymButton variant="warning" size="sm" onClick={handleConfirmNotify} loading={sendNotification.isLoading}>Enviar</GymButton>
-          </div>
-        </div>
-      </GymModal>
-
-      <GymModal isOpen={modalRenew} onClose={() => setModalRenew(false)} title="Renovar Suscripción" width="sm">
-        <div className="space-y-4 text-[var(--color-text-muted)]">
-          <div>
-            <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">Método de Pago</label>
-            <select
-              value={renewFormData.payment_method}
-              onChange={(e) => setRenewFormData({ ...renewFormData, payment_method: e.target.value })}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3 py-2 text-[var(--color-text)]"
-            >
-              <option value="cash">Efectivo</option>
-              <option value="transfer">Transferencia</option>
-              {/* <option value="card">Tarjeta</option> */}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">Monto (MXN)</label>
-            <input
-              type="number"
-              value={renewFormData.amount}
-              onChange={(e) => setRenewFormData({ ...renewFormData, amount: e.target.value })}
-              placeholder="0.00"
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3 py-2 text-[var(--color-text)]"
-            />
-          </div>
-
-          {renewFormData.payment_method === 'transfer' && transferControl.percentage > 85 && (
-            <div className="rounded-[var(--radius-md)] bg-[rgba(245,158,11,0.12)] border border-[rgba(245,158,11,0.2)] p-3 text-sm text-[var(--color-warning)] flex items-start gap-2">
-              <IconAlertTriangle size={18} className="mt-0.5 shrink-0" /> 
-              <span>Precaución: Se está acercando al tope de transferencias del mes ({transferControl.percentage}%).</span>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3">
-            <GymButton variant="secondary" size="sm" onClick={() => setModalRenew(false)}>Cancelar</GymButton>
-            <GymButton variant="success" size="sm" onClick={handleConfirmRenew} loading={renewSubscription.isLoading}>Renovar</GymButton>
           </div>
         </div>
       </GymModal>

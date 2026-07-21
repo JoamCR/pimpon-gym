@@ -2,8 +2,145 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { GymModal } from './GymModal';
 import { GymButton } from './GymButton';
 import { SimpleDateInput } from './SimpleDateInput';
+import { IconSearch, IconUser, IconChevronDown, IconX, IconCheck } from '@tabler/icons-react';
 
 const eventStatusOptions = ['programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso'];
+
+const eventTypeOptions = [
+    { value: 'cita', label: 'Cita' },
+    { value: 'reunion', label: 'Reunión' },
+    { value: 'videollamada', label: 'Videollamada' },
+    { value: 'otro', label: 'Otro' },
+];
+
+const eventStatusOptionsList = eventStatusOptions.map(status => ({
+    value: status,
+    label: status.replace(/_/g, ' ')
+}));
+
+const CustomSelectDropdown = ({ value, onChange, options, placeholder = 'Seleccionar...' }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    const selectedOption = useMemo(() => {
+        return options.find(opt => typeof opt === 'object' ? String(opt.value) === String(value) : String(opt) === String(value));
+    }, [options, value]);
+
+    const getLabel = (opt) => {
+        if (!opt) return placeholder;
+        if (typeof opt === 'object') return opt.label;
+        return String(opt).replace(/_/g, ' ');
+    };
+
+    const getValue = (opt) => {
+        if (typeof opt === 'object') return opt.value;
+        return opt;
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative w-full" ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-left text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+            >
+                <span className="capitalize font-medium text-sm text-[var(--color-text)]">{getLabel(selectedOption)}</span>
+                <IconChevronDown size={18} className={`text-[var(--color-text-muted)] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card-alt)] shadow-2xl z-[70] overflow-hidden max-h-60 overflow-y-auto scrollbar-thin p-1 space-y-0.5">
+                    {options.map((opt) => {
+                        const optVal = getValue(opt);
+                        const isSelected = String(optVal) === String(value);
+                        return (
+                            <button
+                                key={String(optVal)}
+                                type="button"
+                                onClick={() => {
+                                    onChange(optVal);
+                                    setIsOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 rounded-md text-sm capitalize transition-colors flex items-center justify-between ${
+                                    isSelected
+                                        ? 'bg-[rgba(37,99,235,0.15)] text-[var(--color-primary)] font-semibold'
+                                        : 'text-[var(--color-text)] hover:bg-[rgba(255,255,255,0.05)]'
+                                }`}
+                            >
+                                <span>{getLabel(opt)}</span>
+                                {isSelected && <IconCheck size={16} className="text-[var(--color-primary)] shrink-0" />}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AmPmDropdown = ({ value, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative w-20 shrink-0" ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3 py-2 text-sm text-[var(--color-text)] font-semibold focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+            >
+                <span>{value}</span>
+                <IconChevronDown size={14} className={`text-[var(--color-text-muted)] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card-alt)] shadow-xl z-[70] overflow-hidden p-1 space-y-0.5">
+                    {['AM', 'PM'].map((opt) => {
+                        const isSelected = value === opt;
+                        return (
+                            <button
+                                key={opt}
+                                type="button"
+                                onClick={() => {
+                                    onChange(opt);
+                                    setIsOpen(false);
+                                }}
+                                className={`w-full text-center px-2 py-1.5 rounded text-xs font-semibold transition-colors flex items-center justify-between ${
+                                    isSelected
+                                        ? 'bg-[rgba(37,99,235,0.15)] text-[var(--color-primary)] font-bold'
+                                        : 'text-[var(--color-text)] hover:bg-[rgba(255,255,255,0.05)]'
+                                }`}
+                            >
+                                <span>{opt}</span>
+                                {isSelected && <IconCheck size={14} className="text-[var(--color-primary)]" />}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const CustomComboBox = ({ value, onChange, onBlur, options, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -27,7 +164,7 @@ const CustomComboBox = ({ value, onChange, onBlur, options, placeholder }) => {
           onChange={onChange}
           onFocus={() => setIsOpen(true)}
           onBlur={onBlur}
-          className="w-16 rounded-l-md border border-r-0 border-[var(--color-border)] bg-[var(--color-card-alt)] px-2 py-2 text-[var(--color-text)] text-center focus:outline-none focus:border-[var(--color-primary)]"
+          className="w-16 rounded-l-md border border-r-0 border-[var(--color-border)] bg-[var(--color-card-alt)] px-2 py-2 text-[var(--color-text)] text-center focus:outline-none focus:border-[var(--color-primary)] font-medium"
           placeholder={placeholder}
         />
         <button
@@ -44,7 +181,7 @@ const CustomComboBox = ({ value, onChange, onBlur, options, placeholder }) => {
             {options.map((opt) => (
               <li
                 key={opt}
-                className="cursor-pointer px-3 py-1.5 text-center text-sm hover:bg-[rgba(255,255,255,0.05)]"
+                className="cursor-pointer px-3 py-1.5 text-center text-sm hover:bg-[rgba(255,255,255,0.05)] text-[var(--color-text)]"
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onChange({ target: { value: opt } });
@@ -60,109 +197,264 @@ const CustomComboBox = ({ value, onChange, onBlur, options, placeholder }) => {
       </div>
     );
 };
+
+const PatientSelectDropdown = ({ patients = [], selectedPatientId, onSelectPatient }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const dropdownRef = useRef(null);
+
+    const selectedPatient = useMemo(() => {
+        return patients.find(p => String(p.id) === String(selectedPatientId));
+    }, [patients, selectedPatientId]);
+
+    const filteredPatients = useMemo(() => {
+        if (!searchQuery.trim()) return patients;
+        const q = searchQuery.toLowerCase().trim();
+        return patients.filter(p => {
+            const fullName = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+            const phone = (p.phone || '').toLowerCase();
+            return fullName.includes(q) || phone.includes(q);
+        });
+    }, [patients, searchQuery]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative w-full" ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-left text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+            >
+                <div className="flex items-center gap-2.5 truncate">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[rgba(37,99,235,0.15)] text-[var(--color-primary)] shrink-0">
+                        <IconUser size={16} />
+                    </div>
+                    {selectedPatient ? (
+                        <div className="truncate text-sm">
+                            <span className="font-semibold text-[var(--color-text)]">{selectedPatient.first_name} {selectedPatient.last_name}</span>
+                            {selectedPatient.phone && (
+                                <span className="text-xs text-[var(--color-text-muted)] ml-2">— {selectedPatient.phone}</span>
+                            )}
+                        </div>
+                    ) : (
+                        <span className="text-[var(--color-text-muted)] text-sm">Seleccionar paciente...</span>
+                    )}
+                </div>
+                <IconChevronDown size={18} className={`text-[var(--color-text-muted)] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-0 top-full mt-2 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card-alt)] shadow-2xl z-[70] overflow-hidden flex flex-col max-h-72">
+                    <div className="p-2 border-b border-[var(--color-border)] bg-[var(--color-card)] flex items-center gap-2">
+                        <IconSearch size={18} className="text-[var(--color-text-muted)] shrink-0 ml-1" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar por nombre o teléfono..."
+                            className="w-full bg-transparent text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none py-1"
+                            autoFocus
+                        />
+                        {searchQuery && (
+                            <button type="button" onClick={() => setSearchQuery('')} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-1">
+                                <IconX size={16} />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="overflow-y-auto flex-1 p-1 scrollbar-thin space-y-0.5">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onSelectPatient('');
+                                setIsOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
+                                !selectedPatientId ? 'bg-[rgba(37,99,235,0.15)] text-[var(--color-primary)] font-semibold' : 'text-[var(--color-text-muted)] hover:bg-[rgba(255,255,255,0.04)]'
+                            }`}
+                        >
+                            <span>Sin paciente seleccionado</span>
+                            {!selectedPatientId && <IconCheck size={16} />}
+                        </button>
+
+                        {filteredPatients.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-[var(--color-text-muted)]">
+                                No se encontraron pacientes que coincidan.
+                            </div>
+                        ) : (
+                            filteredPatients.map((p) => {
+                                const isSelected = String(p.id) === String(selectedPatientId);
+                                return (
+                                    <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelectPatient(p.id);
+                                            setIsOpen(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-colors flex items-center justify-between ${
+                                            isSelected
+                                                ? 'bg-[rgba(37,99,235,0.15)] text-[var(--color-primary)] font-semibold'
+                                                : 'text-[var(--color-text)] hover:bg-[rgba(255,255,255,0.05)]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2.5 truncate">
+                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isSelected ? 'bg-[var(--color-primary)] text-white' : 'bg-[rgba(255,255,255,0.08)] text-[var(--color-text-muted)]'}`}>
+                                                {p.first_name ? p.first_name[0].toUpperCase() : 'P'}
+                                            </div>
+                                            <div className="truncate flex flex-col">
+                                                <span className="truncate font-medium">{p.first_name} {p.last_name}</span>
+                                                {p.phone && <span className="text-xs text-[var(--color-text-muted)]">{p.phone}</span>}
+                                            </div>
+                                        </div>
+                                        {isSelected && <IconCheck size={16} className="text-[var(--color-primary)] shrink-0" />}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
   
-const TimePicker = ({ dateStr, onChange }) => {
-const [datePart, timePart] = dateStr ? dateStr.split('T') : ['', '00:00:00'];
-const [h, m] = timePart.split(':');
+export const TimePicker = ({ dateStr, onChange }) => {
+    const lastEmittedRef = useRef(dateStr);
 
-let initialH24 = parseInt(h || '0', 10);
-let isPM = initialH24 >= 12;
-let initialH12 = initialH24 % 12 || 12;
+    const parseDateTime = (str) => {
+        if (!str || !str.includes('T')) return { h12: '9', min: '00', ampm: 'AM' };
+        const [_, timePart] = str.split('T');
+        const [hh, mm] = timePart.split(':');
+        const h24 = parseInt(hh || '0', 10);
+        const isPM = h24 >= 12;
+        const h12 = h24 % 12 || 12;
+        return {
+            h12: String(h12),
+            min: String(mm || '00').padStart(2, '0'),
+            ampm: isPM ? 'PM' : 'AM',
+        };
+    };
 
-const [hour, setHour] = useState(String(initialH12));
-const [minute, setMinute] = useState(m || '00');
-const [ampm, setAmpm] = useState(isPM ? 'PM' : 'AM');
+    const parsed = useMemo(() => parseDateTime(dateStr), [dateStr]);
 
-useEffect(() => {
-    if (dateStr) {
-    const parts = dateStr.split('T');
-    if (parts.length > 1) {
-        const t = parts[1];
-        const [hh, mm] = t.split(':');
-        const h24 = parseInt(hh, 10);
-        const parsedH12 = h24 % 12 || 12;
-        const parsedAmPm = h24 >= 12 ? 'PM' : 'AM';
+    const [hour, setHour] = useState(parsed.h12);
+    const [minute, setMinute] = useState(parsed.min);
+    const [ampm, setAmpm] = useState(parsed.ampm);
+
+    useEffect(() => {
+        if (dateStr !== lastEmittedRef.current) {
+            const p = parseDateTime(dateStr);
+            setHour(p.h12);
+            setMinute(p.min);
+            setAmpm(p.ampm);
+            lastEmittedRef.current = dateStr;
+        }
+    }, [dateStr]);
+
+    const emitChange = (hVal, mVal, ampmVal) => {
+        if (!dateStr) return;
+        const datePart = dateStr.split('T')[0];
         
-        if (parseInt(hour, 10) !== parsedH12 || isNaN(parseInt(hour, 10))) {
-        setHour(String(parsedH12));
+        let h12 = parseInt(hVal, 10);
+        if (isNaN(h12) || h12 < 1) h12 = 12;
+        if (h12 > 12) h12 = 12;
+
+        let h24 = h12;
+        if (ampmVal === 'PM' && h24 !== 12) h24 += 12;
+        if (ampmVal === 'AM' && h24 === 12) h24 = 0;
+
+        let mInt = parseInt(mVal, 10);
+        if (isNaN(mInt) || mInt < 0) mInt = 0;
+        if (mInt > 59) mInt = 59;
+
+        const hh = String(h24).padStart(2, '0');
+        const mmStr = String(mInt).padStart(2, '0');
+        const newStr = `${datePart}T${hh}:${mmStr}:00`;
+
+        lastEmittedRef.current = newStr;
+        onChange(newStr);
+    };
+
+    const handleHourChange = (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length > 2) val = val.slice(0, 2);
+
+        let num = parseInt(val, 10);
+        if (!isNaN(num) && num > 12) {
+            val = '12';
         }
-        if (parseInt(minute, 10) !== parseInt(mm, 10) || isNaN(parseInt(minute, 10))) {
-        setMinute(mm);
+
+        setHour(val);
+        if (val !== '') {
+            emitChange(val, minute, ampm);
         }
-        if (ampm !== parsedAmPm) {
-        setAmpm(parsedAmPm);
+    };
+
+    const handleHourBlur = () => {
+        let h12 = parseInt(hour, 10);
+        if (isNaN(h12) || h12 < 1) h12 = 12;
+        if (h12 > 12) h12 = 12;
+        const finalH = String(h12);
+        setHour(finalH);
+        emitChange(finalH, minute, ampm);
+    };
+
+    const handleMinChange = (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length > 2) val = val.slice(0, 2);
+        setMinute(val);
+        if (val !== '') {
+            emitChange(hour, val, ampm);
         }
-    }
-    }
-}, [dateStr, hour, minute, ampm]);
+    };
 
-const handleUpdate = (newHour, newMinute, newAmpm) => {
-    let h12 = parseInt(newHour, 10);
-    if (isNaN(h12)) h12 = 12; 
-    let h24 = h12;
-    if (newAmpm === 'PM' && h24 !== 12) h24 += 12;
-    if (newAmpm === 'AM' && h24 === 12) h24 = 0;
-    
-    let mInt = parseInt(newMinute, 10);
-    if (isNaN(mInt)) mInt = 0;
-    
-    const hh = String(h24).padStart(2, '0');
-    const mmStr = String(mInt).padStart(2, '0');
-    onChange(`${datePart}T${hh}:${mmStr}:00`);
-};
+    const handleMinBlur = () => {
+        let mInt = parseInt(minute, 10);
+        if (isNaN(mInt) || mInt < 0) mInt = 0;
+        if (mInt > 59) mInt = 59;
+        const finalM = String(mInt).padStart(2, '0');
+        setMinute(finalM);
+        emitChange(hour, finalM, ampm);
+    };
 
-const handleHourChange = (e) => {
-    let val = e.target.value.replace(/\D/g, '');
-    if (val.length > 2) val = val.slice(0, 2);
-    setHour(val);
-    if (val !== '') handleUpdate(val, minute, ampm);
-};
+    const handleAmpmChange = (newAmpm) => {
+        setAmpm(newAmpm);
+        emitChange(hour, minute, newAmpm);
+    };
 
-const handleMinChange = (e) => {
-    let val = e.target.value.replace(/\D/g, '');
-    if (val.length > 2) val = val.slice(0, 2);
-    setMinute(val);
-    if (val !== '') handleUpdate(hour, val, ampm);
-};
-
-const handleMinBlur = () => {
-    if (minute !== '') {
-    setMinute(String(parseInt(minute, 10)).padStart(2, '0'));
-    }
-};
-
-const handleAmpmChange = (e) => {
-    const val = e.target.value;
-    setAmpm(val);
-    handleUpdate(hour, minute, val);
-};
-
-return (
-    <div className="flex items-center gap-1.5">
-    <CustomComboBox
-        value={hour}
-        onChange={handleHourChange}
-        options={Array.from({ length: 12 }, (_, i) => String(i + 1))}
-        placeholder="HH"
-    />
-    <span className="text-lg font-bold self-center text-[var(--color-text-muted)]">:</span>
-    <CustomComboBox
-        value={minute}
-        onChange={handleMinChange}
-        onBlur={handleMinBlur}
-        options={Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))}
-        placeholder="MM"
-    />
-    <select
-        value={ampm}
-        onChange={handleAmpmChange}
-        className="w-20 rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-2 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)]"
-    >
-        <option value="AM">AM</option>
-        <option value="PM">PM</option>
-    </select>
-    </div>
-);
+    return (
+        <div className="flex items-center gap-1.5">
+            <CustomComboBox
+                value={hour}
+                onChange={handleHourChange}
+                onBlur={handleHourBlur}
+                options={Array.from({ length: 12 }, (_, i) => String(i + 1))}
+                placeholder="HH"
+            />
+            <span className="text-lg font-bold self-center text-[var(--color-text-muted)]">:</span>
+            <CustomComboBox
+                value={minute}
+                onChange={handleMinChange}
+                onBlur={handleMinBlur}
+                options={Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))}
+                placeholder="MM"
+            />
+            <AmPmDropdown
+                value={ampm}
+                onChange={handleAmpmChange}
+            />
+        </div>
+    );
 };
 
 export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFormState, patients = [] }) => {
@@ -207,21 +499,20 @@ export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFor
             <div className="space-y-6 text-[var(--color-text)]">
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label className="block text-sm text-[var(--color-text-muted)]">Tipo de agenda</label>
-                        <select value={form.event_type} onChange={(e) => setForm({ ...form, event_type: e.target.value })} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]">
-                            <option value="cita">Cita</option>
-                            <option value="reunion">Reunión</option>
-                            <option value="videollamada">Videollamada</option>
-                            <option value="otro">Otro</option>
-                        </select>
+                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Tipo de agenda</label>
+                        <CustomSelectDropdown
+                            value={form.event_type}
+                            onChange={(val) => setForm({ ...form, event_type: val })}
+                            options={eventTypeOptions}
+                        />
                     </div>
                     <div>
-                        <label className="block text-sm text-[var(--color-text-muted)]">Estado</label>
-                        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]">
-                            {eventStatusOptions.map((status) => (
-                                <option key={status} value={status}>{status}</option>
-                            ))}
-                        </select>
+                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Estado</label>
+                        <CustomSelectDropdown
+                            value={form.status}
+                            onChange={(val) => setForm({ ...form, status: val })}
+                            options={eventStatusOptionsList}
+                        />
                     </div>
                 </div>
 
@@ -233,16 +524,15 @@ export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFor
                 {form.event_type === 'cita' && (
                     <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label className="block text-sm text-[var(--color-text-muted)]">Paciente</label>
-                        <select value={form.patient_id || ''} onChange={(e) => handlePatientSelection(e.target.value)} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]">
-                        <option value="">Seleccionar paciente</option>
-                        {patients.map((p) => (
-                            <option key={p.id} value={p.id}>{p.first_name} {p.last_name} — {p.phone || 'Sin teléfono'}</option>
-                        ))}
-                        </select>
+                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Paciente</label>
+                        <PatientSelectDropdown
+                            patients={patients}
+                            selectedPatientId={form.patient_id}
+                            onSelectPatient={handlePatientSelection}
+                        />
                     </div>
                     <div>
-                        <label className="block text-sm text-[var(--color-text-muted)]">Teléfono</label>
+                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">Teléfono</label>
                         <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]" />
                     </div>
                     </div>

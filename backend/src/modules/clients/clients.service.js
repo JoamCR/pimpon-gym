@@ -182,12 +182,11 @@ const update = async (id, data) => {
       const planId = updateData.plan_id || exists.plan_id;
       if (planId) {
         const start = data.subscription_start_date || new Date().toISOString().split('T')[0];
-        const end = data.subscription_end_date || new Date(new Date(start).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         
         await pool.query(
           `INSERT INTO subscriptions (id, client_id, plan_id, start_date, end_date, status)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active')`,
-          [id, planId, start, end]
+           VALUES (gen_random_uuid(), $1, $2, $3, COALESCE($4::date, $3::date + INTERVAL '1 month'), 'active')`,
+          [id, planId, start, data.subscription_end_date || null]
         );
       }
     }
@@ -215,10 +214,46 @@ const getExpiringClients = async () => {
   };
 };
 
+const getClientHistory = async (clientId) => {
+  const client = await repository.findById(clientId);
+  if (!client) {
+    throw createError(404, 'Cliente no encontrado');
+  }
+
+  const { subscriptions, payments } = await repository.findClientHistory(clientId);
+
+  // Calcular lapsos / días sin pagar entre suscripciones consecutivas
+  const gaps = [];
+  for (let i = 0; i < subscriptions.length - 1; i++) {
+    const currentSubEnd = new Date(subscriptions[i].end_date);
+    const nextSubStart = new Date(subscriptions[i + 1].start_date);
+    
+    const diffTime = nextSubStart - currentSubEnd;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 1) {
+      gaps.push({
+        from_date: subscriptions[i].end_date,
+        to_date: subscriptions[i + 1].start_date,
+        unpaid_days: diffDays,
+        approx_months: (diffDays / 30).toFixed(1)
+      });
+    }
+  }
+
+  return {
+    client,
+    subscriptions,
+    payments,
+    gaps
+  };
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
-  getExpiringClients
+  getExpiringClients,
+  getClientHistory
 };

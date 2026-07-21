@@ -8,6 +8,7 @@ const registerPaymentSchema = z.object({
     errorMap: () => ({ message: 'El tipo de entidad debe ser gym o consultorio' })
   }),
   subscription_id: z.string().uuid('El ID de suscripción debe ser un UUID válido').optional().nullable(),
+  plan_id: z.string().uuid('El ID de plan debe ser un UUID válido').optional().nullable(),
   amount: z.number().positive('El monto del pago debe ser positivo'),
   payment_method: z.enum(['cash', 'transfer', 'card'], {
     errorMap: () => ({ message: 'Método de pago inválido. Debe ser cash, transfer o card' })

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { IconPlus } from '@tabler/icons-react';
 
 function buildMonthMatrix(date) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -59,11 +60,21 @@ export const AgendaCalendar = ({ viewDate, events, onDayClick, onEventClick }) =
         return (
           <div 
             key={dayKey} 
-            onClick={() => onDayClick(d)} 
-            className={`rounded-md p-2 border ${isCurrentMonth ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)] opacity-50'} border-[var(--color-border)] cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors flex flex-col h-40`}
+            className={`rounded-md p-2 border ${isCurrentMonth ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)] opacity-50'} border-[var(--color-border)] transition-colors flex flex-col h-40`}
           >
-            <div className="flex justify-between items-start mb-2">
+            <div className="flex justify-between items-center mb-2">
               <div className={`text-sm font-semibold flex items-center justify-center w-6 h-6 rounded-full ${isToday ? 'bg-[var(--color-primary)] text-white' : ''} ${!isCurrentMonth ? 'text-[var(--color-text-muted)]' : ''}`}>{d.getDate()}</div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDayClick(d);
+                }}
+                className="w-6 h-6 rounded flex items-center justify-center bg-[rgba(255,255,255,0.05)] hover:bg-[var(--color-primary)] text-[var(--color-text-muted)] hover:text-white transition-colors"
+                title="Agendar cita para este día"
+              >
+                <IconPlus size={14} />
+              </button>
             </div>
             <div className="space-y-1 overflow-y-auto h-[110px] scrollbar-thin">
               {dayEvents.map(ev => renderEventCard(ev, onEventClick))}

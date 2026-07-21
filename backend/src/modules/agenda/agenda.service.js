@@ -20,10 +20,10 @@ const create = async (payload) => {
     payload.title = 'Cita Agendada'; // Default title if no patient is linked or name isn't found
   }
 
-  // Check for overlapping events
+  // Check for overlapping events (exact same date and minute)
   const overlappingEvents = await repo.findOverlappingEvents(payload.start_at, payload.end_at);
   if (overlappingEvents.length > 0) {
-    throw createError(409, 'Ya existe una cita agendada para este horario.');
+    throw createError(409, 'Ya existe una cita agendada para la misma fecha y hora (mismo minuto).');
   }
 
   const ev = await repo.createEvent(payload);
@@ -68,7 +68,7 @@ const update = async (id, changes) => {
   // Check for overlapping events, excluding the current event
   const overlappingEvents = await repo.findOverlappingEvents(effectiveStartAt, effectiveEndAt, id);
   if (overlappingEvents.length > 0) {
-    throw createError(409, 'Ya existe una cita agendada para este horario.');
+    throw createError(409, 'Ya existe una cita agendada para la misma fecha y hora (mismo minuto).');
   }
 
   const ev = await repo.updateEvent(id, changes);

@@ -58,6 +58,21 @@ export const useClient = (id) => {
   });
 };
 
+export const useClientHistory = (id) => {
+  return useQuery({
+    queryKey: ['client-history', id],
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/clients/${id}/history`, { headers: getHeaders() });
+      if (!response.ok) {
+        throw new Error('Error al obtener el historial del cliente');
+      }
+      const data = await response.json();
+      return data.data;
+    },
+    enabled: !!id,
+  });
+};
+
 export const useCreateClient = () => {
   const queryClient = useQueryClient();
   return useMutation({

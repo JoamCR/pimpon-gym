@@ -49,6 +49,13 @@ async function clientRoutes(fastify, options) {
     return { data: client };
   });
 
+  // GET /api/clients/:id/history
+  fastify.get('/:id/history', async (request, reply) => {
+    const { id } = request.params;
+    const history = await service.getClientHistory(id);
+    return { data: history };
+  });
+
   // POST /api/clients
   fastify.post('/', async (request, reply) => {
     // 1. Validación estricta con Zod antes de procesar

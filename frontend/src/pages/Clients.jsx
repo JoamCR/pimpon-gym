@@ -1,17 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useClients, useCreateClient, useUpdateClient, usePlans, validateClientField } from '../hooks/useClients';
+import { useClients, useCreateClient, useUpdateClient, usePlans, validateClientField, useClientHistory } from '../hooks/useClients';
 import { useRenewSubscription } from '../hooks/useDashboard';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh, IconAlertTriangle } from '@tabler/icons-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { HybridDateInput } from '../components/ui/HybridDateInput';
 import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 
 export default function Clients() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [filterTab, setFilterTab] = useState('enrolled');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +26,9 @@ export default function Clients() {
   // View state
   const [viewClientModal, setViewClientModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [viewTab, setViewTab] = useState('details');
+
+  const { data: historyData, isLoading: historyLoading } = useClientHistory(viewClientModal ? selectedClient?.id : null);
 
   // Edit state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -44,9 +50,102 @@ export default function Clients() {
 
   // Renew state
   const [renewModal, setRenewModal] = useState(false);
-  const [renewFormData, setRenewFormData] = useState({ payment_method: 'cash', plan_id: null });
+  const [renewTab, setRenewTab] = useState('monthly');
+  const [renewFormData, setRenewFormData] = useState({ payment_method: 'cash', plan_id: null, enrollment_amount: 500, penalty_amount: 0 });
 
   const [step, setStep] = useState(1);
+
+  const getOverdueDays = (dateStr) => {
+    if (!dateStr) return 0;
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return 0;
+    const target = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    target.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = today - target;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
+  const handleRenewClient = (client) => {
+    setSelectedClient(client);
+    const clientPlan = planOptions.find(p => p.id === client.plan_id);
+    const defaultEnrollmentPrice = clientPlan?.price_enrollment ? parseFloat(clientPlan.price_enrollment) : 500;
+    const defaultMonthlyPrice = clientPlan?.price_monthly ? parseFloat(clientPlan.price_monthly) : 0;
+    
+    setRenewTab('monthly');
+    setRenewFormData({
+      payment_method: 'cash',
+      plan_id: client.plan_id,
+      monthly_amount: defaultMonthlyPrice,
+      enrollment_amount: defaultEnrollmentPrice,
+      penalty_amount: 0
+    });
+    setRenewModal(true);
+  };
+
+  const confirmRenew = async () => {
+    try {
+      if (renewTab === 'monthly') {
+        if (!renewFormData.plan_id) {
+          toast.error('Por favor, selecciona un plan para renovar.');
+          return;
+        }
+        const selectedPlan = planOptions.find(p => p.id === renewFormData.plan_id);
+        if (!selectedPlan) {
+          toast.error('El plan seleccionado no es válido.');
+          return;
+        }
+
+        const basePrice = parseFloat(renewFormData.monthly_amount ?? selectedPlan.price_monthly ?? 0);
+        if (isNaN(basePrice) || basePrice <= 0) {
+          toast.error('Ingresa un monto válido para la mensualidad.');
+          return;
+        }
+
+        const monthlyOverdueDays = getOverdueDays(selectedClient?.end_date);
+        const penalty = monthlyOverdueDays > 0 ? (parseFloat(renewFormData.penalty_amount) || 0) : 0;
+        const totalAmount = basePrice + penalty;
+        const notes = penalty > 0 ? `Incluye penalización de $${penalty.toFixed(2)} MXN por ${monthlyOverdueDays} día(s) de demora en mensualidad.` : undefined;
+
+        await renewSubscription.mutateAsync({
+          client_id: selectedClient.id,
+          plan_id: renewFormData.plan_id,
+          amount: totalAmount,
+          payment_method: renewFormData.payment_method,
+          payment_type: 'monthly',
+          notes
+        });
+        toast.success('Mensualidad renovada exitosamente');
+      } else {
+        const baseAmount = parseFloat(renewFormData.enrollment_amount || 0);
+        if (isNaN(baseAmount) || baseAmount <= 0) {
+          toast.error('Ingresa un monto válido para la anualidad.');
+          return;
+        }
+
+        const annualOverdueDays = getOverdueDays(selectedClient?.enrollment_expires_at);
+        const penalty = annualOverdueDays > 0 ? (parseFloat(renewFormData.penalty_amount) || 0) : 0;
+        const totalAmount = baseAmount + penalty;
+        const notes = penalty > 0 ? `Incluye penalización de $${penalty.toFixed(2)} MXN por ${annualOverdueDays} día(s) de demora en anualidad.` : undefined;
+
+        await renewSubscription.mutateAsync({
+          client_id: selectedClient.id,
+          amount: totalAmount,
+          payment_method: renewFormData.payment_method,
+          payment_type: 'enrollment',
+          notes
+        });
+        toast.success('Anualidad renovada exitosamente');
+      }
+
+      setRenewModal(false);
+      refetch();
+    } catch (error) {
+      toast.error(error.message || 'Ocurrió un error al renovar');
+    }
+  };
   const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     plan_id: '',
@@ -71,6 +170,18 @@ export default function Clients() {
   const clients = Array.isArray(data) ? data : data?.data || [];
   const { data: plansData, isLoading: isLoadingPlans } = usePlans();
   const planOptions = Array.isArray(plansData?.data) ? plansData.data : [];
+
+  // Efecto para abrir automáticamente el modal de renovación si se navega desde el Dashboard con renewClientId
+  useEffect(() => {
+    const targetId = location.state?.renewClientId;
+    if (targetId && clients.length > 0 && planOptions.length > 0) {
+      const clientToRenew = clients.find(c => c.id === targetId);
+      if (clientToRenew) {
+        handleRenewClient(clientToRenew);
+      }
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, clients, planOptions]);
   const createClientMutation = useCreateClient();
   const updateClientMutation = useUpdateClient();
   const renewSubscription = useRenewSubscription();
@@ -151,9 +262,25 @@ export default function Clients() {
     if (dateVal) {
       const plan = planOptions.find(p => p.id === editingClient?.plan_id);
       const days = plan?.duration_days || 30;
+      const isVisit = plan?.is_visit_based || false;
 
       const d = new Date(dateVal + 'T00:00:00');
-      d.setDate(d.getDate() + days);
+
+      if (isVisit || days < 28) {
+        d.setDate(d.getDate() + days);
+      } else {
+        const targetDay = d.getDate();
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        let nextYear = year;
+        let nextMonth = month + 1;
+        if (nextMonth > 11) {
+          nextYear += Math.floor(nextMonth / 12);
+          nextMonth = nextMonth % 12;
+        }
+        const maxDays = new Date(nextYear, nextMonth + 1, 0).getDate();
+        d.setFullYear(nextYear, nextMonth, Math.min(targetDay, maxDays));
+      }
 
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -309,6 +436,21 @@ export default function Clients() {
     setSortConfig({ key, direction });
   };
 
+  const getClientStatus = (client) => {
+    if (!client) return 'expired';
+    if (client.subscription_status === 'active') {
+      if (!client.end_date) return 'active';
+      const end = new Date(client.end_date);
+      const now = new Date();
+      const diffTime = end - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays <= 3 && diffDays >= 0) return 'expiring';
+      if (diffDays < 0) return 'expired';
+      return 'active';
+    }
+    return 'expired';
+  };
+
   const sortedClients = useMemo(() => {
     let filteredItems = clients.filter(client => {
       const isVisitor = client.plan_name?.toLowerCase().includes('día') || client.plan_name?.toLowerCase().includes('semana') || client.plan_name?.toLowerCase().includes('visita');
@@ -326,6 +468,12 @@ export default function Clients() {
         if (sortConfig.key === 'clientName') {
           aVal = `${a.first_name} ${a.last_name}`.toLowerCase();
           bVal = `${b.first_name} ${b.last_name}`.toLowerCase();
+        }
+
+        if (sortConfig.key === 'status') {
+          const statusWeights = { active: 1, expiring: 2, expired: 3 };
+          aVal = statusWeights[getClientStatus(a)] || 99;
+          bVal = statusWeights[getClientStatus(b)] || 99;
         }
 
         if (sortConfig.key === 'end_date') {
@@ -354,54 +502,8 @@ export default function Clients() {
 
   const handleViewClient = (client) => {
     setSelectedClient(client);
+    setViewTab('details');
     setViewClientModal(true);
-  };
-
-  const handleRenewClient = (client) => {
-    setSelectedClient(client);
-    setRenewFormData({ payment_method: 'cash', plan_id: client.plan_id });
-    setRenewModal(true);
-  };
-
-  const confirmRenew = async () => {
-    if (!renewFormData.plan_id) {
-      toast.error('Por favor, selecciona un plan para renovar.');
-      return;
-    }
-
-    const selectedPlan = planOptions.find(p => p.id === renewFormData.plan_id);
-    if (!selectedPlan) {
-      toast.error('El plan seleccionado no es válido.');
-      return;
-    }
-
-    try {
-      await renewSubscription.mutateAsync({
-        client_id: selectedClient.id,
-        amount: parseFloat(selectedPlan.price_monthly),
-        payment_method: renewFormData.payment_method,
-      });
-      toast.success('Suscripción renovada exitosamente');
-      setRenewModal(false);
-      refetch();
-    } catch (error) {
-      toast.error(error.message || 'Ocurrió un error al renovar la suscripción');
-    }
-  };
-
-  const getClientStatus = (client) => {
-    if (!client) return 'expired';
-    if (client.subscription_status === 'active') {
-      if (!client.end_date) return 'active';
-      const end = new Date(client.end_date);
-      const now = new Date();
-      const diffTime = end - now;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays <= 3 && diffDays >= 0) return 'expiring';
-      if (diffDays < 0) return 'expired';
-      return 'active';
-    }
-    return 'expired';
   };
 
   const renderStep = () => {
@@ -765,86 +867,319 @@ export default function Clients() {
       <GymModal isOpen={viewClientModal} onClose={() => setViewClientModal(false)} title="Detalles del Cliente" width="lg">
         {selectedClient && (
           <div className="space-y-4 text-[var(--color-text)]">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Sección del Código QR */}
-              <div className="flex flex-col items-center justify-center p-4 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] border border-[var(--color-border)]">
-                <div className="p-3 bg-white rounded-lg">
-                  <QRCodeSVG
-                    value={selectedClient.id}
-                    size={140}
-                    bgColor={"#ffffff"}
-                    fgColor={"#000000"}
-                    level={"H"}
-                  />
-                </div>
-              </div>
-              {/* Sección de Datos Personales */}
-              <div className="grid grid-cols-2 gap-4 flex-1 content-start">
-                <div className="col-span-2">
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Nombre Completo</p>
-                  <p>{selectedClient.first_name} {selectedClient.last_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
-                  <p>{selectedClient.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Correo electrónico</p>
-                  <p>{selectedClient.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Fecha de nacimiento</p>
-                  <p>{selectedClient.birth_date ? new Date(selectedClient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad</p>
-                  <p>{selectedClient.age ? `${selectedClient.age} años` : 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Plan</p>
-                  <p>{selectedClient.plan_name?.toLowerCase().includes('día') || selectedClient.plan_name?.toLowerCase().includes('semana') || selectedClient.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : selectedClient.plan_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Estado</p>
-                  <p>{getClientStatus(selectedClient) === 'active' ? 'Activo' : getClientStatus(selectedClient) === 'expiring' ? 'Por vencer' : 'Vencido'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Meses Consecutivos</p>
-                  <p>{selectedClient.consecutive_months ?? 0}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold">Vencimiento</p>
-                  <p>{selectedClient.end_date ? new Date(selectedClient.end_date).toLocaleDateString('es-MX') : 'N/A'}</p>
-                </div>
-              </div>
+            {/* Pestañas de Navegación del Modal Ver */}
+            <div className="flex border-b border-[var(--color-border)]">
+              <button
+                type="button"
+                onClick={() => setViewTab('details')}
+                className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 -mb-px ${
+                  viewTab === 'details'
+                    ? 'border-[var(--color-secondary)] text-[var(--color-secondary)] font-bold'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Información General
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTab('history')}
+                className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 -mb-px ${
+                  viewTab === 'history'
+                    ? 'border-[var(--color-secondary)] text-[var(--color-secondary)] font-bold'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Histórico de Renovaciones y Planes
+              </button>
             </div>
-            <div className="flex justify-end pt-4">
+
+            {viewTab === 'details' ? (
+              <div className="flex flex-col md:flex-row gap-6 pt-2">
+                {/* Sección del Código QR */}
+                <div className="flex flex-col items-center justify-center p-4 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] border border-[var(--color-border)]">
+                  <div className="p-3 bg-white rounded-lg">
+                    <QRCodeSVG
+                      value={selectedClient.id}
+                      size={140}
+                      bgColor={"#ffffff"}
+                      fgColor={"#000000"}
+                      level={"H"}
+                    />
+                  </div>
+                </div>
+                {/* Sección de Datos Personales */}
+                <div className="grid grid-cols-2 gap-4 flex-1 content-start">
+                  <div className="col-span-2">
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Nombre Completo</p>
+                    <p className="font-semibold text-lg">{selectedClient.first_name} {selectedClient.last_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Teléfono</p>
+                    <p>{selectedClient.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Correo electrónico</p>
+                    <p>{selectedClient.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Fecha de nacimiento</p>
+                    <p>{selectedClient.birth_date ? new Date(selectedClient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad</p>
+                    <p>{selectedClient.age ? `${selectedClient.age} años` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Plan Actual</p>
+                    <p>{selectedClient.plan_name?.toLowerCase().includes('día') || selectedClient.plan_name?.toLowerCase().includes('semana') || selectedClient.plan_name?.toLowerCase().includes('visita') ? 'Visitante' : selectedClient.plan_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Estado Mensualidad</p>
+                    <p>{getClientStatus(selectedClient) === 'active' ? 'Activo' : getClientStatus(selectedClient) === 'expiring' ? 'Por vencer' : 'Vencido'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Meses Consecutivos (Racha)</p>
+                    <p className="font-bold text-[var(--color-secondary)]">{selectedClient.consecutive_months ?? 0} mes(es)</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Vencimiento Mensualidad</p>
+                    <p>{selectedClient.end_date ? new Date(selectedClient.end_date).toLocaleDateString('es-MX') : 'N/A'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-[var(--color-text-muted)] font-semibold">Vencimiento Anualidad / Inscripción</p>
+                    <p>{selectedClient.enrollment_expires_at ? new Date(selectedClient.enrollment_expires_at).toLocaleDateString('es-MX') : 'No registrada'}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2">
+                {historyLoading ? (
+                  <p className="text-sm text-[var(--color-text-muted)] text-center py-6">Cargando historial de renovaciones...</p>
+                ) : (
+                  <>
+                    {/* Alertas de periodos no pagados (Gaps de inasistencia) */}
+                    {historyData?.gaps?.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">Inasistencias / Periodos Sin Pagar Detectados</p>
+                        {historyData.gaps.map((gap, idx) => (
+                          <div key={idx} className="rounded-[var(--radius-md)] bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-600 dark:text-amber-400 flex items-start gap-2">
+                            <IconAlertTriangle size={16} className="shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="block text-amber-600 dark:text-amber-300 font-semibold">
+                                Sin cobertura de pago: Del {new Date(gap.from_date).toLocaleDateString('es-MX')} al {new Date(gap.to_date).toLocaleDateString('es-MX')}
+                              </strong>
+                              <span>El cliente estuvo {gap.unpaid_days} día(s) sin pagar (aprox. {gap.approx_months} mes/es de inasistencia).</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Timeline de Suscripciones */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Histórico de Planes Contratados</p>
+                      {historyData?.subscriptions?.length === 0 ? (
+                        <p className="text-sm text-[var(--color-text-muted)] italic">No hay registros históricos previos.</p>
+                      ) : (
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                          {historyData?.subscriptions?.map((sub) => (
+                            <div key={sub.id} className="rounded-[var(--radius-md)] bg-[var(--color-card-alt)] p-3 border border-[var(--color-border)] space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-sm text-[var(--color-text)]">{sub.plan_name}</span>
+                                <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${sub.status === 'active' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-[var(--color-border)] text-[var(--color-text-muted)]'}`}>
+                                  {sub.status === 'active' ? 'Suscripción Activa' : 'Finalizada / Expirada'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-[var(--color-text-muted)] flex items-center justify-between">
+                                <span>Periodo contratado: <strong className="text-[var(--color-text)]">{new Date(sub.start_date).toLocaleDateString('es-MX')}</strong> al <strong className="text-[var(--color-text)]">{new Date(sub.end_date).toLocaleDateString('es-MX')}</strong></span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Histórico de Pagos */}
+                    <div className="space-y-2 pt-2 border-t border-[var(--color-border)]">
+                      <p className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Registro de Pagos Transaccionados</p>
+                      {historyData?.payments?.length === 0 ? (
+                        <p className="text-sm text-[var(--color-text-muted)] italic">No se registran pagos.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                          {historyData?.payments?.map((pay) => (
+                            <div key={pay.id} className="rounded-[var(--radius-md)] bg-[var(--color-card-alt)]/60 p-2.5 border border-[var(--color-border)] text-xs flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-[var(--color-text)] capitalize">
+                                  {pay.payment_type === 'monthly' ? 'Mensualidad' : pay.payment_type === 'enrollment' ? 'Anualidad / Inscripción' : pay.payment_type} ({pay.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'})
+                                </p>
+                                <p className="text-[var(--color-text-muted)] text-[11px]">{new Date(pay.paid_at).toLocaleString('es-MX')}</p>
+                                {pay.notes && (
+                                  <p className="text-amber-500 text-[11px] font-medium mt-0.5">{pay.notes}</p>
+                                )}
+                              </div>
+                              <p className="font-bold text-sm text-[var(--color-secondary)]">${parseFloat(pay.amount).toFixed(2)} MXN</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-4 border-t border-[var(--color-border)]">
               <GymButton variant="secondary" onClick={() => setViewClientModal(false)}>Cerrar</GymButton>
             </div>
           </div>
         )}
       </GymModal>
 
-      <GymModal isOpen={renewModal} onClose={() => setRenewModal(false)} title="Renovar Suscripción" width="lg">
+      <GymModal isOpen={renewModal} onClose={() => setRenewModal(false)} title={selectedClient ? `Renovar - ${selectedClient.first_name} ${selectedClient.last_name}` : "Renovar Suscripción"} width="lg">
         <div className="space-y-6">
-          {/* Plan selection */}
-          <div className="space-y-4">
-            <p className="text-base font-semibold text-[var(--color-text)]">Selecciona el nuevo plan</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {planOptions.filter(p => !p.is_visit_based).map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setRenewFormData({ ...renewFormData, plan_id: plan.id })}
-                  className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${renewFormData.plan_id === plan.id ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
-                    }`}
-                >
-                  <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
-                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
-                </button>
-              ))}
-            </div>
+          {/* Selector de pestañas */}
+          <div className="flex border-b border-[var(--color-border)]">
+            <button
+              type="button"
+              onClick={() => setRenewTab('monthly')}
+              className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 -mb-px ${
+                renewTab === 'monthly'
+                  ? 'border-[var(--color-secondary)] text-[var(--color-secondary)] font-bold'
+                  : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+              }`}
+            >
+              Renovar Mensualidad
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRenewTab('enrollment');
+                const clientPlan = planOptions.find(p => p.id === selectedClient?.plan_id);
+                if (!renewFormData.enrollment_amount && clientPlan) {
+                  setRenewFormData(prev => ({ ...prev, enrollment_amount: parseFloat(clientPlan.price_enrollment || 500) }));
+                }
+              }}
+              className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 -mb-px ${
+                renewTab === 'enrollment'
+                  ? 'border-[var(--color-secondary)] text-[var(--color-secondary)] font-bold'
+                  : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+              }`}
+            >
+              Renovar Anualidad
+            </button>
           </div>
+
+          {renewTab === 'monthly' ? (
+            <div className="space-y-4">
+              {(() => {
+                const hasActiveAnnual = selectedClient?.enrollment_expires_at && (() => {
+                  const parts = selectedClient.enrollment_expires_at.split('T')[0].split('-');
+                  if (parts.length !== 3) return false;
+                  const exp = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                  exp.setHours(0, 0, 0, 0);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return exp >= today;
+                })();
+
+                if (!hasActiveAnnual) {
+                  return (
+                    <div className="rounded-[var(--radius-lg)] bg-amber-500/10 border border-amber-500/30 p-4 space-y-3">
+                      <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
+                        <IconAlertTriangle size={24} className="shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-bold text-base">Anualidad Requerida Obligatoria</p>
+                          <p className="mt-1 text-[var(--color-text)] leading-relaxed">
+                            Este cliente no cuenta con la <strong>Anualidad (Inscripción)</strong> pagada y vigente. Es un requisito indispensable tener la Anualidad pagada para contratar o renovar cualquier plan mensual.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end pt-1">
+                        <GymButton
+                          size="sm"
+                          variant="warning"
+                          onClick={() => {
+                            setRenewTab('enrollment');
+                            const clientPlan = planOptions.find(p => p.id === selectedClient?.plan_id);
+                            if (!renewFormData.enrollment_amount && clientPlan) {
+                              setRenewFormData(prev => ({ ...prev, enrollment_amount: parseFloat(clientPlan.price_enrollment || 500) }));
+                            }
+                          }}
+                        >
+                          Renovar Anualidad Primero →
+                        </GymButton>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    {selectedClient?.end_date && (
+                      <div className="rounded-[var(--radius-md)] bg-[var(--color-card-alt)] p-3 text-sm text-[var(--color-text-muted)]">
+                        Vencimiento actual de mensualidad: <strong className="text-[var(--color-text)]">{new Date(selectedClient.end_date).toLocaleDateString('es-MX')}</strong>
+                      </div>
+                    )}
+                    <p className="text-base font-semibold text-[var(--color-text)]">Selecciona el plan</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {planOptions.filter(p => !p.is_visit_based).map((plan) => (
+                        <button
+                          key={plan.id}
+                          type="button"
+                          onClick={() => setRenewFormData({
+                            ...renewFormData,
+                            plan_id: plan.id,
+                            monthly_amount: parseFloat(plan.price_monthly || 0)
+                          })}
+                          className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
+                            renewFormData.plan_id === plan.id 
+                              ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/10 shadow-[var(--shadow-card)]' 
+                              : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-secondary)]'
+                          }`}
+                        >
+                          <p className="text-base font-semibold text-[var(--color-text)]">{plan.name}</p>
+                          <p className="mt-2 text-sm text-[var(--color-text-muted)]">${plan.price_monthly} MXN</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[var(--color-text-muted)] mb-2">
+                        Precio de la Mensualidad / Promoción (MXN)
+                      </label>
+                      <input
+                        type="number"
+                        value={renewFormData.monthly_amount ?? ''}
+                        onChange={(e) => setRenewFormData({ ...renewFormData, monthly_amount: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)] font-semibold"
+                      />
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                        Puedes modificar este precio si deseas aplicar un precio promocional o descuento de renovación.
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-[var(--radius-md)] bg-[var(--color-card-alt)] p-3 text-sm text-[var(--color-text-muted)]">
+                Vencimiento actual de anualidad: <strong className="text-[var(--color-text)]">{selectedClient?.enrollment_expires_at ? new Date(selectedClient.enrollment_expires_at).toLocaleDateString('es-MX') : 'No registrada'}</strong>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-[var(--color-text-muted)] mb-2">Monto de Anualidad / Inscripción (MXN)</label>
+                <input
+                  type="number"
+                  value={renewFormData.enrollment_amount || ''}
+                  onChange={(e) => setRenewFormData({ ...renewFormData, enrollment_amount: e.target.value })}
+                  placeholder="500.00"
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)] font-semibold"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Payment method */}
           <div className="space-y-2">
@@ -859,16 +1194,88 @@ export default function Clients() {
             </select>
           </div>
 
+          {/* Campo de Penalización (visibles ÚNICAMENTE si hay morosidad real) */}
+          {(() => {
+            const isMonthlyTab = renewTab === 'monthly';
+            const overdueDays = isMonthlyTab 
+              ? getOverdueDays(selectedClient?.end_date)
+              : getOverdueDays(selectedClient?.enrollment_expires_at);
+            const isOverdue = overdueDays > 0;
+            
+            const selectedPlan = planOptions.find(p => p.id === renewFormData.plan_id);
+            const basePrice = isMonthlyTab 
+              ? (parseFloat(renewFormData.monthly_amount ?? selectedPlan?.price_monthly ?? 0))
+              : (parseFloat(renewFormData.enrollment_amount || 0));
+            const penalty = isOverdue ? (parseFloat(renewFormData.penalty_amount) || 0) : 0;
+            const totalToPay = basePrice + penalty;
+
+            return (
+              <div className="space-y-4 pt-4 border-t border-[var(--color-border)]">
+                {/* Sección de Penalización: ÚNICAMENTE visible si existe morosidad real */}
+                {isOverdue && (
+                  <>
+                    <div className="rounded-[var(--radius-md)] bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-500 font-medium flex items-center gap-2">
+                      <IconAlertTriangle size={18} className="shrink-0" />
+                      <span>
+                        <strong>Demora detectada:</strong> El cliente tiene <strong>{overdueDays} día(s)</strong> de atraso en su {isMonthlyTab ? 'mensualidad' : 'anualidad'}. Puedes aplicar penalización.
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-sm font-semibold text-[var(--color-text)]">
+                        Penalización por morosidad (MXN)
+                      </label>
+                      <input
+                        type="number"
+                        value={renewFormData.penalty_amount ?? ''}
+                        onChange={(e) => setRenewFormData({ ...renewFormData, penalty_amount: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full rounded-[var(--radius-md)] border border-red-500/50 bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Resumen Total */}
+                <div className="rounded-[var(--radius-md)] bg-[var(--color-card-alt)] p-4 border border-[var(--color-border)] flex items-center justify-between">
+                  <div className="text-xs text-[var(--color-text-muted)] space-y-0.5">
+                    <p>Base: <strong className="text-[var(--color-text)]">${basePrice.toFixed(2)} MXN</strong></p>
+                    {isOverdue && penalty > 0 && (
+                      <p>Penalización: <strong className="text-red-500">+${penalty.toFixed(2)} MXN</strong></p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">Total a Cobrar</p>
+                    <p className="text-xl font-bold text-[var(--color-secondary)]">${totalToPay.toFixed(2)} MXN</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Action buttons */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
             <GymButton variant="secondary" onClick={() => setRenewModal(false)}>Cancelar</GymButton>
             <GymButton
               variant="success"
               onClick={confirmRenew}
               loading={renewSubscription.isLoading}
-              disabled={!renewFormData.plan_id}
+              disabled={(() => {
+                if (renewTab === 'monthly') {
+                  if (!renewFormData.plan_id) return true;
+                  if (!selectedClient?.enrollment_expires_at) return true;
+                  const parts = selectedClient.enrollment_expires_at.split('T')[0].split('-');
+                  if (parts.length !== 3) return true;
+                  const exp = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                  exp.setHours(0, 0, 0, 0);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return exp < today;
+                }
+                return !renewFormData.enrollment_amount || parseFloat(renewFormData.enrollment_amount) <= 0;
+              })()}
             >
-              Renovar Suscripción
+              {renewTab === 'monthly' ? 'Renovar Mensualidad' : 'Renovar Anualidad'}
             </GymButton>
           </div>
         </div>

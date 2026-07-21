@@ -76,17 +76,12 @@ const deleteEvent = async (id) => {
 };
 
 const findOverlappingEvents = async (start_at, end_at, excludeEventId = null) => {
-  // If no end_at is provided for the new event, we'll default to a 1-hour duration for the check.
-  // This is a robust way to prevent double bookings at the same start time.
-  const effective_end_at = end_at || new Date(new Date(start_at).getTime() + 60 * 60 * 1000).toISOString();
-
-  const params = [start_at, effective_end_at];
-  // The query uses PostgreSQL's OVERLAPS operator for a correct and concise interval collision check.
-  // We use COALESCE on the database's `end_at` column. If it's NULL, we treat it as a 1-hour event
-  // for the purpose of the overlap check. This ensures events stored with no end time are still considered.
+  // Checks if an active (non-cancelled) event exists on the exact same date, hour, and minute.
+  const params = [start_at];
   let queryText = `
     SELECT * FROM agenda
-    WHERE (start_at, COALESCE(end_at, start_at + interval '1 hour')) OVERLAPS ($1, $2)
+    WHERE date_trunc('minute', start_at) = date_trunc('minute', $1::timestamptz)
+      AND status != 'cancelada'
   `;
 
   if (excludeEventId) {
