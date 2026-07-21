@@ -36,7 +36,7 @@ const modalVariants = {
              transition: { duration: 0.18, ease: 'easeIn' } },
 };
 
-export function GymModal({ isOpen, onClose, title, children, size = 'md', width, closeable = true }) {
+export function GymModal({ isOpen, onClose, title, children, size = 'md', width, closeable = true, closeOnOutsideClick = false }) {
   // Support legacy prop `width` used across the app — treat as alias for `size`
   const finalSize = size || width;
 
@@ -68,7 +68,7 @@ export function GymModal({ isOpen, onClose, title, children, size = 'md', width,
             variants={backdropVariants}
             initial="hidden" animate="visible" exit="exit"
             className="absolute inset-0 bg-[var(--color-backdrop)] backdrop-blur-[3px]"
-            onClick={closeable ? onClose : undefined}
+            onClick={closeOnOutsideClick && closeable ? onClose : undefined}
           />
 
           {/* Panel del Modal */}
