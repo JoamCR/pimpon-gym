@@ -102,7 +102,7 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
     await dbClient.query('ROLLBACK');
     console.error('Error en createEvaluation:', error);
     if (error.isOperational) throw error;
-    throw createError(500, 'Error al crear evaluación nutricional');
+    throw createError(500, error.message || 'Error al crear evaluación nutricional');
   } finally {
     dbClient.release();
   }

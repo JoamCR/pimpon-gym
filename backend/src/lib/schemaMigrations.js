@@ -105,6 +105,22 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE nutrition_records ADD COLUMN drinks_soda_description TEXT;
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'nutrition_records' AND column_name = 'routine_adherence'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN routine_adherence INTEGER CHECK (routine_adherence >= 1 AND routine_adherence <= 10);
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'nutrition_records' AND column_name = 'diet_adherence'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN diet_adherence INTEGER CHECK (diet_adherence >= 1 AND diet_adherence <= 10);
+      END IF;
     END $$;
     `,
     `

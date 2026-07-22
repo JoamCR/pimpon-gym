@@ -174,6 +174,8 @@ CREATE TABLE IF NOT EXISTS nutrition_records (
     sleep_quality INTEGER CHECK (sleep_quality >= 1 AND sleep_quality <= 10),
     concentration_level INTEGER CHECK (concentration_level >= 1 AND concentration_level <= 10),
     mood_level INTEGER CHECK (mood_level >= 1 AND mood_level <= 10),
+    routine_adherence INTEGER CHECK (routine_adherence >= 1 AND routine_adherence <= 10),
+    diet_adherence INTEGER CHECK (diet_adherence >= 1 AND diet_adherence <= 10),
     sp_notes TEXT,
 
     -- Plan nutricional

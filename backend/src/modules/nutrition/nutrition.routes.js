@@ -33,24 +33,32 @@ async function nutritionRoutes(fastify, options) {
    * Reglas: Primera consulta gratis, segunda requiere pago
    */
   fastify.post('/evaluations', async (request, reply) => {
-    const validation = schema.createEvaluationSchema.safeParse(request.body);
-    if (!validation.success) {
-      return reply.status(400).send({
-        error: 'Error de validación en los datos de la evaluación',
-        details: validation.error.format()
+    try {
+      const validation = schema.createEvaluationSchema.safeParse(request.body);
+      if (!validation.success) {
+        console.error('Validation error on /evaluations:', JSON.stringify(validation.error.format(), null, 2));
+        return reply.status(400).send({
+          error: 'Error de validación en los datos de la evaluación',
+          details: validation.error.format()
+        });
+      }
+
+      const nutritionistId = request.user?.id || null;
+
+      const evaluation = await service.createEvaluation(
+        validation.data.client_id,
+        validation.data,
+        nutritionistId
+      );
+      
+      return reply.status(201).send({ data: evaluation });
+    } catch (error) {
+      console.error('Error al crear evaluación nutricional:', error);
+      return reply.status(error.statusCode || 500).send({
+        error: error.message || 'Error al crear la evaluación nutricional',
+        details: error.detail || error.hint || error.stack
       });
     }
-
-    // TODO: En el futuro esto vendrá del token de auth: request.user.id
-    const nutritionistId = request.user?.id || null;
-
-    const evaluation = await service.createEvaluation(
-      validation.data.client_id,
-      validation.data,
-      nutritionistId
-    );
-    
-    return reply.status(201).send({ data: evaluation });
   });
 
   /**

@@ -38,6 +38,8 @@ const createEvaluationSchema = z.object({
   sleep_quality: z.number().int().min(1).max(10).optional(),
   concentration_level: z.number().int().min(1).max(10).optional(),
   mood_level: z.number().int().min(1).max(10).optional(),
+  routine_adherence: z.number().int().min(1).max(10).optional(),
+  diet_adherence: z.number().int().min(1).max(10).optional(),
   sp_notes: z.string().optional(),
   is_free_consult: z.boolean().default(false), // Primera consulta gratis
   diet_plan: z.string().optional(),

@@ -31,6 +31,8 @@ const getInitialEvaluation = () => ({
   sleep_quality: 5,
   concentration_level: 5,
   mood_level: 5,
+  routine_adherence: 5,
+  diet_adherence: 5,
   sp_notes: '',
   diet_plan: '',
   caloric_target: '',
@@ -384,6 +386,8 @@ export function ConsultationViewer({
               <HealthSlider label="Calidad de Sueño" value={evaluationForm.sleep_quality} readOnly />
               <HealthSlider label="Concentración" value={evaluationForm.concentration_level} readOnly />
               <HealthSlider label="Estado de Ánimo" value={evaluationForm.mood_level} readOnly />
+              <HealthSlider label="Seguimiento de Rutina" value={evaluationForm.routine_adherence} readOnly />
+              <HealthSlider label="Seguimiento de Alimentación" value={evaluationForm.diet_adherence} readOnly />
             </div>
           </div>
 

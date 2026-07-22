@@ -83,14 +83,14 @@ const createRecord = async (data, nutritionistId, dbClient) => {
       smokes, smokes_description, drinks_alcohol, drinks_alcohol_description, uses_drugs, drugs_description,
       drinks_soda, drinks_soda_description, eats_junk_food, junk_food_description,
       energy_level, bowel_movements, hunger_level, sleep_quality,
-      concentration_level, mood_level, sp_notes,
+      concentration_level, mood_level, routine_adherence, diet_adherence, sp_notes,
       diet_plan, caloric_target, protein_target_g, carbs_target_g, fat_target_g,
       created_by, created_at
     ) VALUES (
       gen_random_uuid(), $1, $2, $3, CURRENT_DATE, $4, $5, $6, $7,
       $8, $9, $10, $11, $12, $13, $14,
       $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-      $32, $33, $34, $35, $36, $37, NOW()
+      $32, $33, $34, $35, $36, $37, $38, $39, NOW()
     ) RETURNING *
   `;
 
@@ -125,6 +125,8 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     data.sleep_quality || null,
     data.concentration_level || null,
     data.mood_level || null,
+    data.routine_adherence || 5,
+    data.diet_adherence || 5,
     data.sp_notes || null,
     data.diet_plan || null,
     data.caloric_target || null,
@@ -266,6 +268,14 @@ const updateRecord = async (recordId, data, dbClient) => {
   if (data.mood_level !== undefined) {
     updates.push(`mood_level = $${paramIndex++}`);
     values.push(data.mood_level);
+  }
+  if (data.routine_adherence !== undefined) {
+    updates.push(`routine_adherence = $${paramIndex++}`);
+    values.push(data.routine_adherence);
+  }
+  if (data.diet_adherence !== undefined) {
+    updates.push(`diet_adherence = $${paramIndex++}`);
+    values.push(data.diet_adherence);
   }
   if (data.sp_notes !== undefined) {
     updates.push(`sp_notes = $${paramIndex++}`);

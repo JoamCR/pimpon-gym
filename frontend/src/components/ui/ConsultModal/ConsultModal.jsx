@@ -31,6 +31,8 @@ const getInitialEvaluation = () => ({
   sleep_quality: 5,
   concentration_level: 5,
   mood_level: 5,
+  routine_adherence: 5,
+  diet_adherence: 5,
   sp_notes: '',
   diet_plan: '',
   caloric_target: '',
@@ -423,6 +425,8 @@ export function ConsultForm({
               <HealthSlider label="Calidad de Sueño" value={evaluationForm.sleep_quality} onChange={(v) => setEvaluationForm({ ...evaluationForm, sleep_quality: v })} />
               <HealthSlider label="Concentración" value={evaluationForm.concentration_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, concentration_level: v })} />
               <HealthSlider label="Estado de Ánimo" value={evaluationForm.mood_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, mood_level: v })} />
+              <HealthSlider label="Seguimiento de Rutina" value={evaluationForm.routine_adherence} onChange={(v) => setEvaluationForm({ ...evaluationForm, routine_adherence: v })} />
+              <HealthSlider label="Seguimiento de Alimentación" value={evaluationForm.diet_adherence} onChange={(v) => setEvaluationForm({ ...evaluationForm, diet_adherence: v })} />
             </div>
           </div>
 
