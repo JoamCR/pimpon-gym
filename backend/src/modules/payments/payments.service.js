@@ -283,11 +283,100 @@ const getPaymentsHistory = async (entityType, from, to) => {
   return await repository.getPaymentsHistory(entityType, from, to);
 };
 
+/**
+ * Actualiza un pago existente (monto, método de pago, notas) y ajusta transfer_control si aplica.
+ */
+const updatePayment = async (paymentId, data, registeredBy) => {
+  const dbClient = await pool.connect();
+  
+  try {
+    await dbClient.query('BEGIN');
+    
+    const existingPayment = await repository.findById(paymentId, dbClient);
+    if (!existingPayment) {
+      throw createError(404, 'El pago no existe.');
+    }
+
+    const oldAmount = Number(existingPayment.amount);
+    const oldMethod = existingPayment.payment_method;
+    const newAmount = data.amount !== undefined ? Number(data.amount) : oldAmount;
+    const newMethod = data.payment_method || oldMethod;
+
+    const paidAtIso = existingPayment.paid_at ? new Date(existingPayment.paid_at).toISOString() : new Date().toISOString();
+
+    // Ajuste de transfer_control si el pago fue o pasa a ser transferencia
+    if (oldMethod === 'transfer' && newMethod === 'transfer') {
+      const diff = newAmount - oldAmount;
+      if (diff !== 0) {
+        await repository.updateTransferControl(paidAtIso, diff, dbClient);
+      }
+    } else if (oldMethod === 'transfer' && newMethod !== 'transfer') {
+      await repository.updateTransferControl(paidAtIso, -oldAmount, dbClient);
+    } else if (oldMethod !== 'transfer' && newMethod === 'transfer') {
+      await repository.updateTransferControl(paidAtIso, newAmount, dbClient);
+    }
+
+    const updatedPayment = await repository.update(paymentId, data, registeredBy, dbClient);
+    
+    await dbClient.query('COMMIT');
+    return updatedPayment;
+  } catch (error) {
+    await dbClient.query('ROLLBACK');
+    if (error.statusCode) throw error;
+    console.error('Error interno en actualización de pago:', error);
+    throw createError(500, 'Error al actualizar el pago.');
+  } finally {
+    dbClient.release();
+  }
+};
+
+/**
+ * Anula/elimina un pago por cobro duplicado o error, ajustando transfer_control si aplica.
+ */
+const deletePayment = async (paymentId, registeredBy) => {
+  const dbClient = await pool.connect();
+  
+  try {
+    await dbClient.query('BEGIN');
+    
+    const existingPayment = await repository.findById(paymentId, dbClient);
+    if (!existingPayment) {
+      throw createError(404, 'El pago no existe.');
+    }
+
+    if (existingPayment.is_voided) {
+      throw createError(400, 'El pago ya ha sido anulado previamente.');
+    }
+
+    if (existingPayment.payment_method === 'transfer') {
+      const paidAtIso = existingPayment.paid_at ? new Date(existingPayment.paid_at).toISOString() : new Date().toISOString();
+      await repository.updateTransferControl(paidAtIso, -Number(existingPayment.amount), dbClient);
+    }
+
+    const voidedPayment = await repository.voidPayment(paymentId, registeredBy, dbClient);
+    
+    await dbClient.query('COMMIT');
+    return voidedPayment;
+  } catch (error) {
+    await dbClient.query('ROLLBACK');
+    if (error.statusCode || error.isOperational) throw error;
+    console.error('Error interno al anular el pago:', error);
+    throw createError(500, error.message || 'Error al anular el pago.');
+  } finally {
+    dbClient.release();
+  }
+};
+
+
 module.exports = {
   registerPayment,
+  updatePayment,
+  deletePayment,
   getClientHistory,
   getPatientHistory,
   getCutoff,
   getCurrentTransferControl,
   getPaymentsHistory
 };
+
+

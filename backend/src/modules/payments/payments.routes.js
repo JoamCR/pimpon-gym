@@ -56,6 +56,32 @@ async function paymentRoutes(fastify, options) {
     const control = await service.getCurrentTransferControl();
     return { data: control };
   });
+
+  // PUT /api/payments/:id -> Actualizar un pago existente (monto, método de pago, notas)
+  fastify.put('/:id', async (request, reply) => {
+    const { id } = request.params;
+    const validation = schema.updatePaymentSchema.safeParse(request.body);
+    if (!validation.success) {
+      return reply.status(400).send({
+        error: 'Error de validación al actualizar el pago',
+        details: validation.error.format()
+      });
+    }
+
+    const registeredBy = request.user?.id || null;
+    const updated = await service.updatePayment(id, validation.data, registeredBy);
+    return reply.send({ data: updated });
+  });
+
+  // DELETE /api/payments/:id -> Anular/eliminar un pago (cobro duplicado)
+  fastify.delete('/:id', async (request, reply) => {
+    const { id } = request.params;
+    const registeredBy = request.user?.id || null;
+    const voided = await service.deletePayment(id, registeredBy);
+    return reply.send({ message: 'El pago ha sido anulado correctamente.', data: voided });
+  });
 }
 
 module.exports = paymentRoutes;
+
+

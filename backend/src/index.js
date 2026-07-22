@@ -31,18 +31,24 @@ const fastify = Fastify({
 
 // 3. Manejador de Errores Global (captura AppError de nuestra librería)
 fastify.setErrorHandler((error, request, reply) => {
-  if (error instanceof AppError) {
-    return reply.status(error.statusCode).send({
-      error: error.message,
+  const statusCode = error.statusCode || 500;
+  const message = error.message || 'Error interno del servidor';
+
+  if (error instanceof AppError || error.isOperational) {
+    return reply.status(statusCode).send({
+      error: message,
+      message: message,
     });
   }
   
   // Si no es un error controlado operativo, loggear y responder con 500
   fastify.log.error(error);
-  return reply.status(500).send({
-    error: 'Error interno del servidor',
+  return reply.status(statusCode).send({
+    error: message,
+    message: message,
   });
 });
+
 
 /**
  * 4. Función de inicio (bootstrap) del servidor Fastify

@@ -190,8 +190,93 @@ const getPaymentsHistory = async (entityType, from, to) => {
   return rows;
 };
 
+/**
+ * Obtiene un pago por ID
+ */
+const findById = async (id, dbClient) => {
+  const executor = dbClient || { query };
+  const sql = `SELECT * FROM payments WHERE id = $1`;
+  const { rows } = await executor.query(sql, [id]);
+  return rows[0] || null;
+};
+
+/**
+ * Actualiza un pago y audita el cambio
+ */
+const update = async (id, data, registeredBy, dbClient) => {
+  const executor = dbClient || { query };
+  
+  const sql = `
+    UPDATE payments
+    SET 
+      amount = COALESCE($1, amount),
+      payment_method = COALESCE($2, payment_method),
+      notes = COALESCE($3, notes)
+    WHERE id = $4
+    RETURNING *
+  `;
+  const params = [
+    data.amount !== undefined ? data.amount : null,
+    data.payment_method !== undefined ? data.payment_method : null,
+    data.notes !== undefined ? data.notes : null,
+    id
+  ];
+  
+  const { rows } = await executor.query(sql, params);
+  const payment = rows[0];
+  if (!payment) return null;
+
+  await executor.query(`
+    INSERT INTO audit_log (
+      id, table_name, record_id, action, new_values, performed_by, performed_at
+    ) VALUES (
+      gen_random_uuid(), 'payments', $1, 'UPDATE', $2, $3, NOW()
+    )
+  `, [
+    payment.id,
+    JSON.stringify(payment),
+    registeredBy
+  ]);
+
+  return payment;
+};
+
+/**
+ * Anula/elimina un pago marcando is_voided = true y auditando la acción
+ */
+const voidPayment = async (id, registeredBy, dbClient) => {
+  const executor = dbClient || { query };
+  
+  const sql = `
+    UPDATE payments
+    SET is_voided = true
+    WHERE id = $1
+    RETURNING *
+  `;
+  const { rows } = await executor.query(sql, [id]);
+  const payment = rows[0];
+  if (!payment) return null;
+
+  await executor.query(`
+    INSERT INTO audit_log (
+      id, table_name, record_id, action, new_values, performed_by, performed_at
+    ) VALUES (
+      gen_random_uuid(), 'payments', $1, 'DELETE', $2, $3, NOW()
+    )
+  `, [
+    payment.id,
+    JSON.stringify(payment),
+    registeredBy
+  ]);
+
+  return payment;
+};
+
 module.exports = {
   create,
+  findById,
+  update,
+  voidPayment,
   findByClient,
   findByPatient,
   getMonthlyTotal,
@@ -200,3 +285,5 @@ module.exports = {
   getCashCutoff,
   getPaymentsHistory
 };
+
+

@@ -19,6 +19,17 @@ const registerPaymentSchema = z.object({
   notes: z.string().optional()
 });
 
+// Esquema de validación para actualizar un pago existente
+const updatePaymentSchema = z.object({
+  amount: z.number().positive('El monto del pago debe ser positivo').optional(),
+  payment_method: z.enum(['cash', 'transfer', 'card'], {
+    errorMap: () => ({ message: 'Método de pago inválido. Debe ser cash, transfer o card' })
+  }).optional(),
+  notes: z.string().nullable().optional()
+});
+
 module.exports = {
-  registerPaymentSchema
+  registerPaymentSchema,
+  updatePaymentSchema
 };
+
