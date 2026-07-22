@@ -854,8 +854,17 @@ export default function Clients() {
 
           {renderStep()}
 
-          <div className="flex justify-between gap-3">
-            <GymButton variant="secondary" onClick={() => setStep(Math.max(step - 1, 1))} disabled={step === 1}>Atrás</GymButton>
+          <div className="flex justify-between gap-3 pt-4 border-t border-[var(--color-border)]">
+            <div className="flex gap-2">
+              <GymButton variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cerrar
+              </GymButton>
+              {step > 1 && (
+                <GymButton variant="secondary" onClick={() => setStep(step - 1)}>
+                  Atrás
+                </GymButton>
+              )}
+            </div>
             <GymButton variant="primary" onClick={nextStep}>
               {step < 4 ? 'Siguiente' : (isVisitMode ? 'Registrar visitante' : 'Registrar cliente')}
             </GymButton>

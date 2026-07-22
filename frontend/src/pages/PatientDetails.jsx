@@ -12,37 +12,7 @@ import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } fr
 import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
-const parseAntecedentes = (notesStr) => {
-  if (!notesStr) return { family: null, pathological: null, personal: null, other: null };
-  
-  let family = null;
-  let pathological = null;
-  let personal = null;
-  let other = [];
-
-  const blocks = notesStr.split('\n\n');
-  blocks.forEach(block => {
-    const trimmed = block.trim();
-    if (trimmed.startsWith('Antecedentes familiares:')) {
-      family = trimmed.replace('Antecedentes familiares:', '').trim();
-    } else if (trimmed.startsWith('Antecedentes patológicos:')) {
-      pathological = trimmed.replace('Antecedentes patológicos:', '').trim();
-    } else if (trimmed.startsWith('Antecedentes personales:')) {
-      personal = trimmed.replace('Antecedentes personales:', '').trim();
-    } else if (trimmed.startsWith('Notas adicionales:')) {
-      other.push(trimmed.replace('Notas adicionales:', '').trim());
-    } else if (trimmed) {
-      other.push(trimmed);
-    }
-  });
-
-  return {
-    family,
-    pathological,
-    personal,
-    other: other.join('\n\n') || null
-  };
-};
+import { PatientDetailsContent } from '../components/ui/ConsultModal/PatientDetailsModal';
 
 export default function PatientDetails() {
   const { slug } = useParams();
@@ -377,87 +347,13 @@ export default function PatientDetails() {
         
         <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-b-xl rounded-tr-xl p-6 shadow-lg min-h-[50vh]">
           {activeTab === 'details' && (
-            <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
-              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
-                Información Personal
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Nombre Completo</p>
-                  <p className="text-lg">{patient.first_name} {patient.last_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Teléfono</p>
-                  <p className="text-lg">{patient.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Correo electrónico</p>
-                  <p className="text-lg">{patient.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Fecha de nacimiento</p>
-                  <p className="text-lg">{patient.birth_date ? new Date(patient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Edad</p>
-                  <p className="text-lg">{patient.age ? `${patient.age} años` : 'N/A'}</p>
-                </div>
-                {/* <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">RFC</p>
-                  <p className="text-lg">{patient.rfc || 'No registrado'}</p>
-                </div> */}
-                {/* <div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Ocupación</p>
-                  <p className="text-lg">{patient.occupation || 'No registrado'}</p>
-                </div> */}
-              </div>
-
-              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 mt-8 text-[var(--color-gold)]">
-                Evaluación Rápida y Antecedentes Médicos
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Peso y Estatura</p>
-                  <p className="text-md">Peso: <span className="font-bold">{patient.quick_weight_kg ? `${patient.quick_weight_kg} kg` : 'N/A'}</span></p>
-                  <p className="text-md">Estatura: <span className="font-bold">{patient.quick_height_cm ? `${patient.quick_height_cm} cm` : 'N/A'}</span></p>
-                </div>
-                <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-                  <p className="text-sm text-[var(--color-text-muted)] font-semibold uppercase tracking-wider mb-1">Objetivo Principal</p>
-                  <p className="text-md font-bold text-[var(--color-success)]">{patient.quick_goal || 'N/A'}</p>
-                </div>
-
-                {/* Antecedentes Clínicos del Paciente */}
-                {(() => {
-                  const antecedenteData = parseAntecedentes(patient.quick_health_notes);
-                  return (
-                    <div className="md:col-span-2 bg-[var(--color-surface)] p-5 rounded-lg border border-[var(--color-border)] space-y-4">
-                      <h3 className="text-md font-bold text-[var(--color-gold)] border-b border-[var(--color-border)] pb-2 uppercase tracking-wider">
-                        Antecedentes Clínicos del Paciente
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-[var(--color-card-alt)] p-4 rounded-md border border-[var(--color-border)] space-y-1">
-                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes familiares</p>
-                          <p className="text-sm text-[var(--color-text)] whitespace-pre-line">{antecedenteData.family || 'Sin registro'}</p>
-                        </div>
-                        <div className="bg-[var(--color-card-alt)] p-4 rounded-md border border-[var(--color-border)] space-y-1">
-                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes patológicos</p>
-                          <p className="text-sm text-[var(--color-text)] whitespace-pre-line">{antecedenteData.pathological || 'Sin registro'}</p>
-                        </div>
-                        <div className="bg-[var(--color-card-alt)] p-4 rounded-md border border-[var(--color-border)] space-y-1">
-                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes personales</p>
-                          <p className="text-sm text-[var(--color-text)] whitespace-pre-line">{antecedenteData.personal || 'Sin registro'}</p>
-                        </div>
-                      </div>
-                      {antecedenteData.other && (
-                        <div className="pt-3 border-t border-[var(--color-border)]/60">
-                          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider mb-1">Notas adicionales de salud</p>
-                          <p className="text-sm text-[var(--color-text)] italic whitespace-pre-line">{antecedenteData.other}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
+            <div className="animate-in fade-in duration-300">
+              <PatientDetailsContent 
+                patient={patient} 
+                evaluations={evaluations} 
+                isLoadingEvaluations={isLoadingEvaluations} 
+                showHistory={false} 
+              />
             </div>
           )}
 
@@ -478,7 +374,7 @@ export default function PatientDetails() {
                         <div className="flex justify-between items-center mb-4 border-b border-[var(--color-border)] pb-3">
                           <h3 className="font-bold text-lg text-[var(--color-text)] flex items-center gap-2">
                             <IconStethoscope className="text-[var(--color-success)]" />
-                            Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).replace(/,/g, '').replace(/\b\w/g, (c) => c.toUpperCase())}
                           </h3>
                           <span className={`text-xs px-3 py-1 rounded-full font-bold ${evaluation.is_free_consult ? 'bg-[rgba(234,179,8,0.2)] text-yellow-500' : 'bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]'}`}>
                             {evaluation.is_free_consult ? 'Consulta Gratuita' : 'Consulta Regular'}

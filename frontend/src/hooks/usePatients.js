@@ -49,6 +49,33 @@ export const useCreatePatient = () => {
   });
 };
 
+export const useUpdatePatient = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }) => {
+      const res = await fetch(`${API_URL}/patients/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        let errorMessage = data.error || data.message || 'Error al actualizar paciente';
+        if (data.details) {
+          const firstError = Object.values(data.details).find(val => val && Array.isArray(val._errors) && val._errors.length > 0)?.['_errors']?.[0];
+          if (firstError) errorMessage = firstError;
+        }
+        throw new Error(errorMessage);
+      }
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['patients']);
+      qc.invalidateQueries(['patient']);
+    }
+  });
+};
+
 export const usePatient = (id) => {
   return useQuery({
     queryKey: ['patient', id],

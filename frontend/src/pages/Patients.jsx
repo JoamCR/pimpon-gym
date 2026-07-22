@@ -11,7 +11,7 @@ import { AgregarPaciente } from '../components/ui/AgregarPaciente';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { HybridDateInput } from '../components/ui/HybridDateInput';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconChevronRight, IconCoin, IconStethoscope } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope } from '@tabler/icons-react';
 
 const HealthSlider = ({ label, value, onChange }) => {
   const getSegmentColor = (index, val) => {
@@ -290,8 +290,11 @@ export default function Patients() {
     navigate(`/patients/${slug || patient.first_name}`);
   };
 
-  const handleOpenPatientModal = (patient) => {
+  const [patientModalMode, setPatientModalMode] = useState('view');
+
+  const handleOpenPatientModal = (patient, mode = 'view') => {
     setSelectedPatient(patient);
+    setPatientModalMode(mode);
     setViewPatientModal(true);
   };
 
@@ -500,7 +503,8 @@ export default function Patients() {
                     <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{patient.phone}</td>
                     <td className="px-4 py-4 text-sm text-[var(--color-text)]">{new Date(patient.created_at).toLocaleDateString('es-MX')}</td>
                     <td className="px-4 py-4 space-x-2">
-                      <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleOpenPatientModal(patient)}>Ver</GymButton>
+                      <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleOpenPatientModal(patient, 'view')}>Ver</GymButton>
+                      <GymButton size="xs" variant="primary" icon={<IconEdit size={16} />} onClick={() => handleOpenPatientModal(patient, 'edit')}>Editar</GymButton>
                     </td>
                   </tr>
                 ))}
@@ -614,19 +618,7 @@ export default function Patients() {
         patient={selectedPatient}
         evaluations={evaluations}
         isLoadingEvaluations={isLoadingEvaluations}
-        onNewConsult={() => {
-          setViewPatientModal(false);
-          setConsultModalOpen(true);
-        }}
-        onPayment={() => {
-          setViewPatientModal(false);
-          setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
-          setPaymentModalOpen(true);
-        }}
-        onSchedule={() => {
-          setViewPatientModal(false);
-          setScheduleModalOpen(true);
-        }}
+        initialMode={patientModalMode}
       />
     </div>
   );
