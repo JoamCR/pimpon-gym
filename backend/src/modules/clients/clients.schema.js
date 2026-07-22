@@ -5,7 +5,7 @@ const createClientSchema = z.object({
   first_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   last_name: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   age: z.number().int().min(10, 'La edad mnima es 10 aos').max(100, 'La edad mǭxima es 100 aos').optional(),
-  phone: z.string().regex(/^\d{10}$/, 'El telǸfono debe tener 10 dgitos (formato mexicano)').optional(),
+  phone: z.string().regex(/^\d{10}$/, 'El teléfono debe tener 10 dígitos (formato mexicano)').or(z.literal('')).optional(),
   email: z.string().email('El correo no es vǭlido').or(z.literal('')).optional(),
   gender: z.enum(['Masculino', 'Femenino', 'Otro', 'M', 'F', 'O'], {
     errorMap: () => ({ message: 'Género inválido' })

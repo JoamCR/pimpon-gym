@@ -213,6 +213,7 @@ export default function Patients() {
     };
     
     // Sanitize empty strings
+    if (!payload.phone) delete payload.phone;
     if (!payload.email) delete payload.email;
     if (!payload.rfc) delete payload.rfc;
     if (!payload.occupation) delete payload.occupation;

@@ -78,7 +78,7 @@ const create = async (data) => {
     data.rfc || null,
     data.age,
     data.gender || null,
-    data.phone,
+    data.phone || null,
     data.email || null,
     data.occupation || null,
     data.referred_by || null,
