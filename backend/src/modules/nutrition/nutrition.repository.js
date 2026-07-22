@@ -80,8 +80,8 @@ const createRecord = async (data, nutritionistId, dbClient) => {
       body_fat_pct, visceral_fat_pct, muscle_mass_kg, waist_cm,
       family_history, pathological_history, personal_history,
       body_composition_notes, is_free_consult,
-      smokes, drinks_alcohol, uses_drugs, drugs_description,
-      drinks_soda, eats_junk_food, junk_food_description,
+      smokes, smokes_description, drinks_alcohol, drinks_alcohol_description, uses_drugs, drugs_description,
+      drinks_soda, drinks_soda_description, eats_junk_food, junk_food_description,
       energy_level, bowel_movements, hunger_level, sleep_quality,
       concentration_level, mood_level, sp_notes,
       diet_plan, caloric_target, protein_target_g, carbs_target_g, fat_target_g,
@@ -89,8 +89,8 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     ) VALUES (
       gen_random_uuid(), $1, $2, $3, CURRENT_DATE, $4, $5, $6, $7,
       $8, $9, $10, $11, $12, $13, $14,
-      $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
-      $29, $30, $31, $32, $33, $34, NOW()
+      $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+      $32, $33, $34, $35, $36, $37, NOW()
     ) RETURNING *
   `;
 
@@ -110,10 +110,13 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     data.body_composition_notes || null,
     data.is_free_consult || false,
     data.smokes || false,
+    data.smokes_description || null,
     data.drinks_alcohol || false,
+    data.drinks_alcohol_description || null,
     data.uses_drugs || false,
     data.drugs_description || null,
     data.drinks_soda || false,
+    data.drinks_soda_description || null,
     data.eats_junk_food || false,
     data.junk_food_description || null,
     data.energy_level || null,
@@ -204,9 +207,17 @@ const updateRecord = async (recordId, data, dbClient) => {
     updates.push(`smokes = $${paramIndex++}`);
     values.push(data.smokes);
   }
+  if (data.smokes_description !== undefined) {
+    updates.push(`smokes_description = $${paramIndex++}`);
+    values.push(data.smokes_description);
+  }
   if (data.drinks_alcohol !== undefined) {
     updates.push(`drinks_alcohol = $${paramIndex++}`);
     values.push(data.drinks_alcohol);
+  }
+  if (data.drinks_alcohol_description !== undefined) {
+    updates.push(`drinks_alcohol_description = $${paramIndex++}`);
+    values.push(data.drinks_alcohol_description);
   }
   if (data.uses_drugs !== undefined) {
     updates.push(`uses_drugs = $${paramIndex++}`);
@@ -219,6 +230,10 @@ const updateRecord = async (recordId, data, dbClient) => {
   if (data.drinks_soda !== undefined) {
     updates.push(`drinks_soda = $${paramIndex++}`);
     values.push(data.drinks_soda);
+  }
+  if (data.drinks_soda_description !== undefined) {
+    updates.push(`drinks_soda_description = $${paramIndex++}`);
+    values.push(data.drinks_soda_description);
   }
   if (data.eats_junk_food !== undefined) {
     updates.push(`eats_junk_food = $${paramIndex++}`);

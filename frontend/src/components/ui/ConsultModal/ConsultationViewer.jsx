@@ -16,10 +16,13 @@ const getInitialEvaluation = () => ({
   personal_history: '',
   body_composition_notes: '',
   smokes: false,
+  smokes_description: '',
   drinks_alcohol: false,
+  drinks_alcohol_description: '',
   uses_drugs: false,
   drugs_description: '',
   drinks_soda: false,
+  drinks_soda_description: '',
   eats_junk_food: false,
   junk_food_description: '',
   energy_level: 5,
@@ -265,33 +268,68 @@ export function ConsultationViewer({
         <div className="space-y-6 animate-fade-in">
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-4">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 accent-[var(--color-success)] bg-[var(--color-card-alt)] border-[var(--color-border)] rounded"
-                  checked={evaluationForm.smokes}
-                  disabled
-                />
-                <span className="text-sm font-semibold text-[var(--color-text)]">¿Fuma?</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 accent-[var(--color-success)] bg-[var(--color-card-alt)] border-[var(--color-border)] rounded"
-                  checked={evaluationForm.drinks_alcohol}
-                  disabled
-                />
-                <span className="text-sm font-semibold text-[var(--color-text)]">¿Toma alcohol?</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 accent-[var(--color-success)] bg-[var(--color-card-alt)] border-[var(--color-border)] rounded"
-                  checked={evaluationForm.drinks_soda}
-                  disabled
-                />
-                <span className="text-sm font-semibold text-[var(--color-text)]">¿Consume refrescos embotellados?</span>
-              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 accent-[var(--color-success)] bg-[var(--color-card-alt)] border-[var(--color-border)] rounded"
+                    checked={evaluationForm.smokes}
+                    disabled
+                  />
+                  <span className="text-sm font-semibold text-[var(--color-text)]">¿Fuma?</span>
+                </label>
+                {evaluationForm.smokes && (
+                  <input
+                    type="text"
+                    placeholder="¿Con qué frecuencia / detalles?"
+                    value={evaluationForm.smokes_description || ''}
+                    readOnly
+                    className="w-full mt-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2 text-sm text-[var(--color-text)]"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 accent-[var(--color-success)] bg-[var(--color-card-alt)] border-[var(--color-border)] rounded"
+                    checked={evaluationForm.drinks_alcohol}
+                    disabled
+                  />
+                  <span className="text-sm font-semibold text-[var(--color-text)]">¿Toma alcohol?</span>
+                </label>
+                {evaluationForm.drinks_alcohol && (
+                  <input
+                    type="text"
+                    placeholder="¿Con qué frecuencia / detalles?"
+                    value={evaluationForm.drinks_alcohol_description || ''}
+                    readOnly
+                    className="w-full mt-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2 text-sm text-[var(--color-text)]"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 accent-[var(--color-success)] bg-[var(--color-card-alt)] border-[var(--color-border)] rounded"
+                    checked={evaluationForm.drinks_soda}
+                    disabled
+                  />
+                  <span className="text-sm font-semibold text-[var(--color-text)]">¿Consume refrescos embotellados?</span>
+                </label>
+                {evaluationForm.drinks_soda && (
+                  <input
+                    type="text"
+                    placeholder="¿Con qué frecuencia / detalles?"
+                    value={evaluationForm.drinks_soda_description || ''}
+                    readOnly
+                    className="w-full mt-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2 text-sm text-[var(--color-text)]"
+                  />
+                )}
+              </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-3">
@@ -307,7 +345,7 @@ export function ConsultationViewer({
                   <input
                     type="text"
                     placeholder="¿Cuál?"
-                    value={evaluationForm.drugs_description}
+                    value={evaluationForm.drugs_description || ''}
                     readOnly
                     className="w-full mt-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2 text-sm text-[var(--color-text)]"
                   />
@@ -328,7 +366,7 @@ export function ConsultationViewer({
                   <input
                     type="text"
                     placeholder="¿Cuál?"
-                    value={evaluationForm.junk_food_description}
+                    value={evaluationForm.junk_food_description || ''}
                     readOnly
                     className="w-full mt-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2 text-sm text-[var(--color-text)]"
                   />

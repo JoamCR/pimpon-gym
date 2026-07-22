@@ -81,6 +81,30 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE nutrition_records ALTER COLUMN client_id DROP NOT NULL;
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'nutrition_records' AND column_name = 'smokes_description'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN smokes_description TEXT;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'nutrition_records' AND column_name = 'drinks_alcohol_description'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN drinks_alcohol_description TEXT;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'nutrition_records' AND column_name = 'drinks_soda_description'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN drinks_soda_description TEXT;
+      END IF;
     END $$;
     `,
     `

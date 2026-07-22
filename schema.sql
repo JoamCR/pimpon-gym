@@ -159,10 +159,13 @@ CREATE TABLE IF NOT EXISTS nutrition_records (
     
     -- Historia clinica / Health indicators
     smokes BOOLEAN DEFAULT false,
+    smokes_description TEXT,
     drinks_alcohol BOOLEAN DEFAULT false,
+    drinks_alcohol_description TEXT,
     uses_drugs BOOLEAN DEFAULT false,
     drugs_description TEXT,
     drinks_soda BOOLEAN DEFAULT false,
+    drinks_soda_description TEXT,
     eats_junk_food BOOLEAN DEFAULT false,
     junk_food_description TEXT,
     energy_level INTEGER CHECK (energy_level >= 1 AND energy_level <= 10),
