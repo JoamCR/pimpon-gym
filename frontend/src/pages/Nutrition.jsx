@@ -16,7 +16,7 @@ import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
-import { IconClipboardHeart, IconEye, IconSearch, IconX, IconSortAscending, IconClock } from '@tabler/icons-react';
+import { IconClipboardHeart, IconEye, IconSearch, IconX, IconSortAscending, IconClock, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
 const ClientCard = ({ patient, onEvaluate, onShowDetails, onViewPatient }) => {
@@ -95,6 +95,8 @@ export default function Nutrition() {
   const [clientSearch, setClientSearch] = useState('');
   const [patientSort, setPatientSort] = useState('recent'); // 'recent' | 'name'
   const [clientSort, setClientSort] = useState('recent'); // 'recent' | 'name'
+  const [showAllPatients, setShowAllPatients] = useState(false);
+  const [showAllClients, setShowAllClients] = useState(false);
 
   const { data: patientsResponse, isLoading: patientsLoading } = usePatients();
   const { data: clientsResponse, isLoading: clientsLoading } = useClients();
@@ -143,6 +145,9 @@ export default function Nutrition() {
       }
       return new Date(b.created_at || 0) - new Date(a.created_at || 0);
     });
+
+  const displayedPatients = showAllPatients ? filteredPatients : filteredPatients.slice(0, 4);
+  const displayedClients = showAllClients ? filteredClients : filteredClients.slice(0, 4);
 
   const history = Array.isArray(evaluationsResponse) ? evaluationsResponse : evaluationsResponse?.data || [];
   const plans = Array.isArray(plansResponse) ? plansResponse : plansResponse?.data || [];
@@ -287,11 +292,24 @@ export default function Nutrition() {
               ) : filteredPatients.length === 0 ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">No se encontraron pacientes para la búsqueda.</p>
               ) : (
-                filteredPatients.map((patient) => (
+                displayedPatients.map((patient) => (
                   <ClientCard key={`patient-${patient.id}`} patient={patient} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} onViewPatient={handleViewPatient} />
                 ))
               )}
             </div>
+            {filteredPatients.length > 4 && (
+              <div className="mt-4 flex justify-center">
+                <GymButton
+                  size="sm"
+                  variant="primary"
+                  icon={showAllPatients ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                  onClick={() => setShowAllPatients(prev => !prev)}
+                  className="w-full sm:w-auto"
+                >
+                  {showAllPatients ? 'Ver menos' : 'Ver más'}
+                </GymButton>
+              </div>
+            )}
           </GymCard>
 
           <GymCard title="Cola de Clientes" subtitle="Clientes de gimnasio" variant="default">
@@ -337,11 +355,24 @@ export default function Nutrition() {
               ) : filteredClients.length === 0 ? (
                 <p className="text-[var(--color-text-muted)] col-span-full">No se encontraron clientes para la búsqueda.</p>
               ) : (
-                filteredClients.map((client) => (
+                displayedClients.map((client) => (
                   <ClientCard key={`client-${client.id}`} patient={client} onEvaluate={handleEvaluate} onShowDetails={handleShowDetails} onViewPatient={handleViewPatient} />
                 ))
               )}
             </div>
+            {filteredClients.length > 4 && (
+              <div className="mt-4 flex justify-center">
+                <GymButton
+                  size="sm"
+                  variant="primary"
+                  icon={showAllClients ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                  onClick={() => setShowAllClients(prev => !prev)}
+                  className="w-full sm:w-auto"
+                >
+                  {showAllClients ? 'Ver menos' : 'Ver más'}
+                </GymButton>
+              </div>
+            )}
           </GymCard>
         </div>
 
