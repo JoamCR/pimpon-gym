@@ -154,7 +154,7 @@ export default function Layout() {
   };
 
   return (
-    <div className={`flex flex-col h-screen max-h-screen w-full overflow-hidden ${isLightMode ? 'bg-[var(--bg)]' : 'bg-[radial-gradient(circle_at_top_left,rgba(226,154,0,0.08),transparent_18%),linear-gradient(180deg,#060606_0%,#0e0e0e_100%)]'}`}>
+    <div className={`flex flex-col min-h-screen w-full ${isLightMode ? 'bg-[var(--bg)]' : 'bg-[radial-gradient(circle_at_top_left,rgba(226,154,0,0.08),transparent_18%),linear-gradient(180deg,#060606_0%,#0e0e0e_100%)]'}`}>
 
       {/* BARRA SUPERIOR MÓVIL: Solo visible en pantallas pequeñas */}
       <header className={`flex md:hidden shrink-0 p-4 border-b justify-between items-center ${isLightMode ? 'bg-white border-[var(--color-border)]' : 'bg-black/80 border-white/10 text-white'}`}>
@@ -170,11 +170,11 @@ export default function Layout() {
           <div className={`p-6 border-b shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'}`}>
             <h1 className={`text-2xl font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon Gym</h1>
           </div>
-          <nav className="flex-1 px-6 mt-8 space-y-3 overflow-y-auto">
+          <nav className="flex-1 px-6 mt-8 mb-6 space-y-3 overflow-y-auto no-scrollbar">
             {renderNavList(toggleMobileMenu)}
           </nav>
 
-          <div className={`p-4 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
+          <div className={`p-4 pt-6 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
             {/* Theme Toggle */}
             <div className="flex items-center justify-between px-2 py-2">
               <span className={`text-sm font-medium flex items-center gap-2 ${isLightMode ? 'text-[var(--color-text)]' : 'text-slate-300'}`}>
@@ -202,18 +202,18 @@ export default function Layout() {
       )}
 
       {/* CONTENIDO PRINCIPAL Y BARRA LATERAL (MD EN ADELANTE) */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1">
         {/* BARRA LATERAL: Oculta en móviles, visible desde 'md' (tabletas/laptops) */}
-        <aside className={`hidden md:flex md:w-64 shrink-0 h-full flex-col shadow-[0_20px_60px_-40px_rgba(0,0,0,0.6)] border-r ${isLightMode ? 'bg-white border-[var(--color-border)] text-[var(--color-text)]' : 'bg-[var(--color-navy)] border-transparent text-white'}`}>
+        <aside className={`hidden md:flex md:w-64 shrink-0 sticky top-0 h-screen flex-col shadow-[0_20px_60px_-40px_rgba(0,0,0,0.6)] border-r ${isLightMode ? 'bg-white border-[var(--color-border)] text-[var(--color-text)]' : 'bg-[var(--color-navy)] border-transparent text-white'}`}>
           <div className={`p-6 border-b shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'}`}>
             <h2 className={`text-2xl font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon</h2>
           </div>
 
-          <nav className="flex-1 px-6 mt-8 space-y-3 overflow-y-auto">
+          <nav className="flex-1 px-6 mt-8 mb-6 space-y-3 overflow-y-auto no-scrollbar">
             {renderNavList(undefined)}
           </nav>
 
-          <div className={`p-4 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
+          <div className={`p-4 pt-6 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
             {/* Theme Toggle */}
             <div className="flex items-center justify-between px-2 py-2">
               <span className={`text-sm font-medium flex items-center gap-2 ${isLightMode ? 'text-[var(--color-text)]' : 'text-slate-300'}`}>
@@ -240,7 +240,7 @@ export default function Layout() {
         </aside>
 
         {/* CONTENIDO PRINCIPAL: Ocupa todo el ancho restante y es fluido */}
-        <main className={`flex-1 min-w-0 h-full ${location.pathname === '/agenda' ? 'p-2 sm:p-3' : 'p-4 sm:p-6 md:p-8'} overflow-y-auto ${isLightMode ? 'bg-[var(--color-surface)]' : ''}`}>
+        <main className={`flex-1 min-w-0 ${location.pathname === '/agenda' ? 'p-2 sm:p-3' : 'p-4 sm:p-6 md:p-8'} ${isLightMode ? 'bg-[var(--color-surface)]' : ''}`}>
           <Outlet />
         </main>
       </div>
