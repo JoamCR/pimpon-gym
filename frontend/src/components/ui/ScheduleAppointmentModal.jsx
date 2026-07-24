@@ -187,7 +187,6 @@ const CustomComboBox = ({ value, onChange, onBlur, options, placeholder }) => {
                   e.preventDefault();
                   onChange({ target: { value: opt } });
                   setIsOpen(false);
-                  if (onBlur) setTimeout(onBlur, 0);
                 }}
               >
                 {opt}
@@ -330,15 +329,15 @@ const PatientSelectDropdown = ({ patients = [], selectedPatientId, onSelectPatie
 };
   
 export const TimePicker = ({ dateStr, onChange }) => {
-    const lastEmittedRef = useRef(dateStr);
-
     const parseDateTime = (str) => {
         if (!str || !str.includes('T')) return { h12: '9', min: '00', ampm: 'AM' };
         const [_, timePart] = str.split('T');
+        if (!timePart) return { h12: '9', min: '00', ampm: 'AM' };
         const [hh, mm] = timePart.split(':');
         const h24 = parseInt(hh || '0', 10);
         const isPM = h24 >= 12;
-        const h12 = h24 % 12 || 12;
+        let h12 = h24 % 12;
+        if (h12 === 0) h12 = 12;
         return {
             h12: String(h12),
             min: String(mm || '00').padStart(2, '0'),
@@ -352,19 +351,34 @@ export const TimePicker = ({ dateStr, onChange }) => {
     const [minute, setMinute] = useState(parsed.min);
     const [ampm, setAmpm] = useState(parsed.ampm);
 
+    const hourRef = useRef(hour);
+    const minuteRef = useRef(minute);
+    const ampmRef = useRef(ampm);
+    const lastEmittedRef = useRef(dateStr);
+
     useEffect(() => {
         if (dateStr !== lastEmittedRef.current) {
             const p = parseDateTime(dateStr);
             setHour(p.h12);
             setMinute(p.min);
             setAmpm(p.ampm);
+            hourRef.current = p.h12;
+            minuteRef.current = p.min;
+            ampmRef.current = p.ampm;
             lastEmittedRef.current = dateStr;
         }
     }, [dateStr]);
 
     const emitChange = (hVal, mVal, ampmVal) => {
-        if (!dateStr) return;
-        const datePart = dateStr.split('T')[0];
+        let dStr = dateStr;
+        if (!dStr || !dStr.includes('T')) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            dStr = `${yyyy}-${mm}-${dd}T09:00:00`;
+        }
+        const datePart = dStr.split('T')[0];
         
         let h12 = parseInt(hVal, 10);
         if (isNaN(h12) || h12 < 1) h12 = 12;
@@ -387,7 +401,8 @@ export const TimePicker = ({ dateStr, onChange }) => {
     };
 
     const handleHourChange = (e) => {
-        let val = e.target.value.replace(/\D/g, '');
+        let val = e && e.target ? String(e.target.value) : String(e);
+        val = val.replace(/\D/g, '');
         if (val.length > 2) val = val.slice(0, 2);
 
         let num = parseInt(val, 10);
@@ -396,41 +411,47 @@ export const TimePicker = ({ dateStr, onChange }) => {
         }
 
         setHour(val);
+        hourRef.current = val;
         if (val !== '') {
-            emitChange(val, minute, ampm);
+            emitChange(val, minuteRef.current, ampmRef.current);
         }
     };
 
     const handleHourBlur = () => {
-        let h12 = parseInt(hour, 10);
+        let h12 = parseInt(hourRef.current, 10);
         if (isNaN(h12) || h12 < 1) h12 = 12;
         if (h12 > 12) h12 = 12;
         const finalH = String(h12);
         setHour(finalH);
-        emitChange(finalH, minute, ampm);
+        hourRef.current = finalH;
+        emitChange(finalH, minuteRef.current, ampmRef.current);
     };
 
     const handleMinChange = (e) => {
-        let val = e.target.value.replace(/\D/g, '');
+        let val = e && e.target ? String(e.target.value) : String(e);
+        val = val.replace(/\D/g, '');
         if (val.length > 2) val = val.slice(0, 2);
         setMinute(val);
+        minuteRef.current = val;
         if (val !== '') {
-            emitChange(hour, val, ampm);
+            emitChange(hourRef.current, val, ampmRef.current);
         }
     };
 
     const handleMinBlur = () => {
-        let mInt = parseInt(minute, 10);
+        let mInt = parseInt(minuteRef.current, 10);
         if (isNaN(mInt) || mInt < 0) mInt = 0;
         if (mInt > 59) mInt = 59;
         const finalM = String(mInt).padStart(2, '0');
         setMinute(finalM);
-        emitChange(hour, finalM, ampm);
+        minuteRef.current = finalM;
+        emitChange(hourRef.current, finalM, ampmRef.current);
     };
 
     const handleAmpmChange = (newAmpm) => {
         setAmpm(newAmpm);
-        emitChange(hour, minute, newAmpm);
+        ampmRef.current = newAmpm;
+        emitChange(hourRef.current, minuteRef.current, newAmpm);
     };
 
     return (
@@ -447,7 +468,7 @@ export const TimePicker = ({ dateStr, onChange }) => {
                 value={minute}
                 onChange={handleMinChange}
                 onBlur={handleMinBlur}
-                options={Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))}
+                options={['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']}
                 placeholder="MM"
             />
             <AmPmDropdown

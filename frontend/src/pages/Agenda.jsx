@@ -54,23 +54,23 @@ export default function Agenda() {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    
+
     setInitialFormState({
-        event_type: 'cita',
-        title: '',
-        description: '',
-        patient_id: null,
-        phone: '',
-        status: 'programada',
-        start_at: `${yyyy}-${mm}-${dd}T09:00:00`,
-        end_at: '',
-        metadata: {
-          reason: '',
-          medium: '',
-          with_whom: '',
-          location: '',
-          reminder_at: '',
-        },
+      event_type: 'cita',
+      title: '',
+      description: '',
+      patient_id: null,
+      phone: '',
+      status: 'programada',
+      start_at: `${yyyy}-${mm}-${dd}T09:00:00`,
+      end_at: '',
+      metadata: {
+        reason: '',
+        medium: '',
+        with_whom: '',
+        location: '',
+        reminder_at: '',
+      },
     });
     setModalOpen(true);
   };
@@ -84,7 +84,7 @@ export default function Agenda() {
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
         reminder_at: form.metadata.reminder_at ? new Date(form.metadata.reminder_at).toISOString() : null,
       };
-      
+
       await createMutation.mutateAsync(payload);
       setModalOpen(false);
     } catch (err) {
@@ -146,6 +146,13 @@ export default function Agenda() {
       // refresh happens via react-query invalidation
       setSelectedEvent((s) => s ? { ...s, status: newStatus } : s);
       setOptionsOpen(false);
+      if (newStatus === 'en_curso') {
+        const patientId = ev.patient_id || (selectedEvent?.id === ev.id ? selectedEvent.patient_id : null);
+        setDetailModalOpen(false);
+        if (patientId) {
+          navigate(`/patients/${patientId}?tab=consult`);
+        }
+      }
     } catch (err) {
       console.error(err);
       alert(err.message || 'Error al actualizar estado');
@@ -205,20 +212,22 @@ export default function Agenda() {
       return `Vista día — ${viewDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
     }
   };
-  
-    const eventsByDay = useMemo(() => {
-        const map = {};
-        events.forEach(ev => {
-          const day = new Date(ev.start_at).toDateString();
-          map[day] = map[day] || [];
-          map[day].push(ev);
-        });
-        return map;
-      }, [events]);
+
+  const eventsByDay = useMemo(() => {
+    const map = {};
+    events.forEach(ev => {
+      const day = new Date(ev.start_at).toDateString();
+      map[day] = map[day] || [];
+      map[day].push(ev);
+    });
+    return map;
+  }, [events]);
 
   const renderWeekView = () => {
     const start = new Date(viewDate);
-    start.setDate(start.getDate() - start.getDay());
+    const day = start.getDay();
+    const diff = (day + 6) % 7;
+    start.setDate(start.getDate() - diff);
     const weekDays = [];
     for (let i = 0; i < 7; i++) {
       weekDays.push(new Date(start));
@@ -226,27 +235,27 @@ export default function Agenda() {
     }
 
     const renderEventCard = (ev, showDetails = false) => {
-        const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-[var(--color-success)]' : ev.event_type === 'reunion' ? 'border-l-4 border-[var(--color-teal)]' : ev.event_type === 'videollamada' ? 'border-l-4 border-[var(--color-gold)]' : 'border-l-4 border-[var(--color-amber)]';
-        const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card-alt)] text-[var(--color-text)]';
-        
-        return (
-          <button key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`w-full text-left rounded px-2 py-1.5 border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs mb-1 hover:brightness-110 flex flex-col gap-1`}> 
-            <div className="flex justify-between items-center w-full">
-              <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
-              <div className="ml-1 opacity-80 shrink-0">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-            {showDetails && ev.patient_id && (
-              <div className="text-[10px] opacity-80 truncate">Con paciente</div>
-            )}
-          </button>
-        );
-      };
+      const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-[var(--color-success)]' : ev.event_type === 'reunion' ? 'border-l-4 border-[var(--color-teal)]' : ev.event_type === 'videollamada' ? 'border-l-4 border-[var(--color-gold)]' : 'border-l-4 border-[var(--color-amber)]';
+      const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card-alt)] text-[var(--color-text)]';
+
+      return (
+        <button key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`w-full text-left rounded px-2 py-1.5 border ${typeColor} border-[var(--color-border)] ${statusBg} text-xs mb-1 hover:brightness-110 flex flex-col gap-1`}>
+          <div className="flex justify-between items-center w-full">
+            <div className="font-semibold truncate" title={ev.title}>{ev.title}</div>
+            <div className="ml-1 opacity-80 shrink-0">{new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+          {showDetails && ev.patient_id && (
+            <div className="text-[10px] opacity-80 truncate">Con paciente</div>
+          )}
+        </button>
+      );
+    };
 
     return (
       <div className="grid grid-cols-7 gap-2">
         {weekDays.map((d) => {
           const dayKey = d.toDateString();
-          const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a,b) => new Date(a.start_at) - new Date(b.start_at));
+          const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
           const isToday = d.toDateString() === new Date().toDateString();
 
           return (
@@ -277,7 +286,7 @@ export default function Agenda() {
 
   const renderDayView = () => {
     const dayKey = viewDate.toDateString();
-    const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a,b) => new Date(a.start_at) - new Date(b.start_at));
+    const dayEvents = [...(eventsByDay[dayKey] || [])].sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
 
     return (
       <div className="min-h-[400px] bg-[var(--color-card-alt)] border border-[var(--color-border)] rounded p-4 space-y-4">
@@ -294,14 +303,14 @@ export default function Agenda() {
             {dayEvents.map(ev => {
               const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-[var(--color-success)]' : ev.event_type === 'reunion' ? 'border-l-4 border-[var(--color-teal)]' : ev.event_type === 'videollamada' ? 'border-l-4 border-[var(--color-gold)]' : 'border-l-4 border-[var(--color-amber)]';
               const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-text)]';
-              
+
               return (
                 <div key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`flex flex-col sm:flex-row p-4 rounded border ${typeColor} border-[var(--color-border)] ${statusBg} items-start sm:items-center justify-between gap-4 hover:brightness-110 transition-all cursor-pointer`}>
                   <div>
                     <h3 className="font-bold text-lg">{ev.title}</h3>
                     <p className="opacity-90 text-sm flex items-center gap-2 mt-1">
                       <IconClock size={16} />
-                      {new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+                      {new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       {ev.end_at ? ` - ${new Date(ev.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                     </p>
                     {ev.description && <p className="mt-2 text-sm opacity-80">{ev.description}</p>}
@@ -323,12 +332,12 @@ export default function Agenda() {
     if (!events.length) return <div className="text-center text-[var(--color-text-muted)] py-10">No se encontraron eventos.</div>;
 
     return (
-        <div className="space-y-3">
+      <div className="space-y-3">
         {events.map(ev => {
           const patient = ev.patient_id ? patients.find(p => p.id === ev.patient_id) : null;
           const typeColor = ev.event_type === 'cita' ? 'border-l-4 border-[var(--color-success)]' : ev.event_type === 'reunion' ? 'border-l-4 border-[var(--color-teal)]' : ev.event_type === 'videollamada' ? 'border-l-4 border-[var(--color-gold)]' : 'border-l-4 border-[var(--color-amber)]';
           const statusBg = ev.status === 'confirmada' ? 'bg-[var(--color-success)] text-white' : ev.status === 'cancelada' || ev.status === 'ausente' ? 'bg-[var(--color-danger)] text-white' : ev.status === 'realizada' ? 'bg-teal-600 text-white' : ev.status === 'en_curso' ? 'bg-amber-600 text-white' : ev.status === 'espera' ? 'bg-orange-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-text)]';
-          
+
           return (
             <div key={ev.id} onClick={(e) => { e.stopPropagation(); openDetails(ev); }} className={`flex flex-col sm:flex-row p-4 rounded border ${typeColor} border-[var(--color-border)] ${statusBg} items-start sm:items-center justify-between gap-4 hover:brightness-110 transition-all cursor-pointer`}>
               <div>
@@ -363,20 +372,21 @@ export default function Agenda() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+    <div className="w-full px-0 sm:px-2 py-3 bg-[var(--color-surface)] space-y-4">
+      <header className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4 px-2 sm:px-4">
         <div className="flex-1 space-y-3">
-          <h1 className="text-4xl font-bold text-[var(--color-text)]">Agenda</h1>
-          <p className="text-[var(--color-text-muted)]">Calendario de actividades y citas</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[var(--color-text)]">Agenda</h1>
+          <p className="text-[var(--color-text-muted)] text-sm sm:text-base">Calendario de actividades y citas</p>
           <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por título, paciente, estado..."
-              className="w-full max-w-md rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-            />
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por título, paciente, estado..."
+            className="w-full max-w-md rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-[var(--color-text)] text-sm"
+          />
         </div>
         <div className="flex flex-col items-end gap-3">
+          {/* Selector de modo de vista desactivado por requerimiento
           <div className="flex p-1 bg-[var(--color-card)] rounded-md border border-[var(--color-border)]">
             <button 
               type="button"
@@ -400,7 +410,8 @@ export default function Agenda() {
               Día
             </button> 
           </div>
-          <div className="flex gap-2">
+          */}
+          <div className="flex gap-2 flex-wrap justify-end">
             <GymButton onClick={() => openNew(new Date())} variant="primary"><IconPlus size={18} className="mr-1 inline" /> Nueva Agenda</GymButton>
             <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
             <GymButton onClick={() => { setViewDate(new Date()); setSelectedDate(new Date()); }} variant="ghost">Hoy</GymButton>
@@ -409,47 +420,30 @@ export default function Agenda() {
         </div>
       </header>
 
-      <div className="flex flex-col md:flex-row gap-4 items-start">
+      <div className="w-full space-y-6">
         {/* Vista principal (Calendario / Búsqueda) */}
-        <div className="flex-1 min-w-0 space-y-6">
-          <GymCard title={getViewTitle()} variant="default">
+        <GymCard title={getViewTitle()} variant="default" noPadding className="w-full">
+          <div className="p-0.5 sm:p-1">
             {searchQuery ? renderSearchResults() : (
               <>
                 {viewMode === 'month' && (
-                  <AgendaCalendar 
-                    viewDate={viewDate} 
+                  <AgendaCalendar
+                    viewDate={viewDate}
                     selectedDate={selectedDate}
                     onSelectDate={setSelectedDate}
-                    events={events} 
-                    onDayClick={openNew} 
-                    onEventClick={openDetails} 
-                  /> 
+                    events={events}
+                    onDayClick={openNew}
+                    onEventClick={openDetails}
+                  />
                 )}
                 {viewMode === 'week' && renderWeekView()}
                 {viewMode === 'day' && renderDayView()}
               </>
             )}
-          </GymCard>
-        </div>
-
-        {/* Panel Lateral de Agendas del Día */}
-        <div className="w-full md:w-[290px] lg:w-[270px] shrink-0 sticky top-6">
-          <TodayAgendaList 
-            events={events}
-            patients={patients}
-            selectedDate={selectedDate}
-            onSelectDate={(d) => {
-              setSelectedDate(d);
-              if (d.getMonth() !== viewDate.getMonth() || d.getFullYear() !== viewDate.getFullYear()) {
-                setViewDate(d);
-              }
-            }}
-            onEventClick={openDetails}
-            onStatusChange={(ev, newStatus) => applyStatusChange(ev, newStatus)}
-          />
-        </div>
+          </div>
+        </GymCard>
       </div>
-      
+
       <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="lg">
         {selectedEvent && (
           <div className="space-y-4 text-[var(--color-text)]">
@@ -534,11 +528,11 @@ export default function Agenda() {
                 </div>
                 <div className="pt-4 flex justify-between items-center gap-3">
                   {selectedPatient ? (
-                    <GymButton 
-                      variant="primary" 
-                      onClick={() => { 
-                        setDetailModalOpen(false); 
-                        navigate(`/patients/${selectedPatient.id}?tab=consult`); 
+                    <GymButton
+                      variant="primary"
+                      onClick={() => {
+                        setDetailModalOpen(false);
+                        navigate(`/patients/${selectedPatient.id}?tab=consult`);
                       }}
                     >
                       <IconStethoscope size={18} className="mr-1 inline" /> Nueva Consulta
@@ -557,7 +551,7 @@ export default function Agenda() {
                   <div className="grid grid-cols-1 sm:grid-cols-[2fr,1fr] gap-4">
                     <div>
                       <label className="block text-sm text-[var(--color-text-muted)] mb-1">Fecha Inicio</label>
-                      <SimpleDateInput 
+                      <SimpleDateInput
                         value={splitDateTime(getLocalDateTimeString(selectedEvent.start_at))[0]}
                         onChange={(date) => setSelectedEvent(prev => ({ ...prev, start_at: combineDateTime(date, prev.start_at) }))}
                       />
@@ -575,7 +569,7 @@ export default function Agenda() {
                   <div className="grid grid-cols-1 sm:grid-cols-[2fr,1fr] gap-4">
                     <div>
                       <label className="block text-sm text-[var(--color-text-muted)] mb-1">Fecha Fin</label>
-                      <SimpleDateInput 
+                      <SimpleDateInput
                         value={splitDateTime(getLocalDateTimeString(selectedEvent.end_at))[0]}
                         onChange={(date) => setSelectedEvent(prev => ({ ...prev, end_at: combineDateTime(date, prev.end_at) }))}
                       />
@@ -603,7 +597,7 @@ export default function Agenda() {
         )}
       </GymModal>
 
-      <ScheduleAppointmentModal 
+      <ScheduleAppointmentModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
