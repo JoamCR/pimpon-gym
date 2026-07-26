@@ -256,3 +256,11 @@ export function useNutritionPaidConsults(year, month) {
     enabled: !!year && !!month
   });
 }
+
+export function useAcquisitionOriginStats() {
+  return useQuery({
+    queryKey: ['statistics', 'acquisition-origin'],
+    queryFn: () => fetchWithAuth('/statistics/acquisition-origin').then(res => res.data),
+    staleTime: 5 * 60 * 1000
+  });
+}

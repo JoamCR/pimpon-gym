@@ -18,6 +18,9 @@ const createPatientSchema = z.object({
   quick_goal: z.string().optional(),
   quick_health_notes: z.string().optional(),
   quick_assessed_at: z.string().datetime().optional(),
+  client_id: z.string().uuid().optional(),
+  initial_origin: z.string().optional(),
+  current_flow: z.string().optional(),
 });
 
 const updatePatientSchema = createPatientSchema.partial();

@@ -89,6 +89,29 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
           </div>
         </div>
 
+        {/* 8. Membresía de Gimnasio */}
+        <div className="col-span-2 space-y-1.5 pt-2 border-t border-[var(--color-border)]">
+          <p className="text-sm text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Membresía de Gimnasio</p>
+          <div className="bg-[var(--color-surface)] p-3 rounded-md border border-[var(--color-border)] text-sm">
+            {patient.gym_plan_name || patient.plan_name ? (
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-[var(--color-text)]">Plan: {patient.gym_plan_name || patient.plan_name}</span>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${patient.gym_subscription_status === 'active' || patient.subscription_status === 'active' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-400'}`}>
+                    {patient.gym_subscription_status === 'active' || patient.subscription_status === 'active' ? 'Mensualidad Activa' : 'Suscripción Vencida'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-[var(--color-text-muted)] pt-1">
+                  <div>Vencimiento Mensualidad: <span className="font-semibold text-[var(--color-text)]">{patient.gym_subscription_end_date || patient.end_date ? new Date(patient.gym_subscription_end_date || patient.end_date).toLocaleDateString('es-MX') : 'N/A'}</span></div>
+                  <div>Vencimiento Anualidad: <span className="font-semibold text-[var(--color-text)]">{patient.gym_enrollment_expires_at || patient.enrollment_expires_at ? new Date(patient.gym_enrollment_expires_at || patient.enrollment_expires_at).toLocaleDateString('es-MX') : 'N/A'}</span></div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[var(--color-text-muted)] italic">Sin membresía de gimnasio registrada.</p>
+            )}
+          </div>
+        </div>
+
         {/* 8. Antecedentes Clínicos */}
         <div className="col-span-2 space-y-2 pt-2 border-t border-[var(--color-border)]">
           <p className="text-sm text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Antecedentes Clínicos</p>

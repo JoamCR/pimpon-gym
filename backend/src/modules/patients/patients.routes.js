@@ -65,6 +65,13 @@ async function patientRoutes(fastify, options) {
     const updated = await service.update(id, validation.data);
     return { data: updated };
   });
+
+  fastify.post('/:id/enroll-gym', async (request, reply) => {
+    const { id } = request.params;
+    const registeredBy = request.user?.id || null;
+    const result = await service.enrollPatientToGym(id, request.body, registeredBy);
+    return reply.status(200).send({ data: result });
+  });
 }
 
 module.exports = patientRoutes;

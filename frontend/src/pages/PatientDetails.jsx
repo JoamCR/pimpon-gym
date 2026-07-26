@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { usePatients, useCreatePayment } from '../hooks/usePatients';
-import { useClients } from '../hooks/useClients';
+import { usePatients, useCreatePayment, useEnrollPatientToGym } from '../hooks/usePatients';
+import { useClients, usePlans } from '../hooks/useClients';
 import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan, useExercisePlans } from '../hooks/useNutrition';
 import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
 import { ConsultationViewer } from '../components/ui/ConsultModal/ConsultationViewer';
-import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder, IconEdit } from '@tabler/icons-react';
+import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder, IconEdit, IconDumbbell } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
@@ -71,6 +71,15 @@ export default function PatientDetails() {
     return exercisePlans.find((plan) => plan.nutrition_record_id === selectedEvaluation.id) || null;
   }, [exercisePlans, selectedEvaluation]);
 
+  const isAlreadyGymClient = Boolean(
+    patient?.gym_client_id || 
+    patient?.userType === 'client' || 
+    patient?.user_type === 'client' || 
+    patient?.gym_plan_name || 
+    patient?.plan_name || 
+    patient?.initial_origin === 'gimnasio'
+  );
+
   // Modals state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -100,6 +109,44 @@ export default function PatientDetails() {
   const createExercisePlanMutation = useCreateExercisePlan();
   const createPaymentMutation = useCreatePayment();
   const createAgendaMutation = useCreateAgenda();
+
+  // Gym Enrollment state
+  const { data: plansData } = usePlans();
+  const planOptions = Array.isArray(plansData?.data) ? plansData.data : [];
+  const enrollPatientMutation = useEnrollPatientToGym();
+  const [enrollGymForm, setEnrollGymForm] = useState({
+    plan_id: '',
+    payment_method: 'cash',
+    payment_amount: '',
+    enrollment_amount: '500'
+  });
+
+  const handleEnrollGym = async () => {
+    if (!enrollGymForm.plan_id) {
+      toast.error('Por favor, selecciona un plan de gimnasio');
+      return;
+    }
+    const selectedPlan = planOptions.find(p => p.id === enrollGymForm.plan_id);
+    const requiresEnrollment = selectedPlan?.requires_enrollment !== false;
+
+    try {
+      const res = await enrollPatientMutation.mutateAsync({
+        patientId: patient.id,
+        plan_id: enrollGymForm.plan_id,
+        payment_method: enrollGymForm.payment_method,
+        payment_amount: Number(enrollGymForm.payment_amount || selectedPlan?.price_monthly || 0),
+        enrollment_amount: requiresEnrollment ? Number(enrollGymForm.enrollment_amount || 0) : 0,
+      });
+      if (res.data?.warning) {
+        toast.success('Paciente inscrito al gimnasio exitosamente. ' + res.data.warning);
+      } else {
+        toast.success('Paciente inscrito al gimnasio exitosamente');
+      }
+      setActiveTab('details');
+    } catch (err) {
+      toast.error(err.message || 'Error al inscribir paciente al gimnasio');
+    }
+  };
 
   // Agenda state and data
   const [viewDate, setViewDate] = useState(new Date());
@@ -291,10 +338,10 @@ export default function PatientDetails() {
 
       {/* Estilo de "Carpeta con Pestañas" */}
       <div className="mt-8">
-        <div className="flex flex-wrap gap-1 pl-4">
+        <div className="flex flex-wrap items-center gap-1 pl-2">
           <button
             onClick={() => setActiveTab('details')}
-            className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
+            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors ${
               activeTab === 'details' 
                 ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
                 : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
@@ -304,7 +351,7 @@ export default function PatientDetails() {
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 rounded-t-lg font-bold transition-colors ${
+            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors ${
               activeTab === 'history' 
                 ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
                 : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
@@ -314,9 +361,13 @@ export default function PatientDetails() {
           </button>
           <button
             onClick={() => setActiveTab('consult')}
-            className="px-6 py-3 rounded-t-lg font-bold transition-colors bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent flex items-center gap-2"
+            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${
+              activeTab === 'consult'
+                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]'
+                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+            }`}
           >
-            <IconStethoscope size={18} />
+            <IconStethoscope size={16} />
             Nueva Consulta
           </button>
           <button
@@ -324,26 +375,39 @@ export default function PatientDetails() {
               setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
               setActiveTab('payment');
             }}
-            className={`px-6 py-3 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${
               activeTab === 'payment' 
                 ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
                 : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
             }`}
           >
-            <IconCoin size={18} />
+            <IconCoin size={16} />
             Cobrar Consulta
           </button>
           <button
             onClick={() => setActiveTab('schedule')}
-            className={`px-6 py-3 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${
               activeTab === 'schedule' 
                 ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
                 : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
             }`}
           >
-            <IconCalendar size={18} />
+            <IconCalendar size={16} />
             Agendar Cita
           </button>
+          {!isAlreadyGymClient && (
+            <button
+              onClick={() => setActiveTab('enroll_gym')}
+              className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'enroll_gym' 
+                  ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
+                  : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+              }`}
+            >
+              <IconDumbbell size={16} />
+              Inscribir a Gimnasio
+            </button>
+          )}
         </div>
         
         <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-b-xl rounded-tr-xl p-6 shadow-lg min-h-[50vh]">
@@ -526,6 +590,104 @@ export default function PatientDetails() {
                     onEventClick={openAppointmentDetails}
                 />
              </div>
+          )}
+          {activeTab === 'enroll_gym' && (
+            <div className="space-y-4 text-[var(--color-text)] animate-in fade-in duration-300">
+              <h2 className="text-xl font-bold border-b border-[var(--color-border)] pb-2 mb-3 text-[var(--color-gold)] font-[var(--font-display)]">
+                Inscribir Paciente al Gimnasio (Mensualidad y Anualidad)
+              </h2>
+              <div className="max-w-lg space-y-4 bg-[var(--color-surface)] p-5 rounded-xl border border-[var(--color-border)] shadow-md">
+                {/* Paso 1: Selección de Plan */}
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    1. Selecciona el Plan de Gimnasio *
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {planOptions.map((plan) => {
+                      const isSelected = enrollGymForm.plan_id === plan.id;
+                      return (
+                        <button
+                          key={plan.id}
+                          type="button"
+                          onClick={() => {
+                            setEnrollGymForm({
+                              ...enrollGymForm,
+                              plan_id: plan.id,
+                              payment_amount: String(plan.price_monthly)
+                            });
+                          }}
+                          className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
+                            isSelected
+                              ? 'border-[var(--color-gold)] bg-[var(--color-gold)]/10 shadow-[var(--shadow-card)] font-bold'
+                              : 'border-[var(--color-border)] bg-[var(--color-card-alt)] hover:border-[var(--color-gold)]'
+                          }`}
+                        >
+                          <p className="text-base text-[var(--color-text)]">{plan.name}</p>
+                          <p className="mt-1 text-sm text-[var(--color-gold)]">${plan.price_monthly} MXN / mes</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Paso 2: Desglose de Costos Editables */}
+                {enrollGymForm.plan_id && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Costo Mensualidad ($ MXN)</label>
+                      <input
+                        type="number"
+                        value={enrollGymForm.payment_amount}
+                        onChange={(e) => setEnrollGymForm({ ...enrollGymForm, payment_amount: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-base font-bold text-[var(--color-text)] focus:border-[var(--color-gold)] focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Costo Inscripción / Anualidad ($ MXN)</label>
+                      <input
+                        type="number"
+                        value={enrollGymForm.enrollment_amount}
+                        onChange={(e) => setEnrollGymForm({ ...enrollGymForm, enrollment_amount: e.target.value })}
+                        placeholder="500.00"
+                        className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-base font-bold text-[var(--color-text)] focus:border-[var(--color-gold)] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Paso 3: Método de Pago y Total */}
+                <div className="grid grid-cols-2 gap-4 items-end pt-2">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Método de Pago</label>
+                    <select
+                      value={enrollGymForm.payment_method}
+                      onChange={(e) => setEnrollGymForm({ ...enrollGymForm, payment_method: e.target.value })}
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-sm text-[var(--color-text)] font-semibold"
+                    >
+                      <option value="cash">Efectivo</option>
+                      <option value="transfer">Transferencia</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Total a Cobrar</label>
+                    <div className="w-full rounded-[var(--radius-md)] border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-4 py-2.5 flex items-center justify-end">
+                      <span className="text-xl font-extrabold text-[var(--color-gold)] font-[var(--font-display)]">
+                        ${((Number(enrollGymForm.payment_amount) || 0) + (Number(enrollGymForm.enrollment_amount) || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
+                  <GymButton variant="secondary" onClick={() => setActiveTab('details')}>Cancelar</GymButton>
+                  <GymButton variant="gold" loading={enrollPatientMutation.isPending} disabled={!enrollGymForm.plan_id} onClick={handleEnrollGym}>
+                    Confirmar e Inscribir al Gimnasio
+                  </GymButton>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -133,6 +133,42 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE payments ALTER COLUMN client_id DROP NOT NULL;
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'clients' AND column_name = 'patient_id'
+      ) THEN
+        ALTER TABLE clients ADD COLUMN patient_id UUID;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'clients' AND column_name = 'initial_origin'
+      ) THEN
+        ALTER TABLE clients ADD COLUMN initial_origin VARCHAR(50) DEFAULT 'gimnasio';
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'clients' AND column_name = 'current_flow'
+      ) THEN
+        ALTER TABLE clients ADD COLUMN current_flow VARCHAR(50) DEFAULT 'gimnasio';
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'client_id'
+      ) THEN
+        ALTER TABLE patients ADD COLUMN client_id UUID;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'initial_origin'
+      ) THEN
+        ALTER TABLE patients ADD COLUMN initial_origin VARCHAR(50) DEFAULT 'nutricion';
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'current_flow'
+      ) THEN
+        ALTER TABLE patients ADD COLUMN current_flow VARCHAR(50) DEFAULT 'nutricion';
+      END IF;
     END $$;
     `,
   ];

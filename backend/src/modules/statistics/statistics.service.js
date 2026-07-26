@@ -234,7 +234,8 @@ const getComprehensiveStats = async (year, month) => {
       dailyAttendance,
       clientsByPlan,
       activeClients,
-      monthlyIncome
+      monthlyIncome,
+      acquisitionOrigin
     ] = await Promise.all([
       repository.getRetentionRate(),
       repository.getPaymentMethodsDistribution(y, m),
@@ -251,7 +252,8 @@ const getComprehensiveStats = async (year, month) => {
       repository.getDailyAttendance(y, m),
       repository.getClientsByPlan(),
       repository.getActiveClientsReal(),
-      repository.getMonthlyIncome(y)
+      repository.getMonthlyIncome(y),
+      repository.getAcquisitionOriginStats()
     ]);
 
     return {
@@ -262,7 +264,8 @@ const getComprehensiveStats = async (year, month) => {
         nutritionConversion: nutritionConversion,
         nutritionStats: nutritionStats,
         activeClients: activeClients,
-        sixMonthEligible: sixMonthEligible?.length || 0
+        sixMonthEligible: sixMonthEligible?.length || 0,
+        acquisitionOrigin: acquisitionOrigin
       },
       charts: {
         paymentMethods,
@@ -273,7 +276,8 @@ const getComprehensiveStats = async (year, month) => {
         sexDistributionClients,
         ageDistributionPatients,
         sexDistributionPatients,
-        nutritionRetention
+        nutritionRetention,
+        acquisitionOrigin
       }
     };
   } catch (error) {
@@ -411,6 +415,15 @@ const getNutritionIncomeReal = async (year, month) => {
   }
 };
 
+const getAcquisitionOriginStats = async () => {
+  try {
+    return await repository.getAcquisitionOriginStats();
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener estadísticas de canal de origen');
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getExpiredClients,
@@ -442,5 +455,6 @@ module.exports = {
   getNutritionPatientsToClientsConversion,
   getNutritionRetentionByThreeMonths,
   getNutritionConsultationDurations,
-  getNutritionIncomeReal
+  getNutritionIncomeReal,
+  getAcquisitionOriginStats
 };

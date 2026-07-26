@@ -1003,6 +1003,63 @@ const getNutritionIncomeReal = async (year, month) => {
   }
 };
 
+/**
+ * 28. getAcquisitionOriginStats(): estadísticas del canal de origen y flujos de migración
+ */
+const getAcquisitionOriginStats = async () => {
+  const sql = `
+    WITH gym_stats AS (
+      SELECT 
+        COUNT(DISTINCT c.id) FILTER (WHERE c.patient_id IS NULL AND (c.current_flow = 'gimnasio' OR c.current_flow IS NULL)) as gimnasio_only,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.patient_id IS NOT NULL OR c.current_flow = 'gimnasio_y_nutricion') as gimnasio_to_nutricion,
+        COUNT(DISTINCT c.id) as total_clients
+      FROM clients c
+    ),
+    nut_stats AS (
+      SELECT 
+        COUNT(DISTINCT p.id) FILTER (WHERE p.client_id IS NULL AND (p.current_flow = 'nutricion' OR p.current_flow IS NULL)) as nutricion_only,
+        COUNT(DISTINCT p.id) FILTER (WHERE p.client_id IS NOT NULL OR p.current_flow = 'nutricion_y_gimnasio') as nutricion_to_gimnasio,
+        COUNT(DISTINCT p.id) as total_patients
+      FROM patients p
+    )
+    SELECT 
+      g.gimnasio_only::INT,
+      g.gimnasio_to_nutricion::INT,
+      g.total_clients::INT,
+      n.nutricion_only::INT,
+      n.nutricion_to_gimnasio::INT,
+      n.total_patients::INT
+    FROM gym_stats g, nut_stats n
+  `;
+  try {
+    const result = await pool.query(sql);
+    const row = result.rows[0] || {};
+    const gymOnly = row.gimnasio_only || 0;
+    const nutOnly = row.nutricion_only || 0;
+    const gymToNut = row.gimnasio_to_nutricion || 0;
+    const nutToGym = row.nutricion_to_gimnasio || 0;
+    const grandTotal = gymOnly + nutOnly + gymToNut + nutToGym || 1;
+
+    return {
+      gimnasio_only: gymOnly,
+      nutricion_only: nutOnly,
+      gimnasio_to_nutricion: gymToNut,
+      nutricion_to_gimnasio: nutToGym,
+      percentages: {
+        gimnasio_only: Math.round((gymOnly / grandTotal) * 100),
+        nutricion_only: Math.round((nutOnly / grandTotal) * 100),
+        gimnasio_to_nutricion: Math.round((gymToNut / grandTotal) * 100),
+        nutricion_to_gimnasio: Math.round((nutToGym / grandTotal) * 100),
+      },
+      total_clients: row.total_clients || 0,
+      total_patients: row.total_patients || 0
+    };
+  } catch (err) {
+    console.error('Error obteniendo estadísticas de canal de origen:', err);
+    throw createError(500, 'Error obteniendo estadísticas de origen de clientes/pacientes');
+  }
+};
+
 module.exports = {
   getMonthlyIncome,
   getActiveClientsReal,
@@ -1037,5 +1094,6 @@ module.exports = {
   getNutritionPatientsToClientsConversion,
   getNutritionRetentionByThreeMonths,
   getNutritionConsultationDurations,
-  getNutritionIncomeReal
+  getNutritionIncomeReal,
+  getAcquisitionOriginStats
 };

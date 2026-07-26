@@ -210,6 +210,10 @@ export default function Clients() {
       coach_fitness_level: client.coach_fitness_level || '',
       coach_health_notes: client.coach_health_notes || '',
       coach_goal: client.coach_goal || '',
+      quick_weight_kg: client.quick_weight_kg ? String(client.quick_weight_kg) : '',
+      quick_height_cm: client.quick_height_cm ? String(client.quick_height_cm) : '',
+      quick_goal: client.quick_goal || '',
+      quick_health_notes: client.quick_health_notes || '',
       notes: client.notes || '',
       birth_date: formatDateForInput(client.birth_date),
       enrollment_date: formatDateForInput(client.enrollment_date),
@@ -315,6 +319,18 @@ export default function Clients() {
       payload.age = null;
     }
 
+    if (payload.quick_weight_kg) {
+      payload.quick_weight_kg = Number(payload.quick_weight_kg);
+    } else {
+      payload.quick_weight_kg = null;
+    }
+
+    if (payload.quick_height_cm) {
+      payload.quick_height_cm = Number(payload.quick_height_cm);
+    } else {
+      payload.quick_height_cm = null;
+    }
+
     // Sanitize empty strings to avoid Zod schema validation errors
     if (!payload.phone) delete payload.phone;
     if (!payload.rfc) delete payload.rfc;
@@ -322,6 +338,8 @@ export default function Clients() {
     if (!payload.coach_fitness_level) delete payload.coach_fitness_level;
     if (!payload.coach_health_notes) delete payload.coach_health_notes;
     if (!payload.coach_goal) delete payload.coach_goal;
+    if (!payload.quick_goal) delete payload.quick_goal;
+    if (!payload.quick_health_notes) delete payload.quick_health_notes;
     if (!payload.notes) delete payload.notes;
 
     payload.birth_date = payload.birth_date || null;
@@ -1475,17 +1493,30 @@ export default function Clients() {
                 className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
               />
             </div>
+            
+            {/* Campo de Objetivo Nutricional */}
+            <div className="space-y-2 sm:col-span-2">
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Objetivo Nutricional / Consulta</label>
+              <textarea
+                rows={2}
+                value={editFormData.quick_goal || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, quick_goal: e.target.value })}
+                placeholder="Disminuir grasa, ganancia muscular, control de salud..."
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+              />
+            </div>
+
             <div className="space-y-2 sm:col-span-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas de salud</label>
               <textarea
                 rows={2}
                 value={editFormData.coach_health_notes || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, coach_health_notes: e.target.value })}
+                onChange={(e) => setEditFormData({ ...editFormData, coach_health_notes: e.target.value, quick_health_notes: e.target.value })}
                 className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Objetivo principal</label>
+              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Objetivo de Gimnasio</label>
               <textarea
                 rows={2}
                 value={editFormData.coach_goal || ''}

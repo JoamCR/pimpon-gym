@@ -149,7 +149,9 @@ const update = async (id, data) => {
     'first_name', 'last_name', 'age', 'phone', 'email', 'rfc', 'gender',
     'client_type', 'plan_id', 'notes', 'coach_fitness_level', 
     'coach_health_notes', 'coach_goal', 'is_active',
-    'birth_date', 'enrollment_date', 'enrollment_expires_at'
+    'birth_date', 'enrollment_date', 'enrollment_expires_at',
+    'quick_weight_kg', 'quick_height_cm', 'quick_goal', 'quick_health_notes',
+    'quick_assessed_at', 'patient_id', 'initial_origin', 'current_flow'
   ];
   
   const updateData = {};
@@ -160,6 +162,30 @@ const update = async (id, data) => {
   }
   
   await repository.update(id, updateData);
+
+  // Sincronizar datos personales y de salud con el paciente vinculado si existe
+  const linkedPatientId = updateData.patient_id || exists.patient_id;
+  if (linkedPatientId) {
+    const patientFieldsToSync = {};
+    if (data.first_name !== undefined) patientFieldsToSync.first_name = data.first_name;
+    if (data.last_name !== undefined) patientFieldsToSync.last_name = data.last_name;
+    if (data.phone !== undefined) patientFieldsToSync.phone = data.phone;
+    if (data.email !== undefined) patientFieldsToSync.email = data.email;
+    if (data.rfc !== undefined) patientFieldsToSync.rfc = data.rfc;
+    if (data.gender !== undefined) patientFieldsToSync.gender = data.gender;
+    if (data.age !== undefined) patientFieldsToSync.age = data.age;
+    if (data.birth_date !== undefined) patientFieldsToSync.birth_date = data.birth_date;
+    if (data.quick_weight_kg !== undefined) patientFieldsToSync.quick_weight_kg = data.quick_weight_kg;
+    if (data.quick_height_cm !== undefined) patientFieldsToSync.quick_height_cm = data.quick_height_cm;
+    if (data.quick_goal !== undefined) patientFieldsToSync.quick_goal = data.quick_goal;
+    if (data.quick_health_notes !== undefined) patientFieldsToSync.quick_health_notes = data.quick_health_notes;
+    if (data.id !== undefined) patientFieldsToSync.client_id = id;
+
+    if (Object.keys(patientFieldsToSync).length > 0) {
+      const patientRepo = require('../patients/patients.repository');
+      await patientRepo.update(linkedPatientId, patientFieldsToSync);
+    }
+  }
 
   // Manejar fechas de mensualidad (suscripción activa) y cambio de plan
   if (data.subscription_start_date !== undefined || data.subscription_end_date !== undefined || data.plan_id !== undefined) {

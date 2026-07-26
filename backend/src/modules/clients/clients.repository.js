@@ -103,9 +103,11 @@ const create = async (data, dbClient) => {
       id, first_name, last_name, age, phone, plan_id,
       email, rfc, gender, enrollment_date, enrollment_expires_at,
       coach_fitness_level, coach_health_notes, coach_goal, created_by,
-      birth_date
+      birth_date, quick_weight_kg, quick_height_cm, quick_goal, quick_health_notes,
+      patient_id, initial_origin, current_flow
     ) VALUES (
-      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+      gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+      $16, $17, $18, $19, $20, $21, $22
     ) RETURNING *
   `;
   const params = [
@@ -123,7 +125,14 @@ const create = async (data, dbClient) => {
     data.coach_health_notes || null,
     data.coach_goal || null,
     data.created_by,
-    data.birth_date || null
+    data.birth_date || null,
+    data.quick_weight_kg || null,
+    data.quick_height_cm || null,
+    data.quick_goal || null,
+    data.quick_health_notes || null,
+    data.patient_id || null,
+    data.initial_origin || 'gimnasio',
+    data.current_flow || 'gimnasio'
   ];
   
   const executor = dbClient || { query };

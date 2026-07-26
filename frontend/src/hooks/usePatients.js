@@ -120,4 +120,27 @@ export const validatePatientField = async (field, value) => {
   return true;
 };
 
+export const useEnrollPatientToGym = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ patientId, ...payload }) => {
+      const res = await fetch(`${API_URL}/patients/${patientId}/enroll-gym`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Error al inscribir al gimnasio');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['patients']);
+      qc.invalidateQueries(['clients']);
+      qc.invalidateQueries(['patient']);
+    }
+  });
+};
+
 export default usePatients;

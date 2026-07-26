@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { usePatients, useCreatePatient, useCreatePayment, validatePatientField } from '../hooks/usePatients';
+import { usePatients, useCreatePatient, useCreatePayment, validatePatientField, useEnrollPatientToGym } from '../hooks/usePatients';
+import { usePlans } from '../hooks/useClients';
 import { useCreateAgenda } from '../hooks/useAgenda';
 import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan } from '../hooks/useNutrition';
 import { GymCard } from '../components/ui/GymCard';
@@ -11,7 +12,7 @@ import { AgregarPaciente } from '../components/ui/AgregarPaciente';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { HybridDateInput } from '../components/ui/HybridDateInput';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope, IconDumbbell } from '@tabler/icons-react';
 
 const HealthSlider = ({ label, value, onChange }) => {
   const getSegmentColor = (index, val) => {
@@ -75,6 +76,45 @@ export default function Patients() {
   const createEvaluationMutation = useCreateEvaluation();
   const createExercisePlanMutation = useCreateExercisePlan();
   const createPaymentMutation = useCreatePayment();
+  const enrollPatientMutation = useEnrollPatientToGym();
+  const { data: plansData } = usePlans();
+  const planOptions = Array.isArray(plansData?.data) ? plansData.data : [];
+
+  const [enrollGymModalOpen, setEnrollGymModalOpen] = useState(false);
+  const [enrollGymForm, setEnrollGymForm] = useState({ plan_id: '', payment_method: 'cash', payment_amount: '', enrollment_amount: '500' });
+
+  const handleOpenEnrollGym = (patient) => {
+    setSelectedPatient(patient);
+    setEnrollGymForm({ plan_id: '', payment_method: 'cash', payment_amount: '', enrollment_amount: '500' });
+    setEnrollGymModalOpen(true);
+  };
+
+  const handleSaveEnrollGym = async () => {
+    if (!enrollGymForm.plan_id) {
+      toast.error('Por favor, selecciona un plan de gimnasio');
+      return;
+    }
+    const selectedPlan = planOptions.find(p => p.id === enrollGymForm.plan_id);
+    const requiresEnrollment = selectedPlan?.requires_enrollment !== false;
+
+    try {
+      const res = await enrollPatientMutation.mutateAsync({
+        patientId: selectedPatient.id,
+        plan_id: enrollGymForm.plan_id,
+        payment_method: enrollGymForm.payment_method,
+        payment_amount: Number(enrollGymForm.payment_amount || selectedPlan?.price_monthly || 0),
+        enrollment_amount: requiresEnrollment ? Number(enrollGymForm.enrollment_amount || 0) : 0,
+      });
+      if (res.data?.warning) {
+        toast.success('Paciente inscrito al gimnasio exitosamente. ' + res.data.warning);
+      } else {
+        toast.success('Paciente inscrito al gimnasio exitosamente');
+      }
+      setEnrollGymModalOpen(false);
+    } catch (err) {
+      toast.error(err.message || 'Error al inscribir el paciente al gimnasio');
+    }
+  };
   
   const { data: evaluationsData, isLoading: isLoadingEvaluations } = useEvaluationHistory(selectedPatient?.id);
   const evaluations = Array.isArray(evaluationsData?.data) ? evaluationsData.data : [];
@@ -474,6 +514,7 @@ export default function Patients() {
                     Paciente {getSortIcon('patientName')}
                   </th>
                   <th className="px-4 py-4">Teléfono</th>
+                  <th className="px-4 py-4">Gimnasio</th>
                   <th className="px-4 py-4 cursor-pointer hover:bg-[rgba(255,255,255,0.05)] transition-colors" onClick={() => handleSort('created_at')}>
                     Fecha Alta {getSortIcon('created_at')}
                   </th>
@@ -485,30 +526,44 @@ export default function Patients() {
                    <tr>
                      <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">Cargando pacientes...</td>
                    </tr>
-                ) : sortedPatients.map((patient, index) => (
-                  <tr key={patient.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-success)] text-white font-bold">{patient.first_name?.[0]}{patient.last_name?.[0]}</div>
-                        <div>
-                          <p 
-                            className="font-semibold text-[var(--color-text)] cursor-pointer hover:underline"
-                            onClick={() => handleViewPatient(patient)}
-                          >
-                            {patient.first_name} {patient.last_name}
-                          </p>
-                          <p className="text-sm text-[var(--color-text-muted)]">{patient.email || 'Sin correo'}</p>
+                ) : sortedPatients.map((patient, index) => {
+                  const hasGymActive = patient.gym_subscription_status === 'active';
+                  const gymPlan = patient.gym_plan_name || patient.plan_name;
+
+                  return (
+                    <tr key={patient.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-success)] text-white font-bold">{patient.first_name?.[0]}{patient.last_name?.[0]}</div>
+                          <div>
+                            <p 
+                              className="font-semibold text-[var(--color-text)] cursor-pointer hover:underline"
+                              onClick={() => handleViewPatient(patient)}
+                            >
+                              {patient.first_name} {patient.last_name}
+                            </p>
+                            <p className="text-sm text-[var(--color-text-muted)]">{patient.email || 'Sin correo'}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{patient.phone}</td>
-                    <td className="px-4 py-4 text-sm text-[var(--color-text)]">{new Date(patient.created_at).toLocaleDateString('es-MX')}</td>
-                    <td className="px-4 py-4 space-x-2">
-                      <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleOpenPatientModal(patient, 'view')}>Ver</GymButton>
-                      <GymButton size="xs" variant="primary" icon={<IconEdit size={16} />} onClick={() => handleOpenPatientModal(patient, 'edit')}>Editar</GymButton>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">{patient.phone}</td>
+                      <td className="px-4 py-4 text-sm">
+                        {gymPlan ? (
+                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold ${hasGymActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                            <IconDumbbell size={14} /> {gymPlan}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[var(--color-text-muted)] italic">Sin Gimnasio</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-[var(--color-text)]">{new Date(patient.created_at).toLocaleDateString('es-MX')}</td>
+                      <td className="px-4 py-4 space-x-2">
+                        <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleOpenPatientModal(patient, 'view')}>Ver</GymButton>
+                        <GymButton size="xs" variant="primary" icon={<IconEdit size={16} />} onClick={() => handleOpenPatientModal(patient, 'edit')}>Editar</GymButton>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {!isLoading && sortedPatients.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-text-muted)]">No se encontraron pacientes.</td>
@@ -621,6 +676,7 @@ export default function Patients() {
         isLoadingEvaluations={isLoadingEvaluations}
         initialMode={patientModalMode}
       />
+
     </div>
   );
 }         

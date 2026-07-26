@@ -32,7 +32,8 @@ import {
   useRetainedClients,
   useNutritionFreeConsults,
   useNutritionPaidConsults,
-  useConsistentClients
+  useConsistentClients,
+  useAcquisitionOriginStats
 } from '../hooks/useStatistics';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
@@ -92,6 +93,7 @@ export default function Statistics() {
   const { data: nutritionPaidConsults } = useNutritionPaidConsults(year, month);
   const { data: retentionClients } = useRetainedClients();
   const { data: consistentClients } = useConsistentClients(6);
+  const { data: acquisitionOriginData } = useAcquisitionOriginStats();
 
   if (error) {
     return (
@@ -576,6 +578,43 @@ export default function Statistics() {
           </p>
         </div>
       </header>
+
+      {/* Medio de Llegada y Conversiones */}
+      <section className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-md space-y-4">
+        <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-3">
+          <div className="w-1.5 h-7 bg-[var(--color-gold)] rounded-full" />
+          <div>
+            <h2 className="text-xl font-bold text-[var(--color-text)]">Medio de Llegada y Conversiones</h2>
+            <p className="text-xs text-[var(--color-text-muted)]">Canal de origen de tus clientes/pacientes y tasa de migración entre etapas.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+            <span className="text-xs font-bold text-[var(--color-secondary)] uppercase tracking-wider block mb-1">Origen: Solo Gimnasio</span>
+            <p className="text-3xl font-bold text-[var(--color-text)]">{acquisitionOriginData?.gimnasio_only || 0}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total registrado</p>
+          </div>
+
+          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+            <span className="text-xs font-bold text-[var(--color-success)] uppercase tracking-wider block mb-1">Origen: Solo Nutrición</span>
+            <p className="text-3xl font-bold text-[var(--color-text)]">{acquisitionOriginData?.nutricion_only || 0}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.nutricion_only || 0}% del total registrado</p>
+          </div>
+
+          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+            <span className="text-xs font-bold text-[var(--color-gold)] uppercase tracking-wider block mb-1">Gimnasio → Nutrición</span>
+            <p className="text-3xl font-bold text-[var(--color-gold)]">{acquisitionOriginData?.gimnasio_to_nutricion || 0}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones a consulta</p>
+          </div>
+
+          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
+            <span className="text-xs font-bold text-amber-500 uppercase tracking-wider block mb-1">Nutrición → Gimnasio</span>
+            <p className="text-3xl font-bold text-amber-500">{acquisitionOriginData?.nutricion_to_gimnasio || 0}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones a membresía</p>
+          </div>
+        </div>
+      </section>
 
       <div className="relative my-8">
         <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-text-muted)] to-transparent" />

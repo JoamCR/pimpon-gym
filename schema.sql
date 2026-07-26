@@ -56,12 +56,15 @@ CREATE TABLE IF NOT EXISTS clients (
     quick_assessed_at TIMESTAMPTZ,
     quick_goal VARCHAR(255),
     quick_health_notes TEXT,
+    patient_id UUID,
+    initial_origin VARCHAR(50) DEFAULT 'gimnasio',
+    current_flow VARCHAR(50) DEFAULT 'gimnasio',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_by UUID REFERENCES app_users(id) ON DELETE SET NULL
 );
 
 -- 4. TABLA DE PACIENTES
-CREATE TABLE patients (
+CREATE TABLE IF NOT EXISTS patients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -81,6 +84,9 @@ CREATE TABLE patients (
     quick_assessed_at TIMESTAMPTZ,
     is_active BOOLEAN DEFAULT TRUE,
     first_consult_used BOOLEAN DEFAULT FALSE,
+    client_id UUID,
+    initial_origin VARCHAR(50) DEFAULT 'nutricion',
+    current_flow VARCHAR(50) DEFAULT 'nutricion',
     created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

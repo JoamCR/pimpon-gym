@@ -245,6 +245,11 @@ async function statisticsRoutes(fastify, options) {
     const data = await service.getNutritionIncomeReal(year, month);
     return { data };
   });
+
+  fastify.get('/acquisition-origin', async (request, reply) => {
+    const data = await service.getAcquisitionOriginStats();
+    return { data };
+  });
 }
 
 module.exports = statisticsRoutes;
