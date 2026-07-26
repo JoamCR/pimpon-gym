@@ -4,6 +4,7 @@ import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import { IconEdit } from '@tabler/icons-react';
 import { useUpdatePatient } from '../../../hooks/usePatients';
+import { useUpdateClient } from '../../../hooks/useClients';
 
 export const parseAntecedentes = (notesStr) => {
   if (!notesStr) return { family: null, pathological: null, personal: null, other: null };
@@ -164,6 +165,7 @@ export function PatientDetailsModal({
 
   const [isEditing, setIsEditing] = useState(initialMode === 'edit');
   const updatePatientMutation = useUpdatePatient();
+  const updateClientMutation = useUpdateClient();
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -230,7 +232,11 @@ export function PatientDetailsModal({
     };
 
     try {
-      await updatePatientMutation.mutateAsync(payload);
+      if (patient.userType === 'client') {
+        await updateClientMutation.mutateAsync(payload);
+      } else {
+        await updatePatientMutation.mutateAsync(payload);
+      }
       toast.success('Paciente actualizado exitosamente');
       setIsEditing(false);
       onClose();
@@ -419,7 +425,7 @@ export function PatientDetailsModal({
             <GymButton variant="secondary" onClick={() => { setIsEditing(false); if (initialMode === 'edit') onClose(); }}>
               Cancelar
             </GymButton>
-            <GymButton variant="primary" loading={updatePatientMutation.isPending} onClick={handleSaveEdit}>
+            <GymButton variant="primary" loading={updatePatientMutation.isPending || updateClientMutation.isPending} onClick={handleSaveEdit}>
               Guardar Cambios
             </GymButton>
           </>

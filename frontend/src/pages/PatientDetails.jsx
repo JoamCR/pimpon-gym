@@ -8,11 +8,11 @@ import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
 import { ConsultationViewer } from '../components/ui/ConsultModal/ConsultationViewer';
-import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder } from '@tabler/icons-react';
+import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder, IconEdit } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
-import { PatientDetailsContent } from '../components/ui/ConsultModal/PatientDetailsModal';
+import { PatientDetailsContent, PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 
 export default function PatientDetails() {
   const { slug } = useParams();
@@ -73,6 +73,7 @@ export default function PatientDetails() {
 
   // Modals state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   // Forms state
   const [paymentForm, setPaymentForm] = useState({ amount: '', payment_method: 'cash', notes: '' });
@@ -348,6 +349,12 @@ export default function PatientDetails() {
         <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-b-xl rounded-tr-xl p-6 shadow-lg min-h-[50vh]">
           {activeTab === 'details' && (
             <div className="animate-in fade-in duration-300">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-[var(--color-border)]">
+                <h2 className="text-2xl font-bold text-[var(--color-gold)]">Información del Paciente</h2>
+                <GymButton variant="primary" size="sm" icon={<IconEdit size={16} />} onClick={() => setIsEditModalOpen(true)}>
+                  Editar Paciente
+                </GymButton>
+              </div>
               <PatientDetailsContent 
                 patient={patient} 
                 evaluations={evaluations} 
@@ -529,6 +536,15 @@ export default function PatientDetails() {
         onSubmit={handleSaveSchedule}
         initialFormState={initialFormState}
         patients={[patient].filter(Boolean)}
+      />
+
+      <PatientDetailsModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        patient={patient}
+        evaluations={evaluations}
+        isLoadingEvaluations={isLoadingEvaluations}
+        initialMode="edit"
       />
     </div>
   );
