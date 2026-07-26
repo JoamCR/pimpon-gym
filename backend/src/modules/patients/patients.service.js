@@ -2,6 +2,7 @@ const repository = require('./patients.repository');
 const clientsRepository = require('../clients/clients.repository');
 const { createError } = require('../../lib/appError');
 const { pool } = require('../../lib/database');
+const { parseLocalDate, formatLocalDate, addOneYearPreservingDayAndMonth } = require('../../lib/dateUtils');
 
 const getAll = async (filters) => {
   return await repository.findAll(filters);
@@ -138,6 +139,16 @@ const enrollPatientToGym = async (patientId, data, registeredBy) => {
         registered_by: registeredBy,
         entity_type: 'gym'
       }, dbClient);
+
+      const enrollmentDate = client.enrollment_date || formatLocalDate(new Date());
+      const parsedEnrollment = parseLocalDate(enrollmentDate);
+      const expiresObj = addOneYearPreservingDayAndMonth(parsedEnrollment, parsedEnrollment.getMonth(), parsedEnrollment.getDate());
+      const enrollmentExpiresAt = formatLocalDate(expiresObj);
+
+      await dbClient.query(
+        "UPDATE clients SET enrollment_date = $1, enrollment_expires_at = $2 WHERE id = $3",
+        [enrollmentDate, enrollmentExpiresAt, client.id]
+      );
     }
 
     // 4. Registrar pago de mensualidad o visita

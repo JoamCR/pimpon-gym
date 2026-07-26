@@ -1,6 +1,7 @@
 const repository = require('./clients.repository');
 const { createError } = require('../../lib/appError');
 const { pool } = require('../../lib/database');
+const { parseLocalDate, formatLocalDate, addOneYearPreservingDayAndMonth } = require('../../lib/dateUtils');
 
 /**
  * Obtiene la lista de clientes aplicando transformaciones necesarias
@@ -50,8 +51,23 @@ const create = async (data, registeredBy) => {
       throw createError(404, 'El plan seleccionado no existe');
     }
 
-    // 2. Crear el cliente
-    const clientData = { ...data, created_by: registeredBy };
+    // 2. Preparar datos del cliente incluyendo fechas de inscripción si aplica
+    const todayStr = formatLocalDate(new Date());
+    const enrollmentDate = data.enrollment_date || todayStr;
+    let enrollmentExpiresAt = data.enrollment_expires_at || null;
+
+    if ((plan.requires_enrollment || data.enrollment_amount !== undefined) && !enrollmentExpiresAt) {
+      const parsedEnrollment = parseLocalDate(enrollmentDate);
+      const expiresObj = addOneYearPreservingDayAndMonth(parsedEnrollment, parsedEnrollment.getMonth(), parsedEnrollment.getDate());
+      enrollmentExpiresAt = formatLocalDate(expiresObj);
+    }
+
+    const clientData = {
+      ...data,
+      enrollment_date: (plan.requires_enrollment || data.enrollment_amount !== undefined) ? enrollmentDate : (data.enrollment_date || null),
+      enrollment_expires_at: enrollmentExpiresAt,
+      created_by: registeredBy
+    };
     const newClient = await repository.create(clientData, dbClient);
     
     // 2.1 Asignar el UUID generado como código QR del cliente en la base de datos

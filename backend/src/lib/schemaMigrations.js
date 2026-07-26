@@ -171,6 +171,19 @@ const runSchemaMigrations = async () => {
       END IF;
     END $$;
     `,
+    `
+    DO $$
+    BEGIN
+      UPDATE clients c
+      SET 
+        enrollment_date = COALESCE(c.enrollment_date, p.paid_at::date, CURRENT_DATE),
+        enrollment_expires_at = COALESCE(c.enrollment_expires_at, (COALESCE(c.enrollment_date, p.paid_at::date, CURRENT_DATE) + INTERVAL '1 year')::date)
+      FROM payments p
+      WHERE p.client_id = c.id
+        AND p.payment_type = 'enrollment'
+        AND c.enrollment_expires_at IS NULL;
+    END $$;
+    `,
   ];
 
   for (const statement of statements) {
