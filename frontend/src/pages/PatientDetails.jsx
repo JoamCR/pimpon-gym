@@ -24,6 +24,10 @@ export default function PatientDetails() {
   const [activeTab, setActiveTab] = useState(tabFromQuery || 'details');
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
+
+  useEffect(() => {
     if (tabFromQuery) {
       setActiveTab(tabFromQuery);
     }
@@ -322,17 +326,12 @@ export default function PatientDetails() {
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-3">
-          <GymButton variant="secondary" onClick={() => navigate(-1)} icon={<IconArrowLeft size={18} />}>
-            Volver
-          </GymButton>
-          <div>
-            <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)] flex items-center gap-3">
-              <IconFolder className="text-[var(--color-gold)]" size={36} />
-              Expediente: {patient.first_name} {patient.last_name}
-            </h1>
-            <p className="text-[var(--color-text-muted)] mt-2">Gestiona el historial y las consultas de este paciente.</p>
-          </div>
+        <div>
+          <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)] flex items-center gap-3">
+            <IconFolder className="text-[var(--color-gold)]" size={36} />
+            Expediente: {patient.first_name} {patient.last_name}
+          </h1>
+          <p className="text-[var(--color-text-muted)] mt-2">Gestiona el historial y las consultas de este paciente.</p>
         </div>
       </header>
 
