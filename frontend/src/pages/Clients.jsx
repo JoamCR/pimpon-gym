@@ -335,6 +335,7 @@ export default function Clients() {
     if (!payload.phone) delete payload.phone;
     if (!payload.rfc) delete payload.rfc;
     if (!payload.email) delete payload.email;
+    if (!payload.plan_id) delete payload.plan_id;
     if (!payload.coach_fitness_level) delete payload.coach_fitness_level;
     if (!payload.coach_health_notes) delete payload.coach_health_notes;
     if (!payload.coach_goal) delete payload.coach_goal;

@@ -88,7 +88,7 @@ export const useCreateClient = () => {
         // Mapear los detalles de Zod (si existen) o mostrar el error general
         let errorMessage = data.error || data.message || 'Error al crear el cliente';
         if (data.details) {
-          const firstError = Object.values(data.details).find(val => Array.isArray(val) && val._errors)?.['_errors']?.[0];
+          const firstError = Object.values(data.details).find(val => val && Array.isArray(val._errors) && val._errors.length > 0)?.['_errors']?.[0];
           if (firstError) errorMessage = firstError;
         }
         throw new Error(errorMessage);
@@ -116,7 +116,7 @@ export const useUpdateClient = () => {
         // Mapear los detalles de Zod (si existen) o mostrar el error general
         let errorMessage = data.error || data.message || 'Error al actualizar el cliente';
         if (data.details) {
-          const firstError = Object.values(data.details).find(val => Array.isArray(val) && val._errors)?.['_errors']?.[0];
+          const firstError = Object.values(data.details).find(val => val && Array.isArray(val._errors) && val._errors.length > 0)?.['_errors']?.[0];
           if (firstError) errorMessage = firstError;
         }
         throw new Error(errorMessage);

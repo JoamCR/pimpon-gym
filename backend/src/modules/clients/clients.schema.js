@@ -35,6 +35,14 @@ const createClientSchema = z.object({
 // Esquema para actualización (todos los campos son opcionales y extendidos)
 const updateClientSchema = createClientSchema.partial().extend({
   age: z.number().int().min(10, 'La edad mínima es 10 años').max(100, 'La edad máxima es 100 años').nullable().optional(),
+  quick_weight_kg: z.number().positive('El peso debe ser positivo').nullable().optional(),
+  quick_height_cm: z.number().positive('La altura debe ser positiva').nullable().optional(),
+  plan_id: z.string().uuid('El ID del plan debe ser un UUID válido').or(z.literal('')).nullable().optional(),
+  phone: z.string().regex(/^\d{10}$/, 'El teléfono debe tener 10 dígitos (formato mexicano)').or(z.literal('')).nullable().optional(),
+  email: z.string().email('El correo no es válido').or(z.literal('')).nullable().optional(),
+  gender: z.enum(['Masculino', 'Femenino', 'Otro', 'M', 'F', 'O'], {
+    errorMap: () => ({ message: 'Género inválido' })
+  }).nullable().optional(),
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').nullable().optional(),
   enrollment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').nullable().optional(),
   enrollment_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)').nullable().optional(),
