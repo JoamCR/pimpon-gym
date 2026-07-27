@@ -154,7 +154,7 @@ export default function PatientDetails() {
   const events = useMemo(() => agendaData?.data || [], [agendaData]);
 
   const handleSaveConsult = async (payload) => {
-    const isClient = patient.userType === 'client';
+    const isClient = patient?.userType === 'client' || patient?.user_type === 'client';
     const cleanedPayload = {
       ...payload,
       entity_type: isClient ? 'gym' : 'consultorio',

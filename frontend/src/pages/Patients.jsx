@@ -166,9 +166,11 @@ export default function Patients() {
   };
 
   const handleSaveConsult = async (payload) => {
+    const isClient = selectedPatient?.userType === 'client' || selectedPatient?.user_type === 'client';
     const cleanedPayload = {
       ...payload,
-      entity_type: 'consultorio',
+      entity_type: isClient ? 'gym' : 'consultorio',
+      [isClient ? 'client_id' : 'patient_id']: selectedPatient.id,
     };
 
     ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g'].forEach((key) => {

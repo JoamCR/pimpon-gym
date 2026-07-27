@@ -171,9 +171,11 @@ export function ConsultForm({
     try {
       if (!onSubmit) return;
 
+      const isClient = patient?.userType === 'client' || patient?.user_type === 'client';
       const payload = {
         ...evaluationForm,
-        patient_id: patient.id,
+        entity_type: isClient ? 'gym' : 'consultorio',
+        [isClient ? 'client_id' : 'patient_id']: patient.id,
         ...(evaluationTab === 'exercise_plan' ? { plan: planForm } : {}),
       };
 

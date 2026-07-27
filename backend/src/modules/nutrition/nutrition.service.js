@@ -39,45 +39,68 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
   
   try {
     await dbClient.query('BEGIN');
-    const entityType = data.entity_type;
-    let entity;
+    
+    let entity = null;
+    let resolvedEntityType = data.entity_type;
+    let resolvedClientId = data.client_id || null;
+    let resolvedPatientId = data.patient_id || null;
+    const targetId = data.client_id || data.patient_id || clientId;
 
-    if (entityType === 'gym') {
+    // 1. Si se especificó client_id o entity_type 'gym', buscar en la tabla clients primero
+    if (data.entity_type === 'gym' || data.client_id) {
       const clientCheckSql = `
         SELECT c.*, p.includes_nutrition, c.first_consult_used
         FROM clients c
         LEFT JOIN plans p ON c.plan_id = p.id
         WHERE c.id = $1
       `;
-      const clientResult = await dbClient.query(clientCheckSql, [data.client_id]);
-      entity = clientResult.rows[0];
-
-      if (!entity) {
-        throw createError(404, 'Cliente no encontrado');
-      }
-      // Note: We no longer check if the plan includes nutrition, because 
-      // clients can have their first free consult and subsequent paid ones.
-    } else {
-      const patientCheckSql = `
-        SELECT * FROM patients WHERE id = $1
-      `;
-      const patientResult = await dbClient.query(patientCheckSql, [data.patient_id]);
-      entity = patientResult.rows[0];
-
-      if (!entity) {
-        throw createError(404, 'Paciente no encontrado');
+      const clientResult = await dbClient.query(clientCheckSql, [targetId]);
+      if (clientResult.rows.length > 0) {
+        entity = clientResult.rows[0];
+        resolvedEntityType = 'gym';
+        resolvedClientId = entity.id;
+        resolvedPatientId = entity.patient_id || null;
       }
     }
 
-    if (entity.first_consult_used) {
-      // Allow second consultation without prior payment
-      // (Payment validation removed as per new requirement)
+    // 2. Si es consultorio o no se encontró en clients, buscar en la tabla patients
+    if (!entity && (data.entity_type === 'consultorio' || data.patient_id || targetId)) {
+      const patientCheckSql = `SELECT * FROM patients WHERE id = $1`;
+      const patientResult = await dbClient.query(patientCheckSql, [targetId]);
+      if (patientResult.rows.length > 0) {
+        entity = patientResult.rows[0];
+        resolvedEntityType = 'consultorio';
+        resolvedPatientId = entity.id;
+        resolvedClientId = entity.client_id || null;
+      }
+    }
+
+    // 3. Fallback: Si con targetId no estuvo en patients, intentar en clients por si acaso
+    if (!entity && targetId) {
+      const clientCheckSql = `
+        SELECT c.*, p.includes_nutrition, c.first_consult_used
+        FROM clients c
+        LEFT JOIN plans p ON c.plan_id = p.id
+        WHERE c.id = $1
+      `;
+      const clientResult = await dbClient.query(clientCheckSql, [targetId]);
+      if (clientResult.rows.length > 0) {
+        entity = clientResult.rows[0];
+        resolvedEntityType = 'gym';
+        resolvedClientId = entity.id;
+        resolvedPatientId = entity.patient_id || null;
+      }
+    }
+
+    if (!entity) {
+      throw createError(404, 'Paciente o cliente no encontrado');
     }
 
     const evaluationData = {
       ...data,
-      client_id: data.entity_type === 'gym' ? data.client_id : null,
-      patient_id: data.entity_type === 'consultorio' ? data.patient_id : null,
+      entity_type: resolvedEntityType,
+      client_id: resolvedClientId,
+      patient_id: resolvedPatientId,
       is_free_consult: !entity.first_consult_used
     };
     
@@ -87,11 +110,45 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
       dbClient
     );
 
+    // Actualizar el peso y estatura más reciente en las tablas de clients/patients
+    if (data.weight_kg !== undefined || data.height_cm !== undefined) {
+      const setClauses = [];
+      const queryParams = [];
+      let pIdx = 1;
+
+      if (data.weight_kg !== undefined && data.weight_kg !== null) {
+        setClauses.push(`quick_weight_kg = $${pIdx++}`);
+        queryParams.push(data.weight_kg);
+      }
+      if (data.height_cm !== undefined && data.height_cm !== null) {
+        setClauses.push(`quick_height_cm = $${pIdx++}`);
+        queryParams.push(data.height_cm);
+      }
+
+      if (setClauses.length > 0) {
+        const fullSetSql = [...setClauses, 'quick_assessed_at = CURRENT_TIMESTAMP'].join(', ');
+        const idParamIdx = pIdx;
+        
+        if (resolvedClientId) {
+          await dbClient.query(
+            `UPDATE clients SET ${fullSetSql} WHERE id = $${idParamIdx}`,
+            [...queryParams, resolvedClientId]
+          );
+        }
+        if (resolvedPatientId) {
+          await dbClient.query(
+            `UPDATE patients SET ${fullSetSql} WHERE id = $${idParamIdx}`,
+            [...queryParams, resolvedPatientId]
+          );
+        }
+      }
+    }
+
     if (!entity.first_consult_used) {
-      if (entityType === 'gym') {
-        await dbClient.query('UPDATE clients SET first_consult_used = true WHERE id = $1', [data.client_id]);
-      } else {
-        await dbClient.query('UPDATE patients SET first_consult_used = true WHERE id = $1', [data.patient_id]);
+      if (resolvedEntityType === 'gym' && resolvedClientId) {
+        await dbClient.query('UPDATE clients SET first_consult_used = true WHERE id = $1', [resolvedClientId]);
+      } else if (resolvedPatientId) {
+        await dbClient.query('UPDATE patients SET first_consult_used = true WHERE id = $1', [resolvedPatientId]);
       }
     }
     

@@ -43,6 +43,12 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
 
   const antecedenteData = parseAntecedentes(patient.quick_health_notes);
 
+  const latestEvaluationWithWeight = evaluations?.find(e => e.weight_kg !== null && e.weight_kg !== undefined);
+  const latestEvaluationWithHeight = evaluations?.find(e => e.height_cm !== null && e.height_cm !== undefined);
+
+  const latestWeight = latestEvaluationWithWeight?.weight_kg ?? patient?.quick_weight_kg;
+  const latestHeight = latestEvaluationWithHeight?.height_cm ?? patient?.quick_height_cm;
+
   return (
     <div className="space-y-4 text-[var(--color-text)]">
       <div className="grid grid-cols-2 gap-4">
@@ -76,8 +82,8 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
         <div className="col-span-2 space-y-1.5 pt-2 border-t border-[var(--color-border)]">
           <p className="text-sm text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Medidas</p>
           <div className="grid grid-cols-2 gap-3 text-sm bg-[var(--color-surface)] p-3 rounded-md border border-[var(--color-border)]">
-            <div><span className="font-semibold text-[var(--color-text-muted)]">Peso:</span> <span className="font-bold text-[var(--color-text)]">{patient.quick_weight_kg ? `${patient.quick_weight_kg} kg` : 'N/A'}</span></div>
-            <div><span className="font-semibold text-[var(--color-text-muted)]">Estatura:</span> <span className="font-bold text-[var(--color-text)]">{patient.quick_height_cm ? `${patient.quick_height_cm} cm` : 'N/A'}</span></div>
+            <div><span className="font-semibold text-[var(--color-text-muted)]">Peso:</span> <span className="font-bold text-[var(--color-text)]">{latestWeight ? `${latestWeight} kg` : 'N/A'}</span></div>
+            <div><span className="font-semibold text-[var(--color-text-muted)]">Estatura:</span> <span className="font-bold text-[var(--color-text)]">{latestHeight ? `${latestHeight} cm` : 'N/A'}</span></div>
           </div>
         </div>
 
