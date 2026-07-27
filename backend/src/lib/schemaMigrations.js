@@ -187,7 +187,11 @@ const runSchemaMigrations = async () => {
   ];
 
   for (const statement of statements) {
-    await pool.query(statement);
+    try {
+      await pool.query(statement);
+    } catch (err) {
+      console.warn('Advertencia en migración de esquema:', err.message);
+    }
   }
 };
 

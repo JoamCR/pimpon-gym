@@ -133,7 +133,7 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     data.protein_target_g || null,
     data.carbs_target_g || null,
     data.fat_target_g || null,
-    nutritionistId
+    nutritionistId || null
   ];  
   try {
     const result = await executor.query(sql, params);
