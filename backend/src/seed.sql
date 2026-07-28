@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS agenda (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     patient_id UUID REFERENCES patients(id) ON DELETE SET NULL,
+    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
     phone VARCHAR(20),
     status VARCHAR(50) NOT NULL CHECK (status IN ('programada','confirmada','en_cita','realizada','cancelada','ausente','espera','en_curso')) DEFAULT 'programada',
     start_at TIMESTAMPTZ NOT NULL,

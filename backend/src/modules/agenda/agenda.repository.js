@@ -2,18 +2,35 @@ const { query } = require('../../lib/database');
 
 const createEvent = async (payload) => {
   const res = await query(
-    `INSERT INTO agenda (event_type, title, description, patient_id, phone, status, start_at, end_at, reminder_at, metadata, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-    [payload.event_type, payload.title, payload.description || null, payload.patient_id || null, payload.phone || null, payload.status || 'programada', payload.start_at, payload.end_at || null, payload.reminder_at || null, payload.metadata || null, payload.created_by || null]
+    `INSERT INTO agenda (event_type, title, description, patient_id, client_id, phone, status, start_at, end_at, reminder_at, metadata, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    [
+      payload.event_type,
+      payload.title,
+      payload.description || null,
+      payload.patient_id || null,
+      payload.client_id || null,
+      payload.phone || null,
+      payload.status || 'programada',
+      payload.start_at,
+      payload.end_at || null,
+      payload.reminder_at || null,
+      payload.metadata || null,
+      payload.created_by || null
+    ]
   );
   return res.rows[0];
 };
 
 const getEvents = async (filters = {}) => {
   let queryText = `
-    SELECT a.*, p.first_name, p.last_name 
+    SELECT a.*, 
+           COALESCE(p.first_name, c.first_name) as first_name, 
+           COALESCE(p.last_name, c.last_name) as last_name,
+           COALESCE(a.patient_id, a.client_id) as patient_id
     FROM agenda a 
     LEFT JOIN patients p ON a.patient_id = p.id
+    LEFT JOIN clients c ON a.client_id = c.id
   `;
   const clauses = [];
   const params = [];
@@ -28,7 +45,7 @@ const getEvents = async (filters = {}) => {
   }
   if (filters.patient_id) {
     params.push(filters.patient_id);
-    clauses.push(`a.patient_id = $${params.length}`);
+    clauses.push(`(a.patient_id = $${params.length} OR a.client_id = $${params.length})`);
   }
   if (filters.search) {
     params.push(`%${filters.search}%`);
@@ -37,7 +54,10 @@ const getEvents = async (filters = {}) => {
       `a.status ILIKE $${params.length}`,
       `p.first_name ILIKE $${params.length}`,
       `p.last_name ILIKE $${params.length}`,
-      `p.first_name || ' ' || p.last_name ILIKE $${params.length}`
+      `c.first_name ILIKE $${params.length}`,
+      `c.last_name ILIKE $${params.length}`,
+      `p.first_name || ' ' || p.last_name ILIKE $${params.length}`,
+      `c.first_name || ' ' || c.last_name ILIKE $${params.length}`
     ];
     clauses.push(`(${searchClauses.join(' OR ')})`);
   }
@@ -53,7 +73,17 @@ const getEvents = async (filters = {}) => {
 };
 
 const getEventById = async (id) => {
-  const res = await query('SELECT * FROM agenda WHERE id = $1', [id]);
+  const res = await query(
+    `SELECT a.*, 
+            COALESCE(p.first_name, c.first_name) as first_name, 
+            COALESCE(p.last_name, c.last_name) as last_name,
+            COALESCE(a.patient_id, a.client_id) as patient_id
+     FROM agenda a 
+     LEFT JOIN patients p ON a.patient_id = p.id
+     LEFT JOIN clients c ON a.client_id = c.id
+     WHERE a.id = $1`,
+    [id]
+  );
   return res.rows[0];
 };
 

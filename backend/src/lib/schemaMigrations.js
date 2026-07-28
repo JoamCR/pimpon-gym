@@ -169,6 +169,12 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE patients ADD COLUMN current_flow VARCHAR(50) DEFAULT 'nutricion';
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'agenda' AND column_name = 'client_id'
+      ) THEN
+        ALTER TABLE agenda ADD COLUMN client_id UUID REFERENCES clients(id) ON DELETE SET NULL;
+      END IF;
     END $$;
     `,
     `

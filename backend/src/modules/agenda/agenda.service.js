@@ -3,21 +3,38 @@ const repo = require('./agenda.repository');
 const patientsService = require('../patients/patients.service'); // Import patients service
 
 const create = async (payload) => {
-  if (!payload.event_type || !payload.start_at) { // title is now optional, will be derived from patient
+  if (!payload.event_type || !payload.start_at) { // title is now optional, will be derived from patient/client
     throw createError(400, 'Faltan campos obligatorios para crear la agenda');
   }
 
-  // If patient_id is provided, try to use patient's name as title
-  if (payload.patient_id) {
-    const patient = await patientsService.getById(payload.patient_id);
-    if (patient) {
-      payload.title = `${patient.first_name} ${patient.last_name}`;
+  const personId = payload.patient_id || payload.client_id;
+  if (personId) {
+    try {
+      const person = await patientsService.getById(personId);
+      if (person) {
+        if (!payload.title) {
+          payload.title = `${person.first_name} ${person.last_name}`;
+        }
+        if (!payload.phone && person.phone) {
+          payload.phone = person.phone;
+        }
+
+        if (person.user_type === 'client') {
+          payload.client_id = person.id;
+          payload.patient_id = person.patient_id || null;
+        } else {
+          payload.patient_id = person.id;
+          payload.client_id = person.gym_client_id || person.client_id || null;
+        }
+      }
+    } catch (e) {
+      // Keep payload as is if getById throws
     }
   }
 
-  // Fallback to default title if no patient or title provided
+  // Fallback to default title if no patient/client or title provided
   if (!payload.title) {
-    payload.title = 'Cita Agendada'; // Default title if no patient is linked or name isn't found
+    payload.title = 'Cita Agendada';
   }
 
   // Check for overlapping events (exact same date and minute)
@@ -47,18 +64,30 @@ const update = async (id, changes) => {
     throw createError(404, 'Evento no encontrado');
   }
 
-  let effectivePatientId = changes.patient_id !== undefined ? changes.patient_id : existingEvent.patient_id;
+  let effectivePersonId = changes.patient_id !== undefined 
+    ? changes.patient_id 
+    : (changes.client_id !== undefined ? changes.client_id : (existingEvent.patient_id || existingEvent.client_id));
 
-  if (effectivePatientId) {
-    const patient = await patientsService.getById(effectivePatientId);
-    if (patient) {
-      changes.title = `${patient.first_name} ${patient.last_name}`;
-    } else {
-      // If patient_id is present but patient not found, maybe default title
-      changes.title = 'Cita Agendada (Paciente no encontrado)';
+  if (effectivePersonId) {
+    try {
+      const person = await patientsService.getById(effectivePersonId);
+      if (person) {
+        changes.title = `${person.first_name} ${person.last_name}`;
+        if (person.user_type === 'client') {
+          changes.client_id = person.id;
+          changes.patient_id = person.patient_id || null;
+        } else {
+          changes.patient_id = person.id;
+          changes.client_id = person.gym_client_id || person.client_id || null;
+        }
+      } else if (!changes.title) {
+        changes.title = 'Cita Agendada (Persona no encontrada)';
+      }
+    } catch (e) {
+      if (!changes.title) changes.title = 'Cita Agendada';
     }
-  } else if (!changes.title) { // If no patient_id and no title explicitly provided
-    changes.title = 'Cita Agendada'; // Default title
+  } else if (!changes.title) {
+    changes.title = 'Cita Agendada';
   }
 
   // Determine effective start_at and end_at for overlap check
