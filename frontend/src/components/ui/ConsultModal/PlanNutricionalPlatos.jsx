@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { IconDownload } from '@tabler/icons-react';
+import { toJpeg } from 'html-to-image';
 
 const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
   const handleChange = (e) => {
@@ -189,30 +190,28 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
   };
 
   const exportarPlan = useCallback(async () => {
-    if (printRef.current === null) return;
+    const node = printRef.current;
+    if (node === null) return;
     
     setIsExporting(true);
     
     try {
-      if (!window.html2canvas) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('Fallo al cargar html2canvas'));
-          document.head.appendChild(script);
-        });
-      }
+      const targetWidth = node.scrollWidth || 850;
+      const targetHeight = node.scrollHeight;
 
-      const canvas = await window.html2canvas(printRef.current, { 
-        scale: 2, 
-        useCORS: true, 
-        allowTaint: true,
-        backgroundColor: '#000000', 
-        logging: false,
+      const dataUrl = await toJpeg(node, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#000000',
+        width: targetWidth,
+        height: targetHeight,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          width: `${targetWidth}px`,
+          height: `${targetHeight}px`,
+        },
       });
-      
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
       const patientName = patient ? `${patient.first_name || ''}_${patient.last_name || ''}`.trim().replace(/\s+/g, '_') : 'Paciente';
       const dateStr = new Date().toISOString().split('T')[0];
@@ -242,27 +241,25 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
 
   return (
     <div className="w-full font-sans bg-[var(--color-surface)] flex flex-col items-center">
-      {!readOnly && (
-        <div className="w-full flex justify-end mb-4">
-          <button 
-            onClick={exportarPlan}
-            disabled={isExporting || isSaving}
-            className={`text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-all shadow-md ${
-              isExporting || isSaving
-                ? 'bg-gray-500 cursor-not-allowed' 
-                : 'bg-orange-600 hover:bg-orange-500 hover:shadow-lg'
-            }`}
-          >
-            <IconDownload size={18} className="mr-2" />
-            {isExporting ? 'Generando JPG...' : isSaving ? 'Guardando...' : 'Generar y Descargar JPG'}
-          </button>
-        </div>
-      )}
+      <div className="w-full flex justify-end mb-4">
+        <button 
+          onClick={exportarPlan}
+          disabled={isExporting || isSaving}
+          className={`text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-all shadow-md ${
+            isExporting || isSaving
+              ? 'bg-gray-500 cursor-not-allowed' 
+              : 'bg-orange-600 hover:bg-orange-500 hover:shadow-lg'
+          }`}
+        >
+          <IconDownload size={18} className="mr-2" />
+          {isExporting ? 'Generando JPG...' : isSaving ? 'Guardando...' : 'Generar y Descargar JPG'}
+        </button>
+      </div>
 
       <div className="w-full pb-4 rounded-xl border border-[var(--color-border)] overflow-x-auto custom-scrollbar flex justify-center">
         <div 
           ref={printRef} 
-          className="shadow-2xl relative flex flex-col mx-auto w-full min-w-[700px] max-w-4xl"
+          className="shadow-2xl relative flex flex-col mx-auto w-[850px]"
           style={{ backgroundColor: '#000000' }}
         >
           {/* ENCABEZADO */}

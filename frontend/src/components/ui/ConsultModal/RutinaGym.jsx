@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { IconDownload } from '@tabler/icons-react';
+import { toJpeg } from 'html-to-image';
 import { SimpleDateInput } from '../SimpleDateInput';
 
 // Estructura inicial basada en los ejercicios de la plantilla
@@ -124,6 +126,8 @@ const getInitialDatosGenerales = (patientValue, planValue) => ({
 });
 
 export default function RutinaGym({ patient, plan, onChange, readOnly = false }) {
+  const printRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [datosGenerales, setDatosGenerales] = useState(() => getInitialDatosGenerales(patient, plan));
 
   const [rutinas, setRutinas] = useState(rutinasIniciales);
@@ -131,11 +135,10 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
   const [anotaciones, setAnotaciones] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const lastPlanSignatureRef = useRef(null);
-  const lastEmittedSignatureRef = useRef(null);  
+  const lastEmittedSignatureRef = useRef(null);
 
   const buildPlanPayload = (nextValues = { datosGenerales, rutinas, cardio, anotaciones, observaciones }) => ({
     datosGenerales: nextValues.datosGenerales,
-    // Aseguramos que los campos de fecha y objetivo no se pierdan al actualizar el nombre
     rutinas: nextValues.rutinas,
     cardio: nextValues.cardio,
     anotaciones: nextValues.anotaciones,
@@ -154,26 +157,20 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     }
   };
 
-  // Efecto para actualizar el nombre del paciente cuando la prop `patient` cambia.
   useEffect(() => {
     const newPatientName = patient ? `${patient.first_name || ''} ${patient.last_name || ''}`.trim() : '';
-    // Actualizamos el nombre en datosGenerales si no hay un plan cargado o si el plan no tiene un nombre específico.
-    // Esto evita sobreescribir un nombre que el nutriólogo haya editado manualmente.
     if (newPatientName && (!plan || !plan.datosGenerales?.nombre)) {
       setDatosGenerales(prev => ({ ...prev, nombre: newPatientName }));
     }
 
-    // Helper para obtener la fecha actual en formato YYYY-MM-DD
     const getTodayString = () => new Date().toISOString().split('T')[0];
 
     const nextPayload = {
       datosGenerales: {
-        nombre: plan.datosGenerales?.nombre ?? '',
-        // Si hay una fecha en el plan, se usa. Si no, y NO es readOnly (es nueva consulta), se usa la fecha de hoy.
-        // Si es readOnly y no hay fecha, se deja vacío para que no muestre nada.
+        nombre: plan?.datosGenerales?.nombre ?? '',
         fechaInicio: plan?.datosGenerales?.fechaInicio || (!readOnly ? getTodayString() : ''),
-        fechaCambio: plan.datosGenerales?.fechaCambio ?? '',
-        objetivo: plan.datosGenerales?.objetivo ?? '',
+        fechaCambio: plan?.datosGenerales?.fechaCambio ?? '',
+        objetivo: plan?.datosGenerales?.objetivo ?? '',
       },      
       rutinas: Array.isArray(plan?.rutinas) ? plan.rutinas : rutinasIniciales,
       cardio: plan?.cardio || { tipo: '', duracion: '', intensidad: '', frecuencia: '' },
@@ -187,7 +184,6 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     lastPlanSignatureRef.current = signature;
     lastEmittedSignatureRef.current = signature;
 
-    // Si el plan tiene un nombre, usamos ese. Si no, mantenemos el nombre del paciente ya establecido.
     setDatosGenerales(prev => ({
       ...prev,
       ...nextPayload.datosGenerales,
@@ -205,7 +201,6 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     emitPlanChange({ datosGenerales: nextDatosGenerales, rutinas, cardio, anotaciones, observaciones });
   };
 
-  // Manejador para cambiar valores en las tablas de ejercicios
   const handleEjercicioChange = (grupoIdx, ejIdx, campo, valor) => {
     const nuevasRutinas = rutinas.map((grupo, gIdx) =>
       gIdx === grupoIdx
@@ -221,7 +216,6 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     emitPlanChange({ datosGenerales, rutinas: nuevasRutinas, cardio, anotaciones, observaciones });
   };
 
-  // Manejador para los días de entrenamiento
   const handleDiaChange = (grupoIdx, diaKey) => {
     const nuevasRutinas = rutinas.map((grupo, gIdx) =>
       gIdx === grupoIdx
@@ -248,6 +242,50 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
     emitPlanChange({ datosGenerales, rutinas, cardio, anotaciones, observaciones: value });
   };
 
+  const exportarPlan = useCallback(async () => {
+    const node = printRef.current;
+    if (node === null) return;
+    
+    setIsExporting(true);
+    
+    try {
+      const targetWidth = node.scrollWidth || 930;
+      const targetHeight = node.scrollHeight;
+
+      const dataUrl = await toJpeg(node, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        width: targetWidth,
+        height: targetHeight,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          width: `${targetWidth}px`,
+          height: `${targetHeight}px`,
+        },
+      });
+
+      const patientName = datosGenerales.nombre
+        ? datosGenerales.nombre.trim().replace(/\s+/g, '_')
+        : (patient ? `${patient.first_name || ''}_${patient.last_name || ''}`.trim().replace(/\s+/g, '_') : 'Paciente');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `${patientName || 'Paciente'}_${dateStr}_RutinaEjercicios.jpg`;
+
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error al generar la imagen JPG:', err);
+      alert('Hubo un error al generar la imagen: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [printRef, datosGenerales, patient]);
+
   const etiquetasDias = [
     { key: 'L', label: 'L' },
     { key: 'M1', label: 'M' },
@@ -258,258 +296,274 @@ export default function RutinaGym({ patient, plan, onChange, readOnly = false })
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 font-sans print:bg-white print:p-0">
-      <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none">
-        
-        {/* ENCABEZADO */}
-        <header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 text-white p-6 border-b-8 border-orange-600">
-          <div className="flex items-center space-x-3 mb-4 md:mb-0">
-            <div className="text-orange-500 font-black text-3xl tracking-tighter">||||</div>
-            <div>
-              <h1 className="text-2xl font-black tracking-wider uppercase">PIMPON</h1>
-              <p className="text-xs text-orange-400 tracking-widest font-semibold">NUTRITION & GYM</p>
-            </div>
-            <div className="text-orange-500 font-black text-3xl tracking-tighter">||||</div>
-          </div>
-          <div className="text-right">
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight uppercase text-gray-100">
-              GUÍA DE RUTINA
-            </h2>
-          </div>
-        </header>
+    <div className="w-full font-sans bg-[var(--color-surface)] flex flex-col items-center py-4">
+      {/* BOTÓN DE DESCARGA JPG */}
+      <div className="w-full max-w-5xl flex justify-end mb-4 px-2">
+        <button 
+          type="button"
+          onClick={exportarPlan}
+          disabled={isExporting}
+          className={`text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-all shadow-md ${
+            isExporting
+              ? 'bg-gray-500 cursor-not-allowed' 
+              : 'bg-orange-600 hover:bg-orange-500 hover:shadow-lg'
+          }`}
+        >
+          <IconDownload size={18} className="mr-2" />
+          {isExporting ? 'Generando JPG...' : 'Generar y Descargar JPG'}
+        </button>
+      </div>
 
-        {/* DATOS GENERALES */}
-        <section className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">
-          <div className="flex items-center space-x-2">
-            <span>NOMBRE:</span>
-            {readOnly ? (
-              <p className="flex-1 px-2 py-1 font-normal">{datosGenerales.nombre}</p>
-            ) : (
-              <input
-                type="text"
-                value={datosGenerales.nombre}
-                onChange={(e) => handleDatosGeneralesChange('nombre', e.target.value)}
-                className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
-                placeholder="Nombre del cliente"
-                readOnly={readOnly}
-              />
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>OBJETIVO:</span>
-            {readOnly ? (
-              <p className="flex-1 px-2 py-1 font-normal">{datosGenerales.objetivo}</p>
-            ) : (
-              <input
-                type="text"
-                value={datosGenerales.objetivo}
-                onChange={(e) => handleDatosGeneralesChange('objetivo', e.target.value)}
-                className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
-                placeholder="Hipertrofia, Pérdida de grasa, etc."
-                readOnly={readOnly}
-              />
-            )}
-          </div>
-          <SimpleDateInput
-            label="Fecha de Inicio"
-            value={datosGenerales.fechaInicio}
-            onChange={(date) => handleDatosGeneralesChange('fechaInicio', date)}
-            readOnly={readOnly}
-          />
-          <SimpleDateInput
-            label="Fecha de Cambio de Rutina"
-            value={datosGenerales.fechaCambio}
-            onChange={(date) => handleDatosGeneralesChange('fechaCambio', date)}
-            readOnly={readOnly}
-          />
-        </section>
-
-        {/* GRID DE RUTINAS */}
-        <main className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {rutinas.map((grupo, gIdx) => (
-            <div key={grupo.id} className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-              
-              {/* Título de Grupo Muscular y Días */}
-              <div className="bg-gray-100 px-4 py-2 flex justify-between items-center border-b border-gray-300">
-                <div className="flex items-center space-x-2 font-black text-gray-800 text-base">
-                  <span className="w-3 h-3 bg-orange-600 rounded-full inline-block"></span>
-                  <span>{grupo.titulo}</span>
-                </div>
-                <div className="flex items-center space-x-1 text-xs font-bold text-gray-600">
-                  <span className="mr-1">DÍA:</span>
-                  {etiquetasDias.map((d) => (
-                    <label key={d.key} className={`flex items-center space-x-0.5 ${readOnly ? '' : 'cursor-pointer'}`}>
-                      <span className={grupo.dias[d.key] ? 'text-orange-600' : ''}>{d.label}</span>
-                      {!readOnly && (
-                        <input
-                          type="checkbox"
-                          checked={grupo.dias[d.key]}
-                          onChange={() => handleDiaChange(gIdx, d.key)}
-                          className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
-                          disabled={readOnly}
-                        />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tabla de Ejercicios */}
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-orange-600 text-white font-bold text-center">
-                    <th className="py-1.5 px-2 text-left w-5/12">EJERCICIO</th>
-                    <th className="py-1.5 px-1 w-2/12">SERIES</th>
-                    <th className="py-1.5 px-1 w-2/12">REPETICIONES</th>
-                    <th className="py-1.5 px-1 w-3/12">DESCANSO</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {grupo.ejercicios.map((ej, eIdx) => (
-                    <tr key={ej.id} className="hover:bg-orange-50/50">
-                      <td className="py-1 px-2 font-medium text-gray-700 flex items-center">
-                        <span className="font-bold mr-1.5 text-orange-600">{ej.id}</span>
-                        {readOnly ? (
-                          <p className="w-full bg-transparent px-1 py-0.5">{ej.nombre}</p>
-                        ) : (
-                          <input
-                            type="text"
-                            value={ej.nombre}
-                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'nombre', e.target.value)}
-                            className="w-full bg-transparent focus:outline-none focus:bg-white px-1 py-0.5 rounded"
-                          />
-                        )}
-                      </td>
-                      <td className="p-1">
-                        {readOnly ? (
-                          <p className="w-full text-center px-1 py-0.5">{ej.series || '-'}</p>
-                        ) : (
-                          <input
-                            type="text"
-                            value={ej.series}
-                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'series', e.target.value)}
-                            className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
-                            placeholder="-"
-                          />
-                        )}
-                      </td>
-                      <td className="p-1">
-                        {readOnly ? (
-                          <p className="w-full text-center px-1 py-0.5">{ej.repeticiones || '-'}</p>
-                        ) : (
-                          <input
-                            type="text"
-                            value={ej.repeticiones}
-                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'repeticiones', e.target.value)}
-                            className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
-                            placeholder="-"
-                          />
-                        )}
-                      </td>
-                      <td className="p-1">
-                        {readOnly ? (
-                          <p className="w-full text-center px-1 py-0.5">{ej.descanso || '-'}</p>
-                        ) : (
-                          <input
-                            type="text"
-                            value={ej.descanso}
-                            onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'descanso', e.target.value)}
-                            className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
-                            placeholder="-"
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-            </div>
-          ))}
-        </main>
-
-        {/* SECCIÓN INFERIOR: CARDIO, ANOTACIONES Y OBSERVACIONES */}
-        <section className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50 border-t border-gray-200 text-xs">
+      {/* CONTENEDOR CON HORIZONTAL SCROLL PARA PRESERVAR ASPECT RATIO AL HACER ZOOM */}
+      <div className="w-full pb-4 rounded-xl border border-[var(--color-border)] overflow-x-auto custom-scrollbar flex justify-center">
+        <div 
+          ref={printRef} 
+          className="shadow-2xl relative flex flex-col mx-auto w-[930px] bg-white rounded-lg overflow-hidden border border-gray-200"
+        >
           
-          {/* Cardio */}
-          <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col justify-between">
-            <div className="flex items-center space-x-2 font-black text-gray-800 text-sm mb-3">
-              <span className="text-orange-600">♥</span>
-              <span>CARDIO</span>
+          {/* ENCABEZADO */}
+          <header className="flex justify-between items-center bg-zinc-900 text-white p-6 border-b-8 border-orange-600" style={{ backgroundColor: '#18181b', color: '#ffffff' }}>
+            <div className="flex items-center space-x-3">
+              <div className="text-orange-500 font-black text-3xl tracking-tighter" style={{ color: '#f97316' }}>||||</div>
+              <div>
+                <h1 className="text-2xl font-black tracking-wider uppercase" style={{ color: '#ffffff' }}>PIMPON</h1>
+                <p className="text-xs text-orange-400 tracking-widest font-semibold" style={{ color: '#fb923c' }}>NUTRITION & GYM</p>
+              </div>
+              <div className="text-orange-500 font-black text-3xl tracking-tighter" style={{ color: '#f97316' }}>||||</div>
             </div>
-            {['tipo', 'duracion', 'intensidad', 'frecuencia'].map((campo) => (
-              <div key={campo} className="flex items-center mb-2 last:mb-0">
-                <span className="font-bold uppercase text-gray-600 w-24">{campo}:</span>
-                {readOnly ? (
-                  <p className="flex-1 px-1 py-0.5 text-gray-700">{cardio[campo] || '-'}</p>
-                ) : (
-                  <input
-                    type="text"
-                    value={cardio[campo]}
-                    onChange={(e) => handleCardioChange(campo, e.target.value)}
-                    className="flex-1 border-b border-gray-300 focus:outline-none focus:border-orange-600 px-1 py-0.5 text-gray-700"
-                    readOnly={readOnly}
-                  />
-                )}
+            <div className="text-right">
+              <h2 className="text-3xl font-black tracking-tight uppercase" style={{ color: '#ffffff' }}>
+                GUÍA DE RUTINA
+              </h2>
+            </div>
+          </header>
+
+          {/* DATOS GENERALES */}
+          <section className="p-6 grid grid-cols-2 gap-x-8 gap-y-4 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">
+            <div className="flex items-center space-x-2">
+              <span>NOMBRE:</span>
+              {readOnly ? (
+                <p className="flex-1 px-2 py-1 font-normal">{datosGenerales.nombre}</p>
+              ) : (
+                <input
+                  type="text"
+                  value={datosGenerales.nombre}
+                  onChange={(e) => handleDatosGeneralesChange('nombre', e.target.value)}
+                  className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
+                  placeholder="Nombre del cliente"
+                  readOnly={readOnly}
+                />
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>OBJETIVO:</span>
+              {readOnly ? (
+                <p className="flex-1 px-2 py-1 font-normal">{datosGenerales.objetivo}</p>
+              ) : (
+                <input
+                  type="text"
+                  value={datosGenerales.objetivo}
+                  onChange={(e) => handleDatosGeneralesChange('objetivo', e.target.value)}
+                  className="flex-1 border-b-2 border-gray-400 bg-transparent px-2 py-1 focus:outline-none focus:border-orange-600 font-normal"
+                  placeholder="Hipertrofia, Pérdida de grasa, etc."
+                  readOnly={readOnly}
+                />
+              )}
+            </div>
+            <SimpleDateInput
+              label="Fecha de Inicio"
+              value={datosGenerales.fechaInicio}
+              onChange={(date) => handleDatosGeneralesChange('fechaInicio', date)}
+              readOnly={readOnly}
+              isReadOnly={readOnly}
+            />
+            <SimpleDateInput
+              label="Fecha de Cambio de Rutina"
+              value={datosGenerales.fechaCambio}
+              onChange={(date) => handleDatosGeneralesChange('fechaCambio', date)}
+              readOnly={readOnly}
+              isReadOnly={readOnly}
+            />
+          </section>
+
+          {/* GRID DE RUTINAS: Mantener 2 columnas uniformes */}
+          <main className="p-6 grid grid-cols-2 gap-4">
+            {rutinas.map((grupo, gIdx) => (
+              <div key={grupo.id} className="border border-gray-300 rounded-lg overflow-hidden shadow-sm flex flex-col justify-between bg-white">
+                <div>
+                  {/* Título de Grupo Muscular y Días */}
+                  <div className="bg-gray-100 px-3 py-2 flex justify-between items-center border-b border-gray-300">
+                    <div className="flex items-center space-x-2 font-black text-gray-800 text-sm">
+                      <span className="w-3 h-3 bg-orange-600 rounded-full inline-block"></span>
+                      <span>{grupo.titulo}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-xs font-bold text-gray-600">
+                      <span className="mr-1">DÍA:</span>
+                      {etiquetasDias.map((d) => (
+                        <label key={d.key} className={`flex items-center space-x-0.5 ${readOnly ? '' : 'cursor-pointer'}`}>
+                          <span className={grupo.dias[d.key] ? 'text-orange-600' : ''}>{d.label}</span>
+                          {!readOnly && (
+                            <input
+                              type="checkbox"
+                              checked={grupo.dias[d.key]}
+                              onChange={() => handleDiaChange(gIdx, d.key)}
+                              className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
+                              disabled={readOnly}
+                            />
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tabla de Ejercicios */}
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-orange-600 text-white font-bold text-center">
+                        <th className="py-1.5 px-2 text-left w-5/12">EJERCICIO</th>
+                        <th className="py-1.5 px-1 w-2/12">SERIES</th>
+                        <th className="py-1.5 px-1 w-2/12">REPETICIONES</th>
+                        <th className="py-1.5 px-1 w-3/12">DESCANSO</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {grupo.ejercicios.map((ej, eIdx) => (
+                        <tr key={ej.id} className="hover:bg-orange-50/50">
+                          <td className="py-1 px-2 font-medium text-gray-700 flex items-center">
+                            <span className="font-bold mr-1.5 text-orange-600 shrink-0">{ej.id}</span>
+                            {/* Nombre de Ejercicio Bloqueado / No Modificable */}
+                            <span className="w-full bg-transparent px-1 py-0.5 font-semibold text-gray-800 text-xs select-none">
+                              {ej.nombre}
+                            </span>
+                          </td>
+                          <td className="p-1">
+                            {readOnly ? (
+                              <p className="w-full text-center px-1 py-0.5">{ej.series || '-'}</p>
+                            ) : (
+                              <input
+                                type="text"
+                                value={ej.series}
+                                onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'series', e.target.value)}
+                                className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
+                                placeholder="-"
+                              />
+                            )}
+                          </td>
+                          <td className="p-1">
+                            {readOnly ? (
+                              <p className="w-full text-center px-1 py-0.5">{ej.repeticiones || '-'}</p>
+                            ) : (
+                              <input
+                                type="text"
+                                value={ej.repeticiones}
+                                onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'repeticiones', e.target.value)}
+                                className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
+                                placeholder="-"
+                              />
+                            )}
+                          </td>
+                          <td className="p-1">
+                            {readOnly ? (
+                              <p className="w-full text-center px-1 py-0.5">{ej.descanso || '-'}</p>
+                            ) : (
+                              <input
+                                type="text"
+                                value={ej.descanso}
+                                onChange={(e) => handleEjercicioChange(gIdx, eIdx, 'descanso', e.target.value)}
+                                className="w-full text-center border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-orange-500"
+                                placeholder="-"
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ))}
-          </div>
+          </main>
 
-          {/* Anotaciones */}
-          <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col">
-            <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Anotaciones y Sistema</h3>
-            {readOnly ? (
-              <p className="w-full flex-1 p-2 text-gray-700">{anotaciones || 'N/A'}</p>
-            ) : (
-              <textarea
-                value={anotaciones}
-                onChange={(e) => handleAnotacionesChange(e.target.value)}
-                rows="4"
-                className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
-                placeholder="Especificaciones técnicas, cadencia, RIR, RPE..."
-                readOnly={readOnly}
-              ></textarea>
-            )}
-          </div>
+          {/* SECCIÓN INFERIOR: CARDIO, ANOTACIONES Y OBSERVACIONES */}
+          <section className="p-6 grid grid-cols-3 gap-4 bg-gray-50 border-t border-gray-200 text-xs">
+            
+            {/* Cardio */}
+            <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2 font-black text-gray-800 text-sm mb-3">
+                  <span className="text-orange-600">♥</span>
+                  <span>CARDIO</span>
+                </div>
+                {['tipo', 'duracion', 'intensidad', 'frecuencia'].map((campo) => (
+                  <div key={campo} className="flex items-center mb-2 last:mb-0">
+                    <span className="font-bold uppercase text-gray-600 w-24">{campo}:</span>
+                    {readOnly ? (
+                      <p className="flex-1 px-1 py-0.5 text-gray-700">{cardio[campo] || '-'}</p>
+                    ) : (
+                      <input
+                        type="text"
+                        value={cardio[campo]}
+                        onChange={(e) => handleCardioChange(campo, e.target.value)}
+                        className="flex-1 border-b border-gray-300 focus:outline-none focus:border-orange-600 px-1 py-0.5 text-gray-700"
+                        readOnly={readOnly}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          {/* Observaciones Médicas */}
-          <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col">
-            <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Observaciones Médicas</h3>
-            {readOnly ? (
-              <p className="w-full flex-1 p-2 text-gray-700">{observaciones || 'N/A'}</p>
-            ) : (
-              <textarea
-                value={observaciones}
-                onChange={(e) => handleObservacionesChange(e.target.value)}
-                rows="4"
-                className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
-                placeholder="Lesiones previas, molestias, restricciones..."
-                readOnly={readOnly}
-              ></textarea>
-            )}
-          </div>
+            {/* Anotaciones */}
+            <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col">
+              <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Anotaciones y Sistema</h3>
+              {readOnly ? (
+                <p className="w-full flex-1 p-2 text-gray-700">{anotaciones || 'N/A'}</p>
+              ) : (
+                <textarea
+                  value={anotaciones}
+                  onChange={(e) => handleAnotacionesChange(e.target.value)}
+                  rows="4"
+                  className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
+                  placeholder="Especificaciones técnicas, cadencia, RIR, RPE..."
+                  readOnly={readOnly}
+                ></textarea>
+              )}
+            </div>
 
-        </section>
+            {/* Observaciones Médicas */}
+            <div className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm flex flex-col">
+              <h3 className="font-black text-gray-800 text-sm mb-2 uppercase">Observaciones Médicas</h3>
+              {readOnly ? (
+                <p className="w-full flex-1 p-2 text-gray-700">{observaciones || 'N/A'}</p>
+              ) : (
+                <textarea
+                  value={observaciones}
+                  onChange={(e) => handleObservacionesChange(e.target.value)}
+                  rows="4"
+                  className="w-full flex-1 border border-gray-200 rounded p-2 focus:outline-none focus:border-orange-600 resize-none text-gray-700"
+                  placeholder="Lesiones previas, molestias, restricciones..."
+                  readOnly={readOnly}
+                ></textarea>
+              )}
+            </div>
 
-        {/* PIE DE PÁGINA */}
-        <footer className="bg-zinc-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-center text-xs border-t-4 border-orange-600">
-          {/*  <div className="space-y-1 mb-2 md:mb-0 text-gray-300">
-            <div>📸 <span className="font-semibold">Pimpon Nutrition & Gym</span></div>
-            <div>👍 <span className="font-semibold">Pimpon Nutrition & Gym</span></div>
-          </div> */}
-          
-          <div className="text-center mb-2 md:mb-0">
-            <span className="font-black italic text-lg tracking-wider text-orange-500">
-              POR UNA VIDA MEJOR
-            </span>
-          </div>
+          </section>
 
-          <div className="flex flex-col md:items-end text-gray-300 space-y-1">
-            <div className="font-bold text-white">📞 981 108 1793</div>
-            <div>📍 Campeche, México</div>
-          </div>
-        </footer>
+          {/* PIE DE PÁGINA */}
+          <footer className="bg-zinc-900 text-white px-6 py-4 flex justify-between items-center text-xs border-t-4 border-orange-600">
+            <div className="text-center">
+              <span className="font-black italic text-lg tracking-wider text-orange-500">
+                POR UNA VIDA MEJOR
+              </span>
+            </div>
 
+            <div className="flex flex-col items-end text-gray-300 space-y-1">
+              <div className="font-bold text-white">📞 981 108 1793</div>
+              <div>📍 Campeche, México</div>
+            </div>
+          </footer>
+
+        </div>
       </div>
     </div>
   );
