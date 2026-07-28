@@ -641,9 +641,12 @@ export default function Patients() {
             <GymButton variant="secondary" onClick={() => setScheduleModalOpen(false)}>Cancelar</GymButton>
             <GymButton variant="primary" onClick={async () => {
               try {
+                const finalTitle = scheduleForm.title && scheduleForm.title.trim() 
+                  ? scheduleForm.title.trim() 
+                  : `${selectedPatient?.first_name || ''} ${selectedPatient?.last_name || ''}`.trim();
                 await createAgendaMutation.mutateAsync({
                   event_type: 'cita',
-                  title: scheduleForm.title,
+                  title: finalTitle,
                   description: scheduleForm.description,
                   patient_id: selectedPatient.id,
                   start_at: new Date(scheduleForm.start_at).toISOString(),

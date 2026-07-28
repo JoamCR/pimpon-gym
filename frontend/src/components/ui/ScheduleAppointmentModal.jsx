@@ -492,20 +492,18 @@ export const ScheduleAppointmentModal = ({ isOpen, onClose, onSubmit, initialFor
         setForm((prev) => ({
           ...prev,
           patient_id: patientId || null,
-          title: patient ? `Cita — ${patient.first_name} ${patient.last_name || ''}`.trim() : prev.title,
+          title: patient ? `${patient.first_name} ${patient.last_name || ''}`.trim() : prev.title,
           phone: patient?.phone || prev.phone,
         }));
     };
 
     const handleSubmit = () => {
         let finalTitle = form.title;
-        if (!finalTitle || finalTitle.trim() === '') {
-            const selectedPatient = patients.find(p => String(p.id) === String(form.patient_id));
-            if (selectedPatient) {
-                finalTitle = `Cita — ${selectedPatient.first_name} ${selectedPatient.last_name || ''}`.trim();
-            } else {
-                finalTitle = `Evento de Agenda (${form.event_type})`;
-            }
+        const selectedPatient = patients.find(p => String(p.id) === String(form.patient_id));
+        if (selectedPatient) {
+            finalTitle = `${selectedPatient.first_name} ${selectedPatient.last_name || ''}`.trim();
+        } else if (!finalTitle || finalTitle.trim() === '') {
+            finalTitle = `Evento de Agenda (${form.event_type})`;
         }
         onSubmit({ ...form, title: finalTitle });
     };

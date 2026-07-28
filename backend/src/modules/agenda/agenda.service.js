@@ -12,8 +12,8 @@ const create = async (payload) => {
     try {
       const person = await patientsService.getById(personId);
       if (person) {
-        if (!payload.title) {
-          payload.title = `${person.first_name} ${person.last_name}`;
+        if (!payload.title || payload.title.startsWith('Cita —') || payload.title.startsWith('Cita -')) {
+          payload.title = `${person.first_name} ${person.last_name || ''}`.trim();
         }
         if (!payload.phone && person.phone) {
           payload.phone = person.phone;
@@ -72,7 +72,9 @@ const update = async (id, changes) => {
     try {
       const person = await patientsService.getById(effectivePersonId);
       if (person) {
-        changes.title = `${person.first_name} ${person.last_name}`;
+        if (!changes.title || changes.title.startsWith('Cita —') || changes.title.startsWith('Cita -')) {
+          changes.title = `${person.first_name} ${person.last_name || ''}`.trim();
+        }
         if (person.user_type === 'client') {
           changes.client_id = person.id;
           changes.patient_id = person.patient_id || null;

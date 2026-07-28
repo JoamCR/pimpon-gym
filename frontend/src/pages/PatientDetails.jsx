@@ -270,7 +270,7 @@ export default function PatientDetails() {
 
     setInitialFormState({
         event_type: 'cita',
-        title: `Cita — ${patient.first_name}`,
+        title: `${patient.first_name} ${patient.last_name || ''}`.trim(),
         description: '',
         patient_id: patient.id,
         phone: patient.phone,
