@@ -160,11 +160,14 @@ const getPaymentsHistory = async (entityType, from, to) => {
     SELECT p.*, 
            c.first_name as client_first_name, c.last_name as client_last_name,
            pat.first_name as patient_first_name, pat.last_name as patient_last_name,
-           u.full_name as registered_by_name
+           u.full_name as registered_by_name,
+           pl.name as plan_name
     FROM payments p
     LEFT JOIN clients c ON p.client_id = c.id
     LEFT JOIN patients pat ON p.patient_id = pat.id
     LEFT JOIN app_users u ON p.registered_by = u.id
+    LEFT JOIN subscriptions s ON p.subscription_id = s.id
+    LEFT JOIN plans pl ON pl.id = COALESCE(s.plan_id, c.plan_id)
     WHERE p.is_voided = false
   `;
   const params = [];

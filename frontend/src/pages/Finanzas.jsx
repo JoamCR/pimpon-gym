@@ -188,6 +188,7 @@ export default function Finanzas() {
                     <th className="px-4 py-4">Fecha</th>
                     <th className="px-4 py-4">Cliente / Paciente</th>
                     <th className="px-4 py-4">Concepto</th>
+                    <th className="px-4 py-4">Plan</th>
                     <th className="px-4 py-4">Método</th>
                     <th className="px-4 py-4">Entidad</th>
                     <th className="px-4 py-4 text-right">Monto</th>
@@ -208,6 +209,9 @@ export default function Finanzas() {
                       </td>
                       <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
                         {getTypeLabel(item.payment_type)}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-medium text-[var(--color-text)]">
+                        {item.plan_name || '-'}
                       </td>
                       <td className="px-4 py-4 text-sm capitalize text-[var(--color-text-muted)]">
                         {item.payment_method === 'cash' ? 'Efectivo' : item.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta'}
@@ -281,6 +285,15 @@ export default function Finanzas() {
               </label>
               <p className="text-sm text-[var(--color-text-muted)]">
                 {getTypeLabel(selectedPayment.payment_type)}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--color-text-muted)] uppercase mb-1">
+                Plan / Mensualidad
+              </label>
+              <p className="text-sm font-semibold text-[var(--color-secondary-dark)] dark:text-[var(--color-secondary)]">
+                {selectedPayment.plan_name || 'Sin plan asignado'}
               </p>
             </div>
 

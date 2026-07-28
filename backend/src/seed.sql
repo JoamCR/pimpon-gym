@@ -140,7 +140,7 @@ TRUNCATE audit_log, notifications, exercise_plans, nutrition_records, attendance
 INSERT INTO plans 
 (name, description, price_monthly, price_enrollment, includes_nutrition, requires_enrollment, is_visit_based, duration_days) 
 VALUES
-('GYMBRO (2 personas)', 'Paquete para dos personas con acceso completo al gimnasio.', 1100.00, 500.00, TRUE, TRUE, FALSE, 30),
+('GYMBRO (2 personas)', 'Paquete para dos personas con acceso completo al gimnasio.', 550.00, 500.00, TRUE, TRUE, FALSE, 30),
 ('Mensualidad Individual', 'Membresía individual con acceso mensual al gimnasio.', 700.00, 500.00, FALSE, TRUE, FALSE, 30),
 ('Estudiante', 'Membresía para estudiantes con credencial vigente.', 500.00, 500.00, FALSE, TRUE, FALSE, 30),
 ('Visita 1 Día', 'Pase de visita por un día.', 80.00, 0.00, FALSE, FALSE, TRUE, 1),
