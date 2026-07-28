@@ -9,26 +9,72 @@ const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
   };
 
   return (
-    <div className="flex flex-col items-center bg-transparent p-1 min-w-[6rem] sm:min-w-[7rem]">
-      <h3 className="font-black text-[0.62rem] mb-1 text-white uppercase tracking-[0.18em]">{titulo}</h3>
+    <div 
+      className="flex flex-col items-center p-2 sm:p-3 rounded-xl shadow-lg w-full transition-all"
+      style={{ backgroundColor: '#090d16', border: '1px solid #1f293d' }}
+    >
+      {/* MEAL HEADER TITLE */}
+      <div 
+        className="w-full text-center py-1 px-1.5 rounded-lg mb-2 shadow-sm"
+        style={{ backgroundColor: '#2a1708', border: '1px solid #7c2d12' }}
+      >
+        <h3 
+          className="font-black text-[11px] sm:text-xs uppercase tracking-wider truncate"
+          style={{ color: '#ffffff' }}
+        >
+          {titulo}
+        </h3>
+      </div>
 
-      <div className="relative w-12 h-12 sm:w-20 sm:h-12">
-        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-2xl overflow-visible" style={{ transform: 'scaleX(-1)' }}>
-          <circle cx="100" cy="100" r="98" fill="#1f2937" stroke="#374151" strokeWidth="4" />
-          <path d="M 100,100 v -90 a 90,90 0 0,0 0,180 z" fill="#22c55e" stroke="#374151" strokeWidth="3" />
-          <path d="M 100,100 v -90 a 90,90 0 0,1 90,90 z" fill="#ef4444" stroke="#374151" strokeWidth="3" />
-          <path d="M 100,100 h 90 a 90,90 0 0,1 -90,90 z" fill="#eab308" stroke="#374151" strokeWidth="3" />
+      {/* CIRCULAR PORTION PLATE */}
+      <div className="relative w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 drop-shadow-xl select-none">
+        <svg viewBox="0 0 200 200" className="w-full h-full filter drop-shadow-md">
+          {/* Outer plate rim */}
+          <circle cx="100" cy="100" r="98" fill="#0f172a" stroke="#334155" strokeWidth="4" />
+          <circle cx="100" cy="100" r="92" fill="#1e293b" stroke="#475569" strokeWidth="2" />
+
+          {/* Slices (Left: 2 quarters, Right: half) */}
+          {/* Cuarto 1 (25% - Top Left - Red) */}
+          <path
+            d="M 100,10 A 90,90 0 0,0 10,100 L 100,100 Z"
+            fill="#ef4444"
+            stroke="#0f172a"
+            strokeWidth="3"
+          />
+          {/* Cuarto 2 (25% - Bottom Left - Yellow) */}
+          <path
+            d="M 10,100 A 90,90 0 0,0 100,190 L 100,100 Z"
+            fill="#eab308"
+            stroke="#0f172a"
+            strokeWidth="3"
+          />
+          {/* Mitad (50% - Right Half - Green) */}
+          <path
+            d="M 100,10 A 90,90 0 0,1 100,190 L 100,100 Z"
+            fill="#22c55e"
+            stroke="#0f172a"
+            strokeWidth="3"
+          />
+
+          {/* Inner divider lines & center hub */}
+          <circle cx="100" cy="100" r="8" fill="#0f172a" stroke="#475569" strokeWidth="2" />
         </svg>
 
-        <div className="absolute inset-0">
-          {readOnly ? (
-            <>
-              <p className="absolute left-1 top-1 w-10 sm:w-12 rounded bg-black/75 text-center text-xs text-white flex items-center justify-center h-6">{valores?.cuarto1 || '0'}</p>
-              <p className="absolute left-1 bottom-1 w-10 sm:w-12 rounded bg-black/75 text-center text-xs text-white flex items-center justify-center h-6">{valores?.cuarto2 || '0'}</p>
-              <p className="absolute right-1 top-1/2 w-14 sm:w-16 -translate-y-1/2 rounded bg-black/75 text-center text-xs text-white flex items-center justify-center h-6">{valores?.mitad || '0'}</p>
-            </>
-          ) : (
-            <>
+        {/* INPUTS / VALUES OVERLAY */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Cuarto 1 (Top Left) */}
+          <div 
+            className="absolute flex items-center justify-center pointer-events-auto"
+            style={{ left: '32.5%', top: '34%', transform: 'translate(-50%, -50%)' }}
+          >
+            {readOnly ? (
+              <div 
+                className="px-2 py-0.5 min-w-[1.8rem] rounded-md text-center font-black text-xs shadow-md"
+                style={{ backgroundColor: '#05070a', border: '1px solid #ef4444', color: '#fca5a5' }}
+              >
+                {valores?.cuarto1 || '0'}
+              </div>
+            ) : (
               <input
                 name="cuarto1"
                 value={valores?.cuarto1 || ''}
@@ -36,9 +82,26 @@ const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={3}
-                placeholder="000"
-                className="absolute left-1 top-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+                placeholder="0"
+                className="w-9 h-7 sm:w-10 sm:h-8 rounded-md text-center font-black text-xs shadow-md focus:outline-none transition-all"
+                style={{ backgroundColor: '#05070a', border: '1px solid #ef4444', color: '#ffffff' }}
               />
+            )}
+          </div>
+
+          {/* Cuarto 2 (Bottom Left) */}
+          <div 
+            className="absolute flex items-center justify-center pointer-events-auto"
+            style={{ left: '32.5%', top: '68%', transform: 'translate(-50%, -50%)' }}
+          >
+            {readOnly ? (
+              <div 
+                className="px-2 py-0.5 min-w-[1.8rem] rounded-md text-center font-black text-xs shadow-md"
+                style={{ backgroundColor: '#05070a', border: '1px solid #eab308', color: '#fde047' }}
+              >
+                {valores?.cuarto2 || '0'}
+              </div>
+            ) : (
               <input
                 name="cuarto2"
                 value={valores?.cuarto2 || ''}
@@ -46,9 +109,26 @@ const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={3}
-                placeholder="000"
-                className="absolute left-1 bottom-1 w-10 sm:w-12 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+                placeholder="0"
+                className="w-9 h-7 sm:w-10 sm:h-8 rounded-md text-center font-black text-xs shadow-md focus:outline-none transition-all"
+                style={{ backgroundColor: '#05070a', border: '1px solid #eab308', color: '#ffffff' }}
               />
+            )}
+          </div>
+
+          {/* Mitad (Right Half) */}
+          <div 
+            className="absolute flex items-center justify-center pointer-events-auto"
+            style={{ left: '73%', top: '52%', transform: 'translate(-50%, -50%)' }}
+          >
+            {readOnly ? (
+              <div 
+                className="px-2 py-0.5 min-w-[1.8rem] rounded-md text-center font-black text-xs shadow-md"
+                style={{ backgroundColor: '#05070a', border: '1px solid #22c55e', color: '#86efac' }}
+              >
+                {valores?.mitad || '0'}
+              </div>
+            ) : (
               <input
                 name="mitad"
                 value={valores?.mitad || ''}
@@ -56,11 +136,12 @@ const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={3}
-                placeholder="000"
-                className="absolute right-1 top-1/2 w-14 sm:w-16 -translate-y-1/2 rounded border border-white/30 bg-black/75 text-center text-[10px] sm:text-xs text-white placeholder-white/50 focus:border-orange-400 focus:outline-none pointer-events-auto"
+                placeholder="0"
+                className="w-9 h-7 sm:w-10 sm:h-8 rounded-md text-center font-black text-xs shadow-md focus:outline-none transition-all"
+                style={{ backgroundColor: '#05070a', border: '1px solid #22c55e', color: '#ffffff' }}
               />
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -70,12 +151,9 @@ const Plato = ({ titulo, name, valores, onChange, readOnly = false }) => {
 export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage, isSaving, readOnly = false }) {
   const printRef = useRef(null);
   const [isExporting, setIsExporting] = useState(false);
-  // Se usarán imágenes desde la carpeta public/ del frontend
-  // El usuario debe colocar sus imágenes ahí con estos nombres:
   const URL_ENCABEZADO = "/headerNutritionPlan.png";
   const URL_FOOTER = "/footerNutritionPlan.png";
 
-  // Parse diet_plan string into JSON if it exists
   const [platos, setPlatos] = useState({
     desayuno: { mitad: '', cuarto1: '', cuarto2: '' },
     colacion_manana: { mitad: '', cuarto1: '', cuarto2: '' },
@@ -93,7 +171,7 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
           setPlatos((prev) => ({ ...prev, ...parsed }));
         }
       } catch {
-        // If it's old text format, just ignore or keep default
+        // If it's old text format, keep default
       }
     }
   }, [values.diet_plan]);
@@ -129,35 +207,41 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
       const canvas = await window.html2canvas(printRef.current, { 
         scale: 2, 
         useCORS: true, 
+        allowTaint: true,
         backgroundColor: '#000000', 
+        logging: false,
       });
       
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
-      // Descarga local
-      const patientName = patient ? `${patient.first_name}_${patient.last_name}`.replace(/\s+/g, '') : 'Paciente';
+      const patientName = patient ? `${patient.first_name || ''}_${patient.last_name || ''}`.trim().replace(/\s+/g, '_') : 'Paciente';
       const dateStr = new Date().toISOString().split('T')[0];
-      const filename = `${patientName}_${dateStr}_PlanNutricional.png`;
+      const filename = `${patientName || 'Paciente'}_${dateStr}_PlanNutricional.jpg`;
 
       const link = document.createElement('a');
       link.download = filename;
       link.href = dataUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       
-      // Llamar al callback para guardar en BD si existe
       if (onSaveImage) {
-        await onSaveImage(dataUrl);
+        try {
+          await onSaveImage(dataUrl);
+        } catch (saveErr) {
+          console.warn('No se pudo guardar la imagen en el servidor:', saveErr);
+        }
       }
     } catch (err) {
-      console.error('Error al generar la imagen:', err);
-      alert('Hubo un error al generar la imagen. Inténtalo de nuevo.');
+      console.error('Error al generar la imagen JPG:', err);
+      alert('Hubo un error al generar la imagen: ' + (err.message || 'Error desconocido'));
     } finally {
       setIsExporting(false);
     }
   }, [printRef, patient, onSaveImage]);
 
   return (
-    <div className="w-full font-sans bg-[var(--color-surface)] flex flex-col">
+    <div className="w-full font-sans bg-[var(--color-surface)] flex flex-col items-center">
       {!readOnly && (
         <div className="w-full flex justify-end mb-4">
           <button 
@@ -170,49 +254,68 @@ export function PlanNutricionalPlatos({ patient, values, setValues, onSaveImage,
             }`}
           >
             <IconDownload size={18} className="mr-2" />
-            {isExporting ? 'Generando PNG...' : isSaving ? 'Guardando...' : 'Generar y Descargar PNG'}
+            {isExporting ? 'Generando JPG...' : isSaving ? 'Guardando...' : 'Generar y Descargar JPG'}
           </button>
         </div>
       )}
 
-      <div className="w-full pb-6 rounded-xl border border-[var(--color-border)] overflow-hidden">
+      <div className="w-full pb-4 rounded-xl border border-[var(--color-border)] overflow-x-auto custom-scrollbar flex justify-center">
         <div 
           ref={printRef} 
-          className="bg-black shadow-2xl relative flex flex-col mx-auto w-full"
+          className="shadow-2xl relative flex flex-col mx-auto w-full min-w-[700px] max-w-4xl"
+          style={{ backgroundColor: '#000000' }}
         >
           {/* ENCABEZADO */}
-          <div className="w-full bg-black flex items-center justify-center">
+          <div className="w-full flex items-center justify-center" style={{ backgroundColor: '#000000' }}>
             <img 
               src={URL_ENCABEZADO} 
               alt="Encabezado del Plan" 
               className="w-full h-auto block object-cover" 
-              crossOrigin="anonymous" 
             />
           </div>
 
-          {/* RACIONES */}
-          <div className="w-full p-4 sm:p-10 bg-black flex flex-col items-center">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-[0.2em]">Distribución Diaria</h2>
-              <div className="w-24 h-1 bg-orange-500 mx-auto mt-4 rounded-full"></div>
+          {/* RACIONES / PLATOS DE DISTRIBUCIÓN */}
+          <div className="w-full p-4 sm:p-6 flex flex-col items-center" style={{ backgroundColor: '#000000' }}>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-[0.2em] drop-shadow-md" style={{ color: '#ffffff' }}>
+                Distribución Diaria
+              </h2>
+              <div className="w-24 h-1 mx-auto mt-2 rounded-full shadow-lg" style={{ backgroundColor: '#f97316' }}></div>
+
+              {/* LEYENDA DEL PLATO (COMENTADA POR SOLICITUD)
+              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-4 px-4 py-2 rounded-xl text-xs font-bold" style={{ backgroundColor: '#111827', border: '1px solid #1f293d', color: '#d1d5db' }}>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef4444' }}></span>
+                  <span><strong style={{ color: '#ffffff' }}>1/4:</strong> Proteínas</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#eab308' }}></span>
+                  <span><strong style={{ color: '#ffffff' }}>1/4:</strong> Carbohidratos / Grasas</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e' }}></span>
+                  <span><strong style={{ color: '#ffffff' }}>1/2:</strong> Verduras y Frutas</span>
+                </div>
+              </div>
+              */}
             </div>
             
-            <div className="flex w-full gap-4 overflow-x-auto pb-2">
-              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Desayuno</span>} name="desayuno" valores={platos.desayuno} onChange={handleChangePlato} readOnly={readOnly} />
-              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación mañana</span>} name="colacion_manana" valores={platos.colacion_manana} onChange={handleChangePlato} readOnly={readOnly} />
-              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Almuerzo</span>} name="almuerzo" valores={platos.almuerzo} onChange={handleChangePlato} readOnly={readOnly} />
-              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Colación tarde</span>} name="colacion_tarde" valores={platos.colacion_tarde} onChange={handleChangePlato} readOnly={readOnly} />
-              <Plato titulo={<span className="text-sm font-bold text-white uppercase tracking-wider">Cena</span>} name="cena" valores={platos.cena} onChange={handleChangePlato} readOnly={readOnly} />
+            {/* 5 COLUMNAS EN FILA */}
+            <div className="grid grid-cols-5 gap-2 sm:gap-4 w-full max-w-4xl justify-items-center items-start">
+              <Plato titulo="Desayuno" name="desayuno" valores={platos.desayuno} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo="Colación mañana" name="colacion_manana" valores={platos.colacion_manana} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo="Almuerzo" name="almuerzo" valores={platos.almuerzo} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo="Colación tarde" name="colacion_tarde" valores={platos.colacion_tarde} onChange={handleChangePlato} readOnly={readOnly} />
+              <Plato titulo="Cena" name="cena" valores={platos.cena} onChange={handleChangePlato} readOnly={readOnly} />
             </div>
           </div>
 
           {/* PIE DE PÁGINA */}
-          <div className="w-full bg-black flex items-center justify-center mt-auto">
+          <div className="w-full flex items-center justify-center mt-auto" style={{ backgroundColor: '#000000' }}>
             <img 
               src={URL_FOOTER} 
               alt="Pie de página del Plan" 
               className="w-full h-auto block object-cover" 
-              crossOrigin="anonymous" 
             />
           </div>
         </div>
