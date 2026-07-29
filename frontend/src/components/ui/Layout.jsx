@@ -15,6 +15,7 @@ import {
   IconCalendarEvent,
   IconClock,
   IconChevronDown,
+  IconChevronUp,
   IconChevronRight,
   IconMenu2,
   IconX
@@ -52,6 +53,7 @@ export default function Layout() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAgendaOpen, setIsAgendaOpen] = useState(() => location.pathname.startsWith('/agenda'));
+  const [isNavHidden, setIsNavHidden] = useState(false);
 
   useEffect(() => {
     if (isLightMode) {
@@ -153,91 +155,139 @@ export default function Layout() {
     });
   };
 
+  const renderHorizontalNavList = () => {
+    const flatItems = [];
+    navItems.forEach(item => {
+      if (item.subItems) {
+        item.subItems.forEach(sub => {
+          flatItems.push({ path: sub.path, label: sub.label, icon: sub.icon, end: sub.end });
+        });
+      } else {
+        flatItems.push({ path: item.path, label: item.label, icon: item.icon });
+      }
+    });
+
+    return flatItems.map((item) => (
+      <NavLink
+        key={item.path}
+        to={item.path}
+        end={item.end}
+        className={({ isActive }) =>
+          `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all shrink-0 ${isActive
+            ? isLightMode
+              ? 'bg-[var(--color-gold)] text-white shadow-sm font-semibold'
+              : 'bg-amber-500/25 text-amber-300 border border-amber-500/40 font-bold shadow-sm'
+            : isLightMode
+              ? 'hover:bg-black/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+              : 'hover:bg-white/10 text-slate-300'
+          }`
+        }
+      >
+        <span className="shrink-0">{item.icon}</span>
+        <span>{item.label}</span>
+      </NavLink>
+    ));
+  };
+
   return (
     <div className={`flex flex-col min-h-screen w-full ${isLightMode ? 'bg-[var(--bg)]' : 'bg-[radial-gradient(circle_at_top_left,rgba(226,154,0,0.08),transparent_18%),linear-gradient(180deg,#060606_0%,#0e0e0e_100%)]'}`}>
 
-      {/* BARRA SUPERIOR MÓVIL: Solo visible en pantallas pequeñas */}
-      <header className={`flex md:hidden shrink-0 p-4 border-b justify-between items-center ${isLightMode ? 'bg-white border-[var(--color-border)]' : 'bg-black/80 border-white/10 text-white'}`}>
-        <h1 className={`text-2xl font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon Gym</h1>
-        <button onClick={toggleMobileMenu} className="text-gray-600 focus:outline-none">
-          {isMobileMenuOpen ? <IconX size={24} /> : <IconMenu2 size={24} />}
+      {/* BOTÓN FLOTANTE DE RESTAURACIÓN (Menú Hamburguesa cuando la navegación está oculta) */}
+      {isNavHidden && (
+        <button
+          type="button"
+          onClick={() => setIsNavHidden(false)}
+          className="fixed top-3 left-3 z-[999] p-3 rounded-full bg-[var(--color-gold)] text-white shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer border-2 border-white/30"
+          title="Mostrar menú de navegación"
+        >
+          <IconMenu2 size={22} />
         </button>
-      </header>
-
-      {/* MENÚ LATERAL MÓVIL: Desplegable */}
-      {isMobileMenuOpen && (
-        <aside className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 flex flex-col shadow-lg transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${isLightMode ? 'bg-white border-r border-[var(--color-border)] text-[var(--color-text)]' : 'bg-[var(--color-navy)] border-r border-transparent text-white'}`}>
-          <div className={`p-6 border-b shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'}`}>
-            <h1 className={`text-2xl font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon Gym</h1>
-          </div>
-          <nav className="flex-1 px-6 mt-8 mb-6 space-y-3 overflow-y-auto no-scrollbar">
-            {renderNavList(toggleMobileMenu)}
-          </nav>
-
-          <div className={`p-4 pt-6 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
-            {/* Theme Toggle */}
-            <div className="flex items-center justify-between px-2 py-2">
-              <span className={`text-sm font-medium flex items-center gap-2 ${isLightMode ? 'text-[var(--color-text)]' : 'text-slate-300'}`}>
-                {isLightMode ? <IconSun size={18} /> : <IconMoon size={18} />}
-                {isLightMode ? 'Modo Claro' : 'Modo Oscuro'}
-              </span>
-              <button
-                onClick={() => setIsLightMode(!isLightMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isLightMode ? 'bg-[var(--color-gold)]' : 'bg-slate-600'}`}
-                aria-label="Toggle theme"
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isLightMode ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-
-            <button
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors w-full border ${isLightMode ? 'hover:bg-black/5 text-[var(--color-danger)] border-[var(--color-border)]' : 'hover:bg-white/5 text-orange-300 border-white/10'}`}
-              onClick={() => alert('Próximamente: Cerrar Sesión')}
-            >
-              <span className="flex items-center justify-center"><IconDoorExit size={20} /></span>
-              <span className="font-medium">Cerrar Sesión</span>
-            </button>
-          </div>
-        </aside>
       )}
 
-      {/* CONTENIDO PRINCIPAL Y BARRA LATERAL (MD EN ADELANTE) */}
+      {/* NAVEGACIÓN MÓVIL Y TABLET HORIZONTAL EN LA PARTE SUPERIOR (Solo en pantallas pequeñas/medianas < lg) */}
+      {!isNavHidden && (
+        <div className="block lg:hidden shrink-0 border-b sticky top-0 z-40">
+          <header className={`flex flex-col backdrop-blur-md ${isLightMode ? 'bg-white/95 border-[var(--color-border)]' : 'bg-black/95 border-white/10 text-white'}`}>
+            {/* Encabezado superior con título y acciones */}
+            <div className="flex justify-between items-center px-4 py-2.5 border-b border-[var(--color-border)]/30">
+              <h1 className={`text-lg font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon Gym</h1>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsLightMode(!isLightMode)}
+                  className="p-1 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-gold)] transition-colors"
+                  title="Cambiar tema"
+                >
+                  {isLightMode ? <IconSun size={18} /> : <IconMoon size={18} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsNavHidden(true)}
+                  className="px-2.5 py-1 rounded-lg bg-[var(--color-gold)]/10 hover:bg-[var(--color-gold)]/20 text-[var(--color-gold)] transition-colors flex items-center gap-1.5 text-xs font-bold border border-[var(--color-gold)]/30 cursor-pointer"
+                  title="Ocultar menú"
+                >
+                  <IconChevronUp size={18} />
+                  <span>Ocultar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Fila Horizontal Scrollable con las Opciones de Navegación (Estilo Ah Kin Tech) */}
+            <nav className="flex items-center gap-1 px-3 py-2 overflow-x-auto no-scrollbar whitespace-nowrap">
+              {renderHorizontalNavList()}
+            </nav>
+          </header>
+        </div>
+      )}
+
+      {/* CONTENIDO PRINCIPAL Y BARRA LATERAL (LG EN ADELANTE) */}
       <div className="flex flex-1">
-        {/* BARRA LATERAL: Oculta en móviles, visible desde 'md' (tabletas/laptops) */}
-        <aside className={`hidden md:flex md:w-64 shrink-0 sticky top-0 h-screen flex-col shadow-[0_20px_60px_-40px_rgba(0,0,0,0.6)] border-r ${isLightMode ? 'bg-white border-[var(--color-border)] text-[var(--color-text)]' : 'bg-[var(--color-navy)] border-transparent text-white'}`}>
-          <div className={`p-6 border-b shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'}`}>
-            <h2 className={`text-2xl font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon</h2>
-          </div>
-
-          <nav className="flex-1 px-6 mt-8 mb-6 space-y-3 overflow-y-auto no-scrollbar">
-            {renderNavList(undefined)}
-          </nav>
-
-          <div className={`p-4 pt-6 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
-            {/* Theme Toggle */}
-            <div className="flex items-center justify-between px-2 py-2">
-              <span className={`text-sm font-medium flex items-center gap-2 ${isLightMode ? 'text-[var(--color-text)]' : 'text-slate-300'}`}>
-                {isLightMode ? <IconSun size={18} /> : <IconMoon size={18} />}
-                {isLightMode ? 'Modo Claro' : 'Modo Oscuro'}
-              </span>
+        {/* BARRA LATERAL: Visible solo en monitores de escritorio (lg+) si no está oculta */}
+        {!isNavHidden && (
+          <aside className={`hidden lg:flex lg:w-64 shrink-0 sticky top-0 h-screen flex-col shadow-[0_20px_60px_-40px_rgba(0,0,0,0.6)] border-r ${isLightMode ? 'bg-white border-[var(--color-border)] text-[var(--color-text)]' : 'bg-[var(--color-navy)] border-transparent text-white'}`}>
+            <div className={`p-6 border-b shrink-0 flex justify-between items-center ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'}`}>
+              <h2 className={`text-2xl font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon</h2>
               <button
-                onClick={() => setIsLightMode(!isLightMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isLightMode ? 'bg-[var(--color-gold)]' : 'bg-slate-600'}`}
-                aria-label="Toggle theme"
+                type="button"
+                onClick={() => setIsNavHidden(true)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--color-text-muted)] hover:text-[var(--color-gold)] transition-colors"
+                title="Ocultar navegación (Pantalla completa)"
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isLightMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                <IconChevronUp size={18} />
               </button>
             </div>
 
-            <button
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors w-full border ${isLightMode ? 'hover:bg-black/5 text-[var(--color-danger)] border-[var(--color-border)]' : 'hover:bg-white/5 text-orange-300 border-white/10'}`}
-              onClick={() => alert('Próximamente: Cerrar Sesión')}
-            >
-              <span className="flex items-center justify-center"><IconDoorExit size={20} /></span>
-              <span className="font-medium">Cerrar Sesión</span>
-            </button>
-          </div>
-        </aside>
+            <nav className="flex-1 px-6 mt-8 mb-6 space-y-3 overflow-y-auto no-scrollbar">
+              {renderNavList(undefined)}
+            </nav>
+
+            <div className={`p-4 pt-6 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
+              {/* Theme Toggle */}
+              <div className="flex items-center justify-between px-2 py-2">
+                <span className={`text-sm font-medium flex items-center gap-2 ${isLightMode ? 'text-[var(--color-text)]' : 'text-slate-300'}`}>
+                  {isLightMode ? <IconSun size={18} /> : <IconMoon size={18} />}
+                  {isLightMode ? 'Modo Claro' : 'Modo Oscuro'}
+                </span>
+                <button
+                  onClick={() => setIsLightMode(!isLightMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isLightMode ? 'bg-[var(--color-gold)]' : 'bg-slate-600'}`}
+                  aria-label="Toggle theme"
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isLightMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              <button
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors w-full border ${isLightMode ? 'hover:bg-black/5 text-[var(--color-danger)] border-[var(--color-border)]' : 'hover:bg-white/5 text-orange-300 border-white/10'}`}
+                onClick={() => alert('Próximamente: Cerrar Sesión')}
+              >
+                <span className="flex items-center justify-center"><IconDoorExit size={20} /></span>
+                <span className="font-medium">Cerrar Sesión</span>
+              </button>
+            </div>
+          </aside>
+        )}
 
         {/* CONTENIDO PRINCIPAL: Ocupa todo el ancho restante y es fluido */}
         <main className={`flex-1 min-w-0 ${location.pathname === '/agenda' ? 'p-2 sm:p-3' : 'p-4 sm:p-6 md:p-8'} ${isLightMode ? 'bg-[var(--color-surface)]' : ''}`}>
