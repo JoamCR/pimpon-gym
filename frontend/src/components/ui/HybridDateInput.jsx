@@ -98,6 +98,16 @@ export function HybridDateInput({ value, onChange, error }) {
   };
 
   const attemptToCalculateAge = (y, m, d) => {
+    // Si todos los campos están vacíos, es una fecha opcional no definida
+    if (!y && !m && !d) {
+      setAge(null);
+      if (localError) setLocalError('');
+      if (value !== '') {
+        onChange('', null);
+      }
+      return;
+    }
+
     // Solo intentar calcular si todos los campos tienen valores que parecen válidos
     const isPotentiallyComplete = y && y.length === 4 && m && d;
 

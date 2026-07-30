@@ -5,6 +5,7 @@ import { GymButton } from '../GymButton';
 import { IconEdit } from '@tabler/icons-react';
 import { useUpdatePatient } from '../../../hooks/usePatients';
 import { useUpdateClient } from '../../../hooks/useClients';
+import { HybridDateInput } from '../HybridDateInput';
 
 export const parseAntecedentes = (notesStr) => {
   if (!notesStr) return { family: null, pathological: null, personal: null, other: null };
@@ -49,6 +50,10 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
   const latestWeight = latestEvaluationWithWeight?.weight_kg ?? patient?.quick_weight_kg;
   const latestHeight = latestEvaluationWithHeight?.height_cm ?? patient?.quick_height_cm;
 
+  const formattedBirthDate = patient?.birth_date
+    ? new Date(patient.birth_date).toLocaleDateString('es-MX', { timeZone: 'UTC' })
+    : null;
+
   return (
     <div className="space-y-4 text-[var(--color-text)]">
       <div className="grid grid-cols-2 gap-4">
@@ -58,14 +63,17 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
           <p className="font-medium text-base">{patient.first_name} {patient.last_name}</p>
         </div>
 
-        {/* 2. Sexo y Edad */}
+        {/* 2. Sexo, Edad y Fecha de Nacimiento */}
         <div>
           <p className="text-sm text-[var(--color-text-muted)] font-semibold">Sexo</p>
           <p className="font-medium text-base">{patient.gender || patient.sex || 'N/A'}</p>
         </div>
         <div>
-          <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad</p>
-          <p className="font-medium text-base">{patient.age ? `${patient.age} años` : 'N/A'}</p>
+          <p className="text-sm text-[var(--color-text-muted)] font-semibold">Edad / Fecha Nac.</p>
+          <p className="font-medium text-base">
+            {patient.age ? `${patient.age} años` : 'N/A'}
+            {formattedBirthDate ? ` (${formattedBirthDate})` : ''}
+          </p>
         </div>
 
         {/* 3. Correo Electrónico y Teléfono */}
@@ -202,6 +210,7 @@ export function PatientDetailsModal({
     gender: 'Masculino',
     phone: '',
     email: '',
+    birth_date: '',
     age: '',
     quick_weight_kg: '',
     quick_height_cm: '',
@@ -221,6 +230,7 @@ export function PatientDetailsModal({
         gender: patient.gender || patient.sex || 'Masculino',
         phone: patient.phone || '',
         email: patient.email || '',
+        birth_date: patient.birth_date ? (patient.birth_date.includes('T') ? patient.birth_date.split('T')[0] : patient.birth_date) : '',
         age: patient.age ? String(patient.age) : '',
         quick_weight_kg: patient.quick_weight_kg ? String(patient.quick_weight_kg) : '',
         quick_height_cm: patient.quick_height_cm ? String(patient.quick_height_cm) : '',
@@ -253,6 +263,7 @@ export function PatientDetailsModal({
       gender: formData.gender,
       phone: formData.phone,
       email: formData.email || undefined,
+      birth_date: formData.birth_date || null,
       age: formData.age ? Number(formData.age) : undefined,
       quick_weight_kg: formData.quick_weight_kg ? Number(formData.quick_weight_kg) : undefined,
       quick_height_cm: formData.quick_height_cm ? Number(formData.quick_height_cm) : undefined,
@@ -305,8 +316,8 @@ export function PatientDetailsModal({
               </div>
             </div>
 
-            {/* 2. Sexo y Edad */}
-            <div className="space-y-1">
+            {/* 2. Sexo */}
+            <div className="col-span-2 sm:col-span-1 space-y-1">
               <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Sexo</label>
               <select
                 value={formData.gender}
@@ -318,14 +329,18 @@ export function PatientDetailsModal({
                 <option value="Otro">Otro</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Edad</label>
-              <input
-                type="number"
-                value={formData.age}
-                onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                placeholder="Edad"
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-3.5 py-2 text-sm text-[var(--color-text)]"
+
+            {/* 3. Fecha de Nacimiento / Edad (Opcional) */}
+            <div className="col-span-2 space-y-1 pt-2 border-t border-[var(--color-border)]">
+              <HybridDateInput 
+                value={formData.birth_date} 
+                onChange={(dateStr, calculatedAge) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    birth_date: dateStr,
+                    age: calculatedAge !== null ? calculatedAge.toString() : prev.age
+                  }));
+                }} 
               />
             </div>
 

@@ -395,6 +395,7 @@ export default function Patients() {
             </div>
           ))}
 
+          {/* Fecha de Nacimiento / Edad (Opcional) */}
           <div className="sm:col-span-2 mt-2">
             <HybridDateInput 
               value={formData.birth_date} 

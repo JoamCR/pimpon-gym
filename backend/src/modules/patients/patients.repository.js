@@ -213,7 +213,7 @@ const create = async (data, dbClient) => {
     data.last_name,
     data.birth_date || null,
     data.rfc || null,
-    data.age,
+    data.age || null,
     data.gender || null,
     data.phone || null,
     data.email || null,

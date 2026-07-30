@@ -167,7 +167,7 @@ export const AgregarPaciente = ({ isOpen, onClose, onPatientCreated }) => {
               />
             </div>
 
-            {/* Sexo */}
+            {/* Sexo (Comentado temporalmente)
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Sexo</label>
               <select
@@ -180,9 +180,10 @@ export const AgregarPaciente = ({ isOpen, onClose, onPatientCreated }) => {
                 <option value="Otro">Otro</option>
               </select>
             </div>
+            */}
 
             {/* Teléfono */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Teléfono</label>
               <input
                 type="text"
@@ -206,7 +207,7 @@ export const AgregarPaciente = ({ isOpen, onClose, onPatientCreated }) => {
               {fieldErrors.phone && <p className="text-red-500 text-xs">{fieldErrors.phone}</p>}
             </div>
 
-            {/* Correo Electrónico */}
+            {/* Correo Electrónico (Comentado temporalmente)
             <div className="space-y-1.5 sm:col-span-2">
               <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Correo electrónico</label>
               <input
@@ -217,8 +218,9 @@ export const AgregarPaciente = ({ isOpen, onClose, onPatientCreated }) => {
                 placeholder="correo@ejemplo.com"
               />
             </div>
+            */}
 
-            {/* Fecha de Nacimiento / Edad */}
+            {/* Fecha de Nacimiento / Edad (Comentado temporalmente)
             <div className="sm:col-span-2">
               <HybridDateInput 
                 value={formData.birth_date} 
@@ -233,6 +235,7 @@ export const AgregarPaciente = ({ isOpen, onClose, onPatientCreated }) => {
                 }} 
               />
             </div>
+            */}
           </div>
         ) : (
           <div className="space-y-4">
