@@ -17,12 +17,9 @@ import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEd
 const HealthSlider = ({ label, value, onChange }) => {
   const getSegmentColor = (index, val) => {
     if (index > val) return 'bg-[var(--color-border)]';
-    const colors = [
-      'bg-red-600', 'bg-red-500', 'bg-orange-500', 'bg-orange-400', 
-      'bg-yellow-500', 'bg-yellow-400', 'bg-lime-400', 'bg-lime-500', 
-      'bg-green-400', 'bg-green-500'
-    ];
-    return colors[val - 1] || 'bg-gray-500';
+    if (val <= 4) return 'bg-red-500';
+    if (val <= 7) return 'bg-yellow-500';
+    return 'bg-green-500';
   };
 
   return (
