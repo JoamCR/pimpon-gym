@@ -373,6 +373,17 @@ export default function PatientDetails() {
             Nueva Consulta
           </button>
           <button
+            onClick={() => setActiveTab('schedule')}
+            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${
+              activeTab === 'schedule' 
+                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
+                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
+            }`}
+          >
+            <IconCalendar size={16} />
+            Agendar Cita
+          </button>
+          <button
             onClick={() => {
               setPaymentForm({ amount: '', payment_method: 'cash', notes: '' });
               setActiveTab('payment');
@@ -385,17 +396,6 @@ export default function PatientDetails() {
           >
             <IconCoin size={16} />
             Cobrar Consulta
-          </button>
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className={`px-4 py-2.5 rounded-t-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${
-              activeTab === 'schedule' 
-                ? 'bg-[var(--color-card)] text-[var(--color-text)] border-t border-l border-r border-[var(--color-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]' 
-                : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-alt)] hover:text-[var(--color-text)] border-t border-l border-r border-transparent'
-            }`}
-          >
-            <IconCalendar size={16} />
-            Agendar Cita
           </button>
           {!isAlreadyGymClient && (
             <button
