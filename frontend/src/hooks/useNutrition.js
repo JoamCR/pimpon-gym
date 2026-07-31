@@ -63,7 +63,8 @@ export const useCreateEvaluation = () => {
       });
       if (!response.ok) {
         const error = await response.json();
-        const msg = error.details ? `${error.error || 'Error'} - ${error.details}` : (error.error || 'Error al crear evaluación');
+        const detailsStr = typeof error.details === 'object' ? JSON.stringify(error.details) : error.details;
+        const msg = detailsStr ? `${error.error || 'Error'} - ${detailsStr}` : (error.error || 'Error al crear evaluación');
         throw new Error(msg);
       }
       return response.json();

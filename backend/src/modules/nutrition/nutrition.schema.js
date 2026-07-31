@@ -5,48 +5,77 @@ const { z } = require('zod');
  * Todos los schemas de evaluación y planes de ejercicio
  */
 
+// Preprocesadores para sanitizar y coercionar datos de formulario
+const coerceNum = z.preprocess((val) => {
+  if (val === '' || val === null || val === undefined) return undefined;
+  const num = Number(val);
+  return isNaN(num) ? val : num;
+}, z.number().optional().nullable());
+
+const coerceUuid = z.preprocess((val) => {
+  if (val === '' || val === null || val === undefined) return undefined;
+  return String(val);
+}, z.string().min(1, 'El ID no puede estar vacío').optional().nullable());
+
+const coerceStr = z.preprocess((val) => {
+  if (val === null || val === undefined) return undefined;
+  return String(val);
+}, z.string().optional().nullable());
+
+const coerceBool = z.preprocess((val) => {
+  if (val === '' || val === null || val === undefined) return undefined;
+  if (val === 'true' || val === true) return true;
+  if (val === 'false' || val === false) return false;
+  return Boolean(val);
+}, z.boolean().optional().nullable());
+
 // Esquema para crear una evaluación nutricional
 const createEvaluationSchema = z.object({
-  client_id: z.string().uuid('El ID del cliente debe ser un UUID válido').optional(),
-  patient_id: z.string().uuid('El ID del paciente debe ser un UUID válido').optional(),
+  client_id: coerceUuid,
+  patient_id: coerceUuid,
   entity_type: z.enum(['gym', 'consultorio'], {
     errorMap: () => ({ message: 'El tipo de entidad debe ser gym o consultorio' })
   }),
-  weight_kg: z.number().positive('El peso debe ser un número positivo').optional(),
-  height_cm: z.number().positive('La altura debe ser un número positivo').optional(),
-  body_fat_pct: z.number().min(0, 'El porcentaje de grasa no puede ser negativo').max(100).optional(),
-  visceral_fat_pct: z.number().min(0, 'El porcentaje de grasa visceral no puede ser negativo').max(100).optional(),
-  muscle_mass_kg: z.number().min(0, 'La masa muscular no puede ser negativa').optional(),
-  waist_cm: z.number().positive('La cintura debe ser un número positivo').optional(),
-  family_history: z.string().optional(),
-  pathological_history: z.string().optional(),
-  personal_history: z.string().optional(),
-  body_composition_notes: z.string().optional(),
-  smokes: z.boolean().optional(),
-  smokes_description: z.string().optional(),
-  drinks_alcohol: z.boolean().optional(),
-  drinks_alcohol_description: z.string().optional(),
-  uses_drugs: z.boolean().optional(),
-  drugs_description: z.string().optional(),
-  drinks_soda: z.boolean().optional(),
-  drinks_soda_description: z.string().optional(),
-  eats_junk_food: z.boolean().optional(),
-  junk_food_description: z.string().optional(),
-  energy_level: z.number().int().min(1).max(10).optional(),
-  bowel_movements: z.union([z.string(), z.number()]).optional(),
-  hunger_level: z.number().int().min(1).max(10).optional(),
-  sleep_quality: z.number().int().min(1).max(10).optional(),
-  concentration_level: z.number().int().min(1).max(10).optional(),
-  mood_level: z.number().int().min(1).max(10).optional(),
-  routine_adherence: z.number().int().min(1).max(10).optional(),
-  diet_adherence: z.number().int().min(1).max(10).optional(),
-  sp_notes: z.string().optional(),
-  is_free_consult: z.boolean().default(false), // Primera consulta gratis
-  diet_plan: z.string().optional(),
-  caloric_target: z.number().positive('Las calorias deben ser positivas').optional(),
-  protein_target_g: z.number().positive('La proteina debe ser positiva').optional(),
-  carbs_target_g: z.number().positive('Los carbohidratos deben ser positivos').optional(),
-  fat_target_g: z.number().positive('La grasa debe ser positiva').optional(),
+  weight_kg: coerceNum,
+  height_cm: coerceNum,
+  body_fat_pct: coerceNum,
+  visceral_fat_pct: coerceNum,
+  muscle_mass_kg: coerceNum,
+  waist_cm: coerceNum,
+  target_weight_kg: coerceNum,
+  target_waist_cm: coerceNum,
+  target_body_fat_pct: coerceNum,
+  target_muscle_mass_kg: coerceNum,
+  target_visceral_fat_pct: coerceNum,
+  family_history: coerceStr,
+  pathological_history: coerceStr,
+  personal_history: coerceStr,
+  body_composition_notes: coerceStr,
+  smokes: coerceBool,
+  smokes_description: coerceStr,
+  drinks_alcohol: coerceBool,
+  drinks_alcohol_description: coerceStr,
+  uses_drugs: coerceBool,
+  drugs_description: coerceStr,
+  drinks_soda: coerceBool,
+  drinks_soda_description: coerceStr,
+  eats_junk_food: coerceBool,
+  junk_food_description: coerceStr,
+  energy_level: coerceNum,
+  bowel_movements: coerceNum,
+  hunger_level: coerceNum,
+  sleep_quality: coerceNum,
+  concentration_level: coerceNum,
+  mood_level: coerceNum,
+  routine_adherence: coerceNum,
+  diet_adherence: coerceNum,
+  sp_notes: coerceStr,
+  is_free_consult: z.boolean().default(false),
+  diet_plan: coerceStr,
+  caloric_target: coerceNum,
+  protein_target_g: coerceNum,
+  carbs_target_g: coerceNum,
+  fat_target_g: coerceNum,
 });
 
 // Esquema para actualizar una evaluación

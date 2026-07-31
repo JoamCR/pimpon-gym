@@ -661,11 +661,12 @@ export default function Patients() {
         </div>
       </GymModal>
 
-            <ConsultModal
+      <ConsultModal
         isOpen={consultModalOpen}
         onClose={() => setConsultModalOpen(false)}
         title={"Nueva Consulta — " + (selectedPatient?.first_name || "Paciente")}
         patient={selectedPatient}
+        evaluations={evaluations}
         onSubmit={handleSaveConsult}
         submitLabel="Guardar Expediente"
         planSubmitLabel="Guardar Plan"

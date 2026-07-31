@@ -78,6 +78,7 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     INSERT INTO nutrition_records (
       id, client_id, patient_id, entity_type, evaluation_date, weight_kg, height_cm,
       body_fat_pct, visceral_fat_pct, muscle_mass_kg, waist_cm,
+      target_weight_kg, target_waist_cm, target_body_fat_pct, target_muscle_mass_kg, target_visceral_fat_pct,
       family_history, pathological_history, personal_history,
       body_composition_notes, is_free_consult,
       smokes, smokes_description, drinks_alcohol, drinks_alcohol_description, uses_drugs, drugs_description,
@@ -90,7 +91,7 @@ const createRecord = async (data, nutritionistId, dbClient) => {
       gen_random_uuid(), $1, $2, $3, CURRENT_DATE, $4, $5, $6, $7,
       $8, $9, $10, $11, $12, $13, $14,
       $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-      $32, $33, $34, $35, $36, $37, $38, $39, NOW()
+      $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, NOW()
     ) RETURNING *
   `;
 
@@ -104,6 +105,11 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     data.visceral_fat_pct,
     data.muscle_mass_kg,
     data.waist_cm,
+    data.target_weight_kg || null,
+    data.target_waist_cm || null,
+    data.target_body_fat_pct || null,
+    data.target_muscle_mass_kg || null,
+    data.target_visceral_fat_pct || null,
     data.family_history || null,
     data.pathological_history || null,
     data.personal_history || null,
@@ -188,6 +194,26 @@ const updateRecord = async (recordId, data, dbClient) => {
   if (data.waist_cm !== undefined) {
     updates.push(`waist_cm = $${paramIndex++}`);
     values.push(data.waist_cm);
+  }
+  if (data.target_weight_kg !== undefined) {
+    updates.push(`target_weight_kg = $${paramIndex++}`);
+    values.push(data.target_weight_kg);
+  }
+  if (data.target_waist_cm !== undefined) {
+    updates.push(`target_waist_cm = $${paramIndex++}`);
+    values.push(data.target_waist_cm);
+  }
+  if (data.target_body_fat_pct !== undefined) {
+    updates.push(`target_body_fat_pct = $${paramIndex++}`);
+    values.push(data.target_body_fat_pct);
+  }
+  if (data.target_muscle_mass_kg !== undefined) {
+    updates.push(`target_muscle_mass_kg = $${paramIndex++}`);
+    values.push(data.target_muscle_mass_kg);
+  }
+  if (data.target_visceral_fat_pct !== undefined) {
+    updates.push(`target_visceral_fat_pct = $${paramIndex++}`);
+    values.push(data.target_visceral_fat_pct);
   }
   if (data.family_history !== undefined) {
     updates.push(`family_history = $${paramIndex++}`);

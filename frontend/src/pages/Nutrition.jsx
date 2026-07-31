@@ -415,12 +415,13 @@ export default function Nutrition() {
         </div>
       </div>
 
-            <ConsultModal
+      <ConsultModal
         isOpen={modalEvaluate}
         onClose={() => setModalEvaluate(false)}
         title={defaultTab === 'exercise_plan' ? `Plan de Ejercicio — ${selectedPatient?.first_name || 'Paciente'}` : `Evaluación — ${selectedPatient?.first_name || 'Paciente'}`}
         patient={selectedPatient}
         evaluation={selectedEvaluation}
+        evaluations={history}
         plan={null}
         defaultTab={defaultTab}
         onSubmit={handleSaveEvaluation}

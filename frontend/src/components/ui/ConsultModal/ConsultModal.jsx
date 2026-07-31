@@ -3,14 +3,19 @@ import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
+import { IconEdit, IconCheck } from '@tabler/icons-react';
 const getInitialEvaluation = () => ({
-
   weight_kg: '',
   height_cm: '',
   body_fat_pct: '',
   visceral_fat_pct: '',
   muscle_mass_kg: '',
   waist_cm: '',
+  target_weight_kg: '',
+  target_waist_cm: '',
+  target_body_fat_pct: '',
+  target_muscle_mass_kg: '',
+  target_visceral_fat_pct: '',
   family_history: '',
   pathological_history: '',
   personal_history: '',
@@ -138,6 +143,7 @@ const ScaleSlider5 = ({ label, value, onChange }) => {
 export function ConsultForm({
   patient,
   evaluation,
+  evaluations = [],
   plan,
   defaultTab = 'clinical_history',
   onSubmit,
@@ -146,14 +152,50 @@ export function ConsultForm({
   submitLabel = 'Guardar Consulta',
   planSubmitLabel = 'Guardar Plan',
 }) {
+  const previousEvalWithHeight = evaluations?.find(e => e.height_cm !== null && e.height_cm !== undefined && e.height_cm !== '');
+  const previousEvalWithTargets = evaluations?.find(e =>
+    e.target_weight_kg || e.target_waist_cm || e.target_body_fat_pct || e.target_muscle_mass_kg || e.target_visceral_fat_pct
+  );
+
+  const initialHeight = evaluation?.height_cm
+    || previousEvalWithHeight?.height_cm
+    || patient?.quick_height_cm
+    || patient?.height_cm
+    || '';
+
+  const initialTargetWeight = evaluation?.target_weight_kg || previousEvalWithTargets?.target_weight_kg || '';
+  const initialTargetWaist = evaluation?.target_waist_cm || previousEvalWithTargets?.target_waist_cm || '';
+  const initialTargetBodyFat = evaluation?.target_body_fat_pct || previousEvalWithTargets?.target_body_fat_pct || '';
+  const initialTargetMuscleMass = evaluation?.target_muscle_mass_kg || previousEvalWithTargets?.target_muscle_mass_kg || '';
+  const initialTargetVisceralFat = evaluation?.target_visceral_fat_pct || previousEvalWithTargets?.target_visceral_fat_pct || '';
+
+  const hasTargetsDefined = Boolean(initialTargetWeight || initialTargetWaist || initialTargetBodyFat || initialTargetMuscleMass || initialTargetVisceralFat);
+
+  const [isEditingTargets, setIsEditingTargets] = useState(!hasTargetsDefined);
+
   const [evaluationForm, setEvaluationForm] = useState(() => {
+    const base = getInitialEvaluation();
     if (evaluation) {
       return {
-        ...getInitialEvaluation(),
+        ...base,
         ...evaluation,
+        height_cm: evaluation.height_cm || initialHeight,
+        target_weight_kg: evaluation.target_weight_kg || initialTargetWeight,
+        target_waist_cm: evaluation.target_waist_cm || initialTargetWaist,
+        target_body_fat_pct: evaluation.target_body_fat_pct || initialTargetBodyFat,
+        target_muscle_mass_kg: evaluation.target_muscle_mass_kg || initialTargetMuscleMass,
+        target_visceral_fat_pct: evaluation.target_visceral_fat_pct || initialTargetVisceralFat,
       };
     }
-    return getInitialEvaluation();
+    return {
+      ...base,
+      height_cm: initialHeight,
+      target_weight_kg: initialTargetWeight,
+      target_waist_cm: initialTargetWaist,
+      target_body_fat_pct: initialTargetBodyFat,
+      target_muscle_mass_kg: initialTargetMuscleMass,
+      target_visceral_fat_pct: initialTargetVisceralFat,
+    };
   });
   const [planForm, setPlanForm] = useState(() => normalizePlanForm(plan));
   const [evaluationTab, setEvaluationTab] = useState(defaultTab || 'clinical_history');
@@ -224,82 +266,157 @@ export function ConsultForm({
 
       {evaluationTab === 'composition' && (
         <div className="space-y-6 animate-fade-in">
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { label: 'Estatura (cm)', key: 'height_cm' },
-              { label: 'Cintura (cm)', key: 'waist_cm' },
-              { label: 'Peso (kg)', key: 'weight_kg' },
-            ].map((field) => (
-              <div key={field.key} className="space-y-2">
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                <input
-                  type="number"
-                  value={evaluationForm[field.key]}
-                  onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
-                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { label: 'Grasa (%)', key: 'body_fat_pct' },
-              { label: 'Masa muscular (kg)', key: 'muscle_mass_kg' },
-              { label: 'Visceral (%)', key: 'visceral_fat_pct' },
-            ].map((field) => (
-              <div key={field.key} className="space-y-2">
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                <input
-                  type="number"
-                  value={evaluationForm[field.key]}
-                  onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
-                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                />
-              </div>
-            ))}
-          </div>
-
+          {/* CONSULTA */}
           <div className="space-y-4">
-            {/* Antecedentes movidos a Nuevo Paciente por requerimiento */}
-            {/* 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes familiares</label>
-              <textarea
-                rows={2}
-                value={evaluationForm.family_history}
-                onChange={(e) => setEvaluationForm({ ...evaluationForm, family_history: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">
+              Consulta
+            </h4>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { label: 'Estatura (cm)', key: 'height_cm' },
+                { label: 'Cintura (cm)', key: 'waist_cm' },
+                { label: 'Peso (kg)', key: 'weight_kg' },
+              ].map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
+                  <input
+                    type="number"
+                    value={evaluationForm[field.key]}
+                    onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                  />
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes patológicos</label>
-              <textarea
-                rows={2}
-                value={evaluationForm.pathological_history}
-                onChange={(e) => setEvaluationForm({ ...evaluationForm, pathological_history: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { label: 'Grasa (%)', key: 'body_fat_pct' },
+                { label: 'Masa muscular (kg)', key: 'muscle_mass_kg' },
+                { label: 'Visceral (%)', key: 'visceral_fat_pct' },
+              ].map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
+                  <input
+                    type="number"
+                    value={evaluationForm[field.key]}
+                    onChange={(e) => setEvaluationForm({ ...evaluationForm, [field.key]: e.target.value })}
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                  />
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes personales</label>
-              <textarea
-                rows={2}
-                value={evaluationForm.personal_history}
-                onChange={(e) => setEvaluationForm({ ...evaluationForm, personal_history: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+          </div>
+
+          {/* METAS DEL PACIENTE / OBJETIVOS (DEBAJO DE LA CONSULTA EN VIVO) */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold,#EAB308)]">
+                Objetivos y Metas del Paciente
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsEditingTargets(!isEditingTargets)}
+                className="inline-flex items-center gap-1.5 text-xs text-[var(--color-secondary)] hover:underline font-semibold transition cursor-pointer"
+              >
+                {isEditingTargets ? (
+                  <>
+                    <IconCheck className="w-3.5 h-3.5" />
+                    <span>Guardar metas</span>
+                  </>
+                ) : (
+                  <>
+                    <IconEdit className="w-3.5 h-3.5" />
+                    <span>Modificar metas</span>
+                  </>
+                )}
+              </button>
             </div>
-            */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas generales</label>
-              <textarea
-                rows={3}
-                value={evaluationForm.body_composition_notes}
-                onChange={(e) => setEvaluationForm({ ...evaluationForm, body_composition_notes: e.target.value })}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Estatura Base (cm)</label>
+                <input
+                  type="number"
+                  disabled
+                  value={evaluationForm.height_cm || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text-muted)] cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Cintura Meta (cm)</label>
+                <input
+                  type="number"
+                  disabled={!isEditingTargets}
+                  placeholder={!isEditingTargets ? 'Sin meta' : 'Ej. 80'}
+                  value={evaluationForm.target_waist_cm || ''}
+                  onChange={(e) => setEvaluationForm({ ...evaluationForm, target_waist_cm: e.target.value })}
+                  className={`w-full rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] ${!isEditingTargets ? 'bg-[var(--color-surface)] cursor-not-allowed' : 'bg-[var(--color-card-alt)]'}`}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Peso Meta (kg)</label>
+                <input
+                  type="number"
+                  disabled={!isEditingTargets}
+                  placeholder={!isEditingTargets ? 'Sin meta' : 'Ej. 70'}
+                  value={evaluationForm.target_weight_kg || ''}
+                  onChange={(e) => setEvaluationForm({ ...evaluationForm, target_weight_kg: e.target.value })}
+                  className={`w-full rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] ${!isEditingTargets ? 'bg-[var(--color-surface)] cursor-not-allowed' : 'bg-[var(--color-card-alt)]'}`}
+                />
+              </div>
             </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Grasa Meta (%)</label>
+                <input
+                  type="number"
+                  disabled={!isEditingTargets}
+                  placeholder={!isEditingTargets ? 'Sin meta' : 'Ej. 15'}
+                  value={evaluationForm.target_body_fat_pct || ''}
+                  onChange={(e) => setEvaluationForm({ ...evaluationForm, target_body_fat_pct: e.target.value })}
+                  className={`w-full rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] ${!isEditingTargets ? 'bg-[var(--color-surface)] cursor-not-allowed' : 'bg-[var(--color-card-alt)]'}`}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Masa Muscular Meta (kg)</label>
+                <input
+                  type="number"
+                  disabled={!isEditingTargets}
+                  placeholder={!isEditingTargets ? 'Sin meta' : 'Ej. 35'}
+                  value={evaluationForm.target_muscle_mass_kg || ''}
+                  onChange={(e) => setEvaluationForm({ ...evaluationForm, target_muscle_mass_kg: e.target.value })}
+                  className={`w-full rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] ${!isEditingTargets ? 'bg-[var(--color-surface)] cursor-not-allowed' : 'bg-[var(--color-card-alt)]'}`}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Visceral Meta (%)</label>
+                <input
+                  type="number"
+                  disabled={!isEditingTargets}
+                  placeholder={!isEditingTargets ? 'Sin meta' : 'Ej. 4'}
+                  value={evaluationForm.target_visceral_fat_pct || ''}
+                  onChange={(e) => setEvaluationForm({ ...evaluationForm, target_visceral_fat_pct: e.target.value })}
+                  className={`w-full rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] ${!isEditingTargets ? 'bg-[var(--color-surface)] cursor-not-allowed' : 'bg-[var(--color-card-alt)]'}`}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas generales</label>
+            <textarea
+              rows={3}
+              value={evaluationForm.body_composition_notes}
+              onChange={(e) => setEvaluationForm({ ...evaluationForm, body_composition_notes: e.target.value })}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+            />
           </div>
         </div>
       )}
@@ -440,9 +557,9 @@ export function ConsultForm({
 
       {evaluationTab === 'diet' && (
         <div className="space-y-6 animate-fade-in">
-          <PlanNutricionalPlatos 
-            patient={patient} 
-            values={evaluationForm} 
+          <PlanNutricionalPlatos
+            patient={patient}
+            values={evaluationForm}
             setValues={setEvaluationForm}
           />
         </div>

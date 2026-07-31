@@ -36,10 +36,11 @@ async function nutritionRoutes(fastify, options) {
     try {
       const validation = schema.createEvaluationSchema.safeParse(request.body);
       if (!validation.success) {
-        console.error('Validation error on /evaluations:', JSON.stringify(validation.error.format(), null, 2));
+        const issuesStr = validation.error.issues.map(i => `${i.path.join('.') || 'campo'}: ${i.message}`).join(', ');
+        console.error('Validation error on /evaluations:', issuesStr);
         return reply.status(400).send({
           error: 'Error de validación en los datos de la evaluación',
-          details: validation.error.format()
+          details: issuesStr
         });
       }
 

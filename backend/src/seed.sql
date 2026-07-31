@@ -93,6 +93,13 @@ END$$;
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_payment_type_check;
 ALTER TABLE payments ADD CONSTRAINT payments_payment_type_check CHECK (payment_type IN ('enrollment', 'monthly', 'visit', 'nutrition_consult', 'nutrition_followup'));
 
+-- Asegurar columnas de metas/objetivos en nutrition_records
+ALTER TABLE nutrition_records ADD COLUMN IF NOT EXISTS target_weight_kg NUMERIC(5,2);
+ALTER TABLE nutrition_records ADD COLUMN IF NOT EXISTS target_waist_cm NUMERIC(5,2);
+ALTER TABLE nutrition_records ADD COLUMN IF NOT EXISTS target_body_fat_pct NUMERIC(5,2);
+ALTER TABLE nutrition_records ADD COLUMN IF NOT EXISTS target_muscle_mass_kg NUMERIC(5,2);
+ALTER TABLE nutrition_records ADD COLUMN IF NOT EXISTS target_visceral_fat_pct NUMERIC(5,2);
+
 -- Ajustar tabla de exercise_plans para soportar consultorio y planes nuevos
 ALTER TABLE exercise_plans
     ADD COLUMN IF NOT EXISTS patient_id UUID REFERENCES patients(id) ON DELETE CASCADE;
@@ -133,10 +140,10 @@ CREATE TABLE IF NOT EXISTS agenda (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Limpiar las tablas antes de insertar para que el seed sea repetible
-TRUNCATE audit_log, notifications, exercise_plans, nutrition_records, attendance, transfer_control, payments, subscriptions, agenda, patients, clients, plans, app_users RESTART IDENTITY CASCADE;
+-- NOTA: Se comenta TRUNCATE para prevenir el borrado accidental de datos de producción o locales
+-- TRUNCATE audit_log, notifications, exercise_plans, nutrition_records, attendance, transfer_control, payments, subscriptions, agenda, patients, clients, plans, app_users RESTART IDENTITY CASCADE;
 
--- 2. Planes disponibles
+-- 2. Planes disponibles (solo si no existen)
 INSERT INTO plans 
 (name, description, price_monthly, price_enrollment, includes_nutrition, requires_enrollment, is_visit_based, duration_days) 
 VALUES
@@ -144,4 +151,22 @@ VALUES
 ('Mensualidad Individual', 'Membresía individual con acceso mensual al gimnasio.', 700.00, 500.00, FALSE, TRUE, FALSE, 30),
 ('Estudiante', 'Membresía para estudiantes con credencial vigente.', 500.00, 500.00, FALSE, TRUE, FALSE, 30),
 ('Visita 1 Día', 'Pase de visita por un día.', 80.00, 0.00, FALSE, FALSE, TRUE, 1),
-('Visita 1 Semana', 'Pase de visita por una semana.', 150.00, 0.00, FALSE, FALSE, TRUE, 7);
+('Visita 1 Semana', 'Pase de visita por una semana.', 150.00, 0.00, FALSE, FALSE, TRUE, 7)
+ON CONFLICT DO NOTHING;
+
+-- 3. Pacientes de prueba
+INSERT INTO patients (id, first_name, last_name, gender, age, phone, email, quick_height_cm, quick_weight_kg)
+VALUES 
+  ('11111111-1111-1111-1111-111111111111', 'Juan', 'Pérez', 'Masculino', 28, '5551234567', 'juan@example.com', 175.00, 82.50),
+  ('22222222-2222-2222-2222-222222222222', 'María', 'Gómez', 'Femenino', 25, '5559876543', 'maria@example.com', 162.00, 64.00)
+ON CONFLICT (id) DO NOTHING;
+
+-- 4. Consulta inicial de prueba con Metas
+INSERT INTO nutrition_records (
+  id, patient_id, entity_type, evaluation_date, weight_kg, height_cm, waist_cm, body_fat_pct, muscle_mass_kg, visceral_fat_pct,
+  target_weight_kg, target_waist_cm, target_body_fat_pct, target_muscle_mass_kg, target_visceral_fat_pct
+) VALUES (
+  '33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'consultorio', CURRENT_DATE - INTERVAL '30 days',
+  82.50, 175.00, 88.00, 24.50, 34.00, 6.00,
+  75.00, 80.00, 18.00, 37.00, 4.00
+) ON CONFLICT (id) DO NOTHING;

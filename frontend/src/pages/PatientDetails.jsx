@@ -562,6 +562,7 @@ export default function PatientDetails() {
               <div className="bg-[var(--color-surface)] p-6 rounded-lg border border-[var(--color-border)]">
                 <ConsultForm
                   patient={patient}
+                  evaluations={evaluations}
                   onSubmit={handleSaveConsult}
                   onCancel={() => setActiveTab('history')}
                   submitLabel="Guardar Expediente"

@@ -175,6 +175,16 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE agenda ADD COLUMN client_id UUID REFERENCES clients(id) ON DELETE SET NULL;
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'nutrition_records' AND column_name = 'target_weight_kg'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN target_weight_kg NUMERIC(5,2);
+        ALTER TABLE nutrition_records ADD COLUMN target_waist_cm NUMERIC(5,2);
+        ALTER TABLE nutrition_records ADD COLUMN target_body_fat_pct NUMERIC(5,2);
+        ALTER TABLE nutrition_records ADD COLUMN target_muscle_mass_kg NUMERIC(5,2);
+        ALTER TABLE nutrition_records ADD COLUMN target_visceral_fat_pct NUMERIC(5,2);
+      END IF;
     END $$;
     `,
     `

@@ -186,79 +186,128 @@ export function ConsultationViewer({
 
       {evaluationTab === 'composition' && (
         <div className="space-y-6 animate-fade-in">
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { label: 'Estatura (cm)', key: 'height_cm' },
-              { label: 'Cintura (cm)', key: 'waist_cm' },
-              { label: 'Peso (kg)', key: 'weight_kg' },
-            ].map((field) => (
-              <div key={field.key} className="space-y-2">
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                <input
-                  type="number"
-                  value={evaluationForm[field.key]}
-                  readOnly
-                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { label: 'Grasa (%)', key: 'body_fat_pct' },
-              { label: 'Masa muscular (kg)', key: 'muscle_mass_kg' },
-              { label: 'Visceral (%)', key: 'visceral_fat_pct' },
-            ].map((field) => (
-              <div key={field.key} className="space-y-2">
-                <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
-                <input
-                  type="number"
-                  value={evaluationForm[field.key]}
-                  readOnly
-                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-                />
-              </div>
-            ))}
-          </div>
-
+          {/* MEDICIÓN DE LA CONSULTA */}
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes familiares</label>
-              <textarea
-                rows={2}
-                value={evaluationForm.family_history}
-                readOnly
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">
+              Consulta
+            </h4>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { label: 'Estatura (cm)', key: 'height_cm' },
+                { label: 'Cintura (cm)', key: 'waist_cm' },
+                { label: 'Peso (kg)', key: 'weight_kg' },
+              ].map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
+                  <input
+                    type="number"
+                    value={evaluationForm[field.key]}
+                    readOnly
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                  />
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes patológicos</label>
-              <textarea
-                rows={2}
-                value={evaluationForm.pathological_history}
-                readOnly
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { label: 'Grasa (%)', key: 'body_fat_pct' },
+                { label: 'Masa muscular (kg)', key: 'muscle_mass_kg' },
+                { label: 'Visceral (%)', key: 'visceral_fat_pct' },
+              ].map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
+                  <input
+                    type="number"
+                    value={evaluationForm[field.key]}
+                    readOnly
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+                  />
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Antecedentes personales</label>
-              <textarea
-                rows={2}
-                value={evaluationForm.personal_history}
-                readOnly
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+          </div>
+
+          {/* METAS DEL PACIENTE / OBJETIVOS */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold,#EAB308)] border-b border-[var(--color-border)] pb-2">
+              Objetivos y Metas del Paciente
+            </h4>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Estatura Base (cm)</label>
+                <input
+                  type="number"
+                  readOnly
+                  value={evaluationForm.height_cm || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text-muted)] cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Cintura Meta (cm)</label>
+                <input
+                  type="number"
+                  readOnly
+                  value={evaluationForm.target_waist_cm || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Peso Meta (kg)</label>
+                <input
+                  type="number"
+                  readOnly
+                  value={evaluationForm.target_weight_kg || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] cursor-not-allowed"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas generales</label>
-              <textarea
-                rows={3}
-                value={evaluationForm.body_composition_notes}
-                readOnly
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
-              />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Grasa Meta (%)</label>
+                <input
+                  type="number"
+                  readOnly
+                  value={evaluationForm.target_body_fat_pct || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Masa Muscular Meta (kg)</label>
+                <input
+                  type="number"
+                  readOnly
+                  value={evaluationForm.target_muscle_mass_kg || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">Visceral Meta (%)</label>
+                <input
+                  type="number"
+                  readOnly
+                  value={evaluationForm.target_visceral_fat_pct || ''}
+                  className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] cursor-not-allowed"
+                />
+              </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--color-text-muted)]">Notas generales</label>
+            <textarea
+              rows={3}
+              value={evaluationForm.body_composition_notes}
+              readOnly
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-3 text-[var(--color-text)]"
+            />
           </div>
         </div>
       )}
