@@ -226,9 +226,9 @@ export function ConsultForm({
         <div className="space-y-6 animate-fade-in">
           <div className="grid gap-4 md:grid-cols-3">
             {[
+              { label: 'Estatura (cm)', key: 'height_cm' },
+              { label: 'Cintura (cm)', key: 'waist_cm' },
               { label: 'Peso (kg)', key: 'weight_kg' },
-              { label: 'Altura (cm)', key: 'height_cm' },
-              { label: 'Grasa (%)', key: 'body_fat_pct' },
             ].map((field) => (
               <div key={field.key} className="space-y-2">
                 <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
@@ -244,9 +244,9 @@ export function ConsultForm({
 
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { label: 'Visceral (%)', key: 'visceral_fat_pct' },
+              { label: 'Grasa (%)', key: 'body_fat_pct' },
               { label: 'Masa muscular (kg)', key: 'muscle_mass_kg' },
-              { label: 'Cintura (cm)', key: 'waist_cm' },
+              { label: 'Visceral (%)', key: 'visceral_fat_pct' },
             ].map((field) => (
               <div key={field.key} className="space-y-2">
                 <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
