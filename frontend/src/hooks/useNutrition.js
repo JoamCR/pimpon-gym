@@ -135,7 +135,9 @@ export const useCreateExercisePlan = () => {
       });
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al crear plan');
+        const detailsStr = typeof error.details === 'object' ? JSON.stringify(error.details) : error.details;
+        const msg = detailsStr ? `${error.error || 'Error'} - ${detailsStr}` : (error.error || 'Error al crear plan');
+        throw new Error(msg);
       }
       return response.json();
     },
@@ -160,7 +162,9 @@ export const useUpdateExercisePlan = () => {
       });
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al actualizar plan');
+        const detailsStr = typeof error.details === 'object' ? JSON.stringify(error.details) : error.details;
+        const msg = detailsStr ? `${error.error || 'Error'} - ${detailsStr}` : (error.error || 'Error al actualizar plan');
+        throw new Error(msg);
       }
       return response.json();
     },

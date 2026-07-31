@@ -185,7 +185,10 @@ export default function Patients() {
       planData?.datosGenerales?.objetivo ||
       planData?.anotaciones ||
       planData?.observaciones ||
-      (Array.isArray(planData?.rutinas) && planData.rutinas.length > 0) ||
+      (Array.isArray(planData?.rutinas) && planData.rutinas.some(r =>
+        Object.values(r.dias || {}).some(Boolean) ||
+        r.ejercicios?.some(e => e.series || e.repeticiones || e.descanso)
+      )) ||
       Object.values(planData?.cardio || {}).some((value) => value && value !== '')
     ));
 
@@ -202,8 +205,8 @@ export default function Patients() {
         };
 
         await createExercisePlanMutation.mutateAsync({
-          entity_type: 'consultorio',
-          patient_id: selectedPatient?.id,
+          entity_type: isClient ? 'gym' : 'consultorio',
+          [isClient ? 'client_id' : 'patient_id']: selectedPatient?.id,
           nutrition_record_id: savedEvaluation?.data?.id || savedEvaluation?.id || null,
           month_year: planData?.month_year || new Date().toISOString().slice(0, 7),
           content,

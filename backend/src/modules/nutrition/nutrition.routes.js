@@ -95,24 +95,34 @@ async function nutritionRoutes(fastify, options) {
    * Crea un plan de ejercicio (6 días: Lun-Sáb)
    */
   fastify.post('/plans', async (request, reply) => {
-    const validation = schema.createExercisePlanSchema.safeParse(request.body);
-    if (!validation.success) {
-      return reply.status(400).send({
-        error: 'Error de validación en los datos del plan',
-        details: validation.error.format()
+    try {
+      const validation = schema.createExercisePlanSchema.safeParse(request.body);
+      if (!validation.success) {
+        const issuesStr = validation.error.issues.map(i => `${i.path.join('.') || 'campo'}: ${i.message}`).join(', ');
+        console.error('Validation error on POST /plans:', issuesStr);
+        return reply.status(400).send({
+          error: 'Error de validación en los datos del plan',
+          details: issuesStr
+        });
+      }
+
+      // TODO: En el futuro esto vendrá del token de auth: request.user.id
+      const nutritionistId = request.user?.id || null;
+
+      const plan = await service.createPlan(
+        validation.data.client_id || validation.data.patient_id,
+        validation.data,
+        nutritionistId
+      );
+      
+      return reply.status(201).send({ data: plan });
+    } catch (error) {
+      console.error('Error al crear plan de ejercicio:', error);
+      return reply.status(error.statusCode || 500).send({
+        error: error.message || 'Error al crear plan de ejercicio',
+        details: error.detail || error.hint || error.stack
       });
     }
-
-    // TODO: En el futuro esto vendrá del token de auth: request.user.id
-    const nutritionistId = request.user?.id || null;
-
-    const plan = await service.createPlan(
-      validation.data.client_id,
-      validation.data,
-      nutritionistId
-    );
-    
-    return reply.status(201).send({ data: plan });
   });
 
   /**
@@ -133,9 +143,10 @@ async function nutritionRoutes(fastify, options) {
     const { planId } = request.params;
     const validation = schema.updateExercisePlanSchema.safeParse(request.body);
     if (!validation.success) {
+      const issuesStr = validation.error.issues.map(i => `${i.path.join('.') || 'campo'}: ${i.message}`).join(', ');
       return reply.status(400).send({
         error: 'Error de validación en los datos',
-        details: validation.error.format()
+        details: issuesStr
       });
     }
 

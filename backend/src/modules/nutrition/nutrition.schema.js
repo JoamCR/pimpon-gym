@@ -78,19 +78,24 @@ const createEvaluationSchema = z.object({
   fat_target_g: coerceNum,
 });
 
+const coerceMonthYear = z.preprocess((val) => {
+  if (val === '' || val === null || val === undefined) return undefined;
+  return String(val);
+}, z.string().regex(/^\d{4}-\d{2}$/, 'El formato debe ser YYYY-MM').optional().nullable());
+
 // Esquema para actualizar una evaluación
 const updateEvaluationSchema = createEvaluationSchema.partial();
 
 // Esquema para crear plan de ejercicio (6 días)
 const createExercisePlanSchema = z.object({
-  client_id: z.string().uuid('El ID del cliente debe ser un UUID válido').optional(),
-  patient_id: z.string().uuid('El ID del paciente debe ser un UUID válido').optional(),
+  client_id: coerceUuid,
+  patient_id: coerceUuid,
   entity_type: z.enum(['gym', 'consultorio'], {
     errorMap: () => ({ message: 'El tipo de entidad debe ser gym o consultorio' })
   }),
-  nutrition_record_id: z.string().uuid('El ID del registro nutricional debe ser un UUID válido').nullable().optional(),
-  month_year: z.string().regex(/^\d{4}-\d{2}$/, 'El formato debe ser YYYY-MM').optional(),
-  content: z.record(z.any()).default({}),
+  nutrition_record_id: coerceUuid,
+  month_year: coerceMonthYear,
+  content: z.any().default({}),
 });
 
 // Esquema para actualizar plan de ejercicio

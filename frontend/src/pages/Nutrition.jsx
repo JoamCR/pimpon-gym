@@ -197,7 +197,10 @@ export default function Nutrition() {
       planData?.datosGenerales?.objetivo ||
       planData?.anotaciones ||
       planData?.observaciones ||
-      (Array.isArray(planData?.rutinas) && planData.rutinas.length > 0) ||
+      (Array.isArray(planData?.rutinas) && planData.rutinas.some(r =>
+        Object.values(r.dias || {}).some(Boolean) ||
+        r.ejercicios?.some(e => e.series || e.repeticiones || e.descanso)
+      )) ||
       Object.values(planData?.cardio || {}).some((value) => value && value !== '')
     ));
 

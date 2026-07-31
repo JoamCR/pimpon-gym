@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
 import { IconEdit, IconCheck } from '@tabler/icons-react';
+import { useExercisePlans } from '../../../hooks/useNutrition';
+
 const getInitialEvaluation = () => ({
   weight_kg: '',
   height_cm: '',
@@ -67,22 +69,31 @@ const getInitialPlanForm = () => ({
 const normalizePlanForm = (plan) => {
   if (!plan) return getInitialPlanForm();
 
-  if (plan.datosGenerales || plan.rutinas || plan.cardio || plan.anotaciones || plan.observaciones) {
+  let planObj = plan.content || plan;
+  if (typeof planObj === 'string') {
+    try {
+      planObj = JSON.parse(planObj);
+    } catch (e) {
+      console.error('Error parseando JSON de contenido del plan:', e);
+    }
+  }
+
+  if (planObj && (planObj.datosGenerales || planObj.rutinas || planObj.cardio || planObj.anotaciones || planObj.observaciones)) {
     return {
       ...getInitialPlanForm(),
-      ...plan,
+      ...planObj,
       datosGenerales: {
         ...getInitialPlanForm().datosGenerales,
-        ...(plan.datosGenerales || {}),
+        ...(planObj.datosGenerales || {}),
       },
       cardio: {
         ...getInitialPlanForm().cardio,
-        ...(plan.cardio || {}),
+        ...(planObj.cardio || {}),
       },
     };
   }
 
-  return plan;
+  return planObj;
 };
 
 const HealthSlider = ({ label, value, onChange }) => {
@@ -154,6 +165,13 @@ export function ConsultForm({
 }) {
   const latestEval = evaluations && evaluations.length > 0
     ? [...evaluations].sort((a, b) => new Date(b.evaluation_date || b.created_at || 0) - new Date(a.evaluation_date || a.created_at || 0))[0]
+    : null;
+
+  const { data: plansData } = useExercisePlans(patient?.id);
+  const exercisePlansList = plansData?.data || (Array.isArray(plansData) ? plansData : []);
+
+  const latestPlan = exercisePlansList && exercisePlansList.length > 0
+    ? [...exercisePlansList].sort((a, b) => new Date(b.created_at || b.month_year || 0) - new Date(a.created_at || a.month_year || 0))[0]
     : null;
 
   const previousEvalWithHeight = evaluations?.find(e => e.height_cm !== null && e.height_cm !== undefined && e.height_cm !== '');
@@ -228,6 +246,13 @@ export function ConsultForm({
         target_body_fat_pct: initialTargetBodyFat,
         target_muscle_mass_kg: initialTargetMuscleMass,
         target_visceral_fat_pct: initialTargetVisceralFat,
+        body_composition_notes: latestEval.body_composition_notes || '',
+        sp_notes: latestEval.sp_notes || '',
+        diet_plan: latestEval.diet_plan || '',
+        caloric_target: latestEval.caloric_target || '',
+        protein_target_g: latestEval.protein_target_g || '',
+        carbs_target_g: latestEval.carbs_target_g || '',
+        fat_target_g: latestEval.fat_target_g || '',
       };
     }
 
@@ -242,7 +267,20 @@ export function ConsultForm({
       target_visceral_fat_pct: initialTargetVisceralFat,
     };
   });
-  const [planForm, setPlanForm] = useState(() => normalizePlanForm(plan));
+
+  const [planForm, setPlanForm] = useState(() => {
+    if (plan) return normalizePlanForm(plan);
+    if (latestPlan) return normalizePlanForm(latestPlan);
+    return getInitialPlanForm();
+  });
+
+  const hasAutoLoadedLatestPlanRef = useRef(Boolean(plan || latestPlan));
+  useEffect(() => {
+    if (!plan && latestPlan && !hasAutoLoadedLatestPlanRef.current) {
+      hasAutoLoadedLatestPlanRef.current = true;
+      setPlanForm(normalizePlanForm(latestPlan));
+    }
+  }, [plan, latestPlan]);
   const [evaluationTab, setEvaluationTab] = useState(defaultTab || 'clinical_history');
 
   const handlePlanChange = (nextPlan) => {
@@ -260,7 +298,7 @@ export function ConsultForm({
         ...evaluationForm,
         entity_type: isClient ? 'gym' : 'consultorio',
         [isClient ? 'client_id' : 'patient_id']: patient.id,
-        ...(evaluationTab === 'exercise_plan' ? { plan: planForm } : {}),
+        plan: planForm,
       };
 
       await onSubmit(payload);

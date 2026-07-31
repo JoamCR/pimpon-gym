@@ -180,7 +180,10 @@ export default function PatientDetails() {
       planData?.datosGenerales?.objetivo ||
       planData?.anotaciones ||
       planData?.observaciones ||
-      (Array.isArray(planData?.rutinas) && planData.rutinas.length > 0) ||
+      (Array.isArray(planData?.rutinas) && planData.rutinas.some(r =>
+        Object.values(r.dias || {}).some(Boolean) ||
+        r.ejercicios?.some(e => e.series || e.repeticiones || e.descanso)
+      )) ||
       Object.values(planData?.cardio || {}).some((value) => value && value !== '')
     ));
 
@@ -450,24 +453,30 @@ export default function PatientDetails() {
                             {evaluation.is_free_consult ? 'Consulta Gratuita' : 'Consulta Regular'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-[var(--color-text)]">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-sm text-[var(--color-text)]">
+                          <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Estatura</span>
+                            <span className="font-bold text-base sm:text-lg">{evaluation.height_cm ? `${evaluation.height_cm} cm` : '—'}</span>
+                          </div>
+                          <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Cintura</span>
+                            <span className="font-bold text-base sm:text-lg">{evaluation.waist_cm ? `${evaluation.waist_cm} cm` : '—'}</span>
+                          </div>
                           <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
                             <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Peso</span>
-                            <span className="font-bold text-lg">{evaluation.weight_kg || '—'} kg</span>
+                            <span className="font-bold text-base sm:text-lg">{evaluation.weight_kg ? `${evaluation.weight_kg} kg` : '—'}</span>
                           </div>
                           <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
                             <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">% Grasa</span>
-                            <span className="font-bold text-lg">{evaluation.body_fat_pct || '—'}%</span>
+                            <span className="font-bold text-base sm:text-lg">{evaluation.body_fat_pct ? `${evaluation.body_fat_pct}%` : '—'}</span>
                           </div>
                           <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
                             <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">Masa Muscular</span>
-                            <span className="font-bold text-lg">{evaluation.muscle_mass_kg || '—'} kg</span>
+                            <span className="font-bold text-base sm:text-lg">{evaluation.muscle_mass_kg ? `${evaluation.muscle_mass_kg} kg` : '—'}</span>
                           </div>
                           <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
-                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">IMC</span>
-                            <span className="font-bold text-lg">
-                              {evaluation.height_cm && evaluation.weight_kg ? (evaluation.weight_kg / ((evaluation.height_cm / 100) ** 2)).toFixed(1) : '—'}
-                            </span>
+                            <span className="block text-xs text-[var(--color-text-muted)] uppercase mb-1">% Visceral</span>
+                            <span className="font-bold text-base sm:text-lg">{evaluation.visceral_fat_pct ? `${evaluation.visceral_fat_pct}%` : '—'}</span>
                           </div>
                         </div>
 
