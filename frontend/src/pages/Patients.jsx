@@ -126,9 +126,10 @@ export default function Patients() {
   };
 
   const handleSavePayment = () => {
+    const isClient = selectedPatient?.userType === 'client';
     const payload = {
-      entity_type: 'consultorio',
-      patient_id: selectedPatient.id,
+      entity_type: isClient ? 'gym' : 'consultorio',
+      [isClient ? 'client_id' : 'patient_id']: selectedPatient.id,
       amount: Number(paymentForm.amount),
       payment_method: paymentForm.payment_method,
       payment_type: 'nutrition_consult',

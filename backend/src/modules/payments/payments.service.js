@@ -22,6 +22,24 @@ const registerPayment = async (data, registeredBy) => {
     
     let transferWarning = null;
     
+    // Resolver entidad (clients vs patients) para garantizar integridad referencial y cumplir las restricciones de la BD
+    const targetId = data.client_id || data.patient_id;
+    if (targetId) {
+      const clientCheck = await dbClient.query('SELECT id FROM clients WHERE id = $1', [targetId]);
+      if (clientCheck.rows.length > 0) {
+        data.client_id = clientCheck.rows[0].id;
+        data.patient_id = null;
+        data.entity_type = 'gym';
+      } else {
+        const patientCheck = await dbClient.query('SELECT id FROM patients WHERE id = $1', [targetId]);
+        if (patientCheck.rows.length > 0) {
+          data.patient_id = patientCheck.rows[0].id;
+          data.client_id = null;
+          data.entity_type = 'consultorio';
+        }
+      }
+    }
+
     // Regla de Negocio: Tope de transferencias ($30,000 MXN / mes)
     if (data.payment_method === 'transfer') {
       const limit = parseFloat(process.env.TRANSFER_MONTHLY_LIMIT || '30000');
@@ -163,7 +181,8 @@ const registerPayment = async (data, registeredBy) => {
   } catch (error) {
     await dbClient.query('ROLLBACK');
     console.error('Error interno en creación de pago:', error);
-    throw createError(500, 'Error al procesar el pago.');
+    if (error.isOperational) throw error;
+    throw createError(error.statusCode || 500, error.message || 'Error al procesar el pago.');
   } finally {
     dbClient.release();
   }
