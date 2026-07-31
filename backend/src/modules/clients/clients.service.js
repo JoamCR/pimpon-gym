@@ -105,6 +105,14 @@ const create = async (data, registeredBy) => {
       registered_by: registeredBy,
       entity_type: 'gym' // <-- AÑADIDO: Especificar la entidad para el pago
     }, dbClient);
+
+    // 5.1 Si el plan es por visita / visitante, registrar asistencia automática
+    if (plan.is_visit_based) {
+      await dbClient.query(`
+        INSERT INTO attendance (id, client_id, checked_in_at, method, registered_by)
+        VALUES (gen_random_uuid(), $1, NOW(), 'manual', $2)
+      `, [newClient.id, registeredBy]);
+    }
     
     // 6. Regla Crítica: Tope de transferencias ($30,000 MXN / mes)
     let transferWarning = null;

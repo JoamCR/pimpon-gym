@@ -35,7 +35,7 @@ const navItems = [
     ]
   },
   { path: '/attendance', label: 'Asistencia', icon: <IconCheckbox size={20} /> },
-  { path: '/nutrition', label: 'Nutrición', icon: <IconApple size={20} /> },
+  // { path: '/nutrition', label: 'Nutrición', icon: <IconApple size={20} /> },
   { path: '/statistics', label: 'Estadísticas', icon: <IconChartBar size={20} /> },
   { path: '/finanzas', label: 'Finanzas', icon: <IconCash size={20} /> },
   { path: '/config', label: 'Configuración', icon: <IconSettings size={20} /> },

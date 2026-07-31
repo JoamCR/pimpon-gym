@@ -235,7 +235,8 @@ const getComprehensiveStats = async (year, month) => {
       clientsByPlan,
       activeClients,
       monthlyIncome,
-      acquisitionOrigin
+      acquisitionOrigin,
+      visitStats
     ] = await Promise.all([
       repository.getRetentionRate(),
       repository.getPaymentMethodsDistribution(y, m),
@@ -253,7 +254,8 @@ const getComprehensiveStats = async (year, month) => {
       repository.getClientsByPlan(),
       repository.getActiveClientsReal(),
       repository.getMonthlyIncome(y),
-      repository.getAcquisitionOriginStats()
+      repository.getAcquisitionOriginStats(),
+      repository.getVisitStats(y, m)
     ]);
 
     return {
@@ -265,7 +267,8 @@ const getComprehensiveStats = async (year, month) => {
         nutritionStats: nutritionStats,
         activeClients: activeClients,
         sixMonthEligible: sixMonthEligible?.length || 0,
-        acquisitionOrigin: acquisitionOrigin
+        acquisitionOrigin: acquisitionOrigin,
+        visitStats: visitStats
       },
       charts: {
         paymentMethods,

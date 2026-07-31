@@ -586,16 +586,28 @@ export default function Clients() {
     }
 
     if (step === 2) {
-      return (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[
+      const step2Fields = isVisitMode
+        ? [
+            { label: 'Nombre', key: 'first_name' },
+            { label: 'Apellidos', key: 'last_name' },
+            { label: 'Teléfono (opcional)', key: 'phone' },
+            // Para visitantes se comentan los campos no requeridos:
+            // { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
+            // { label: 'Correo electrónico', key: 'email', type: 'email' },
+            // { label: 'RFC', key: 'rfc' },
+          ]
+        : [
             { label: 'Nombre', key: 'first_name' },
             { label: 'Apellidos', key: 'last_name' },
             { label: 'Sexo', key: 'gender', type: 'select', options: ['Masculino', 'Femenino', 'Otro'] },
             { label: 'Teléfono', key: 'phone' },
             { label: 'Correo electrónico', key: 'email', type: 'email' },
             // { label: 'RFC', key: 'rfc' },
-          ].map((field) => (
+          ];
+
+      return (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {step2Fields.map((field) => (
             <div key={field.key} className="space-y-2">
               <label className="block text-sm font-semibold text-[var(--color-text-muted)]">{field.label}</label>
               {field.type === 'select' ? (
@@ -637,20 +649,23 @@ export default function Clients() {
             </div>
           ))}
 
-          <div className="sm:col-span-2 mt-2">
-            <HybridDateInput
-              value={formData.birth_date}
-              error={fieldErrors.birth_date}
-              onChange={(dateStr, calculatedAge) => {
-                setFormData({
-                  ...formData,
-                  birth_date: dateStr,
-                  age: calculatedAge !== null ? calculatedAge.toString() : ''
-                });
-                if (fieldErrors.birth_date) setFieldErrors({ ...fieldErrors, birth_date: null });
-              }}
-            />
-          </div>
+          {!isVisitMode && (
+            <div className="sm:col-span-2 mt-2">
+              <HybridDateInput
+                value={formData.birth_date}
+                error={fieldErrors.birth_date}
+                onChange={(dateStr, calculatedAge) => {
+                  setFormData({
+                    ...formData,
+                    birth_date: dateStr,
+                    age: calculatedAge !== null ? calculatedAge.toString() : ''
+                  });
+                  if (fieldErrors.birth_date) setFieldErrors({ ...fieldErrors, birth_date: null });
+                }}
+              />
+            </div>
+          )}
+          {/* Para visitantes se omite la Fecha de nacimiento y Edad */}
         </div>
       );
     }

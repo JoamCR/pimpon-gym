@@ -1001,6 +1001,41 @@ const getAcquisitionOriginStats = async () => {
   }
 };
 
+/**
+ * 36. getVisitStats(year, month): visitas del día, mes y año
+ */
+const getVisitStats = async (year, month) => {
+  const sql = `
+    WITH all_visits AS (
+      SELECT checked_in_at::date as v_date, checked_in_at as v_time FROM attendance
+      UNION ALL
+      SELECT paid_at::date as v_date, paid_at as v_time FROM payments p 
+      WHERE p.payment_type = 'visit' 
+        AND NOT EXISTS (
+          SELECT 1 FROM attendance a 
+          WHERE a.client_id = p.client_id 
+            AND a.checked_in_at::date = p.paid_at::date
+        )
+    )
+    SELECT 
+      (SELECT COUNT(*)::int FROM all_visits WHERE v_date = CURRENT_DATE) as today,
+      (SELECT COUNT(*)::int FROM all_visits WHERE EXTRACT(YEAR FROM v_time) = $1 AND EXTRACT(MONTH FROM v_time) = $2) as month,
+      (SELECT COUNT(*)::int FROM all_visits WHERE EXTRACT(YEAR FROM v_time) = $1) as year
+  `;
+  try {
+    const result = await pool.query(sql, [year, month]);
+    const row = result.rows[0] || {};
+    return {
+      today: row.today || 0,
+      month: row.month || 0,
+      year: row.year || 0
+    };
+  } catch (err) {
+    console.error('Error obteniendo estadísticas de visitas:', err);
+    throw createError(500, 'Error obteniendo estadísticas de visitas');
+  }
+};
+
 module.exports = {
   getMonthlyIncome,
   getActiveClientsReal,
@@ -1036,5 +1071,6 @@ module.exports = {
   getNutritionRetentionByThreeMonths,
   getNutritionConsultationDurations,
   getNutritionIncomeReal,
-  getAcquisitionOriginStats
+  getAcquisitionOriginStats,
+  getVisitStats
 };

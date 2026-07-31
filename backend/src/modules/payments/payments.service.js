@@ -171,6 +171,14 @@ const registerPayment = async (data, registeredBy) => {
     
     // Crear el pago (el repositorio se encarga de inyectar en audit_log)
     const payment = await repository.create(data, registeredBy, dbClient);
+
+    // Si el pago es de tipo visita, registrar la asistencia correspondiente
+    if (data.payment_type === 'visit' && data.client_id) {
+      await dbClient.query(`
+        INSERT INTO attendance (id, client_id, checked_in_at, method, registered_by)
+        VALUES (gen_random_uuid(), $1, NOW(), 'manual', $2)
+      `, [data.client_id, registeredBy]);
+    }
     
     await dbClient.query('COMMIT');
     

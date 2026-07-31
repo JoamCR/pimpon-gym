@@ -11,7 +11,8 @@ import {
   IconDownload,
   IconShare,
   IconSpeakerphone,
-  IconMessage
+  IconMessage,
+  IconCalendarEvent
 } from '@tabler/icons-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis,
@@ -579,9 +580,9 @@ export default function Statistics() {
       </header>
 
       {/* Medio de Llegada y Conversiones */}
-      <section className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-md space-y-4">
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-3">
-          <div className="w-1.5 h-7 bg-[var(--color-gold)] rounded-full" />
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-7 bg-[var(--color-success)] rounded-full" />
           <div>
             <h2 className="text-xl font-bold text-[var(--color-text)]">Medio de Llegada y Conversiones</h2>
             <p className="text-xs text-[var(--color-text-muted)]">Canal de origen de tus clientes/pacientes y tasa de migración entre etapas.</p>
@@ -589,29 +590,57 @@ export default function Statistics() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-            <span className="text-xs font-bold text-[var(--color-secondary)] uppercase tracking-wider block mb-1">Origen: Solo Gimnasio</span>
-            <p className="text-3xl font-bold text-[var(--color-text)]">{acquisitionOriginData?.gimnasio_only || 0}</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total registrado</p>
-          </div>
+          <motion.div whileHover={{ scale: 1.02 }}>
+            <GymCard
+              title="Origen: Solo Gimnasio"
+              subtitle={`${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total registrado`}
+              variant="success"
+              noPad
+            >
+              <div className="p-5">
+                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.gimnasio_only || 0}</p>
+              </div>
+            </GymCard>
+          </motion.div>
 
-          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-            <span className="text-xs font-bold text-[var(--color-success)] uppercase tracking-wider block mb-1">Origen: Solo Nutrición</span>
-            <p className="text-3xl font-bold text-[var(--color-text)]">{acquisitionOriginData?.nutricion_only || 0}</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.nutricion_only || 0}% del total registrado</p>
-          </div>
+          <motion.div whileHover={{ scale: 1.02 }}>
+            <GymCard
+              title="Origen: Solo Nutrición"
+              subtitle={`${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total registrado`}
+              variant="success"
+              noPad
+            >
+              <div className="p-5">
+                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.nutricion_only || 0}</p>
+              </div>
+            </GymCard>
+          </motion.div>
 
-          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-            <span className="text-xs font-bold text-[var(--color-gold)] uppercase tracking-wider block mb-1">Gimnasio → Nutrición</span>
-            <p className="text-3xl font-bold text-[var(--color-gold)]">{acquisitionOriginData?.gimnasio_to_nutricion || 0}</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones a consulta</p>
-          </div>
+          <motion.div whileHover={{ scale: 1.02 }}>
+            <GymCard
+              title="Gimnasio → Nutrición"
+              subtitle={`${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones a consulta`}
+              variant="success"
+              noPad
+            >
+              <div className="p-5">
+                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.gimnasio_to_nutricion || 0}</p>
+              </div>
+            </GymCard>
+          </motion.div>
 
-          <div className="bg-[var(--color-surface)] p-4 rounded-lg border border-[var(--color-border)]">
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-wider block mb-1">Nutrición → Gimnasio</span>
-            <p className="text-3xl font-bold text-amber-500">{acquisitionOriginData?.nutricion_to_gimnasio || 0}</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">{acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones a membresía</p>
-          </div>
+          <motion.div whileHover={{ scale: 1.02 }}>
+            <GymCard
+              title="Nutrición → Gimnasio"
+              subtitle={`${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones a membresía`}
+              variant="success"
+              noPad
+            >
+              <div className="p-5">
+                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.nutricion_to_gimnasio || 0}</p>
+              </div>
+            </GymCard>
+          </motion.div>
         </div>
       </section>
 
@@ -627,6 +656,54 @@ export default function Statistics() {
         <div className="mb-4 flex items-center gap-2">
           <div className="w-1.5 h-8 bg-[var(--color-secondary)] rounded-full" />
           <h2 className="text-2xl font-bold text-[var(--color-text)]">Estadísticas del Gimnasio</h2>
+        </div>
+
+        {/* Control de Visitas */}
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <IconCalendarEvent size={20} className="text-[var(--color-success)]" />
+            <h3 className="text-xl font-bold text-[var(--color-text)]">Control de Visitas</h3>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <GymCard
+                title="Visitas del Día"
+                subtitle="Asistencias registradas hoy"
+                variant="success"
+                noPad
+              >
+                <div className="p-5">
+                  <p className="text-3xl font-bold text-black">{kpis.visitStats?.today || 0}</p>
+                </div>
+              </GymCard>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <GymCard
+                title="Visitas del Mes"
+                subtitle="Asistencias acumuladas del mes"
+                variant="success"
+                noPad
+              >
+                <div className="p-5">
+                  <p className="text-3xl font-bold text-black">{kpis.visitStats?.month || 0}</p>
+                </div>
+              </GymCard>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <GymCard
+                title="Visitas del Año"
+                subtitle="Asistencias acumuladas del año"
+                variant="success"
+                noPad
+              >
+                <div className="p-5">
+                  <p className="text-3xl font-bold text-black">{kpis.visitStats?.year || 0}</p>
+                </div>
+              </GymCard>
+            </motion.div>
+          </div>
         </div>
 
         {/* KPIs Principales */}
