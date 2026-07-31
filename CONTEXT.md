@@ -537,5 +537,5 @@ Semana 9: Módulo de Promociones/Campañas + Configuración + responsive tablet
 
 
 
-Para mejorar las tablas com ofianzas y clientes
+Para mejorar las tablas como finanzas y clientes
 Quiero la tabla y los filtros con el diseño estándar tipo 'Zebra' que hicimos en Finanzas y Clientes
