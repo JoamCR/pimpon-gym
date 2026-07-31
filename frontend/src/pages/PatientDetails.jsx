@@ -449,8 +449,8 @@ export default function PatientDetails() {
                             <IconStethoscope className="text-[var(--color-success)]" />
                             Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).replace(/,/g, '').replace(/\b\w/g, (c) => c.toUpperCase())}
                           </h3>
-                          <span className={`text-xs px-3 py-1 rounded-full font-bold ${evaluation.is_free_consult ? 'bg-[rgba(234,179,8,0.2)] text-yellow-500' : 'bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]'}`}>
-                            {evaluation.is_free_consult ? 'Consulta Gratuita' : 'Consulta Regular'}
+                          <span className="text-xs px-3 py-1 rounded-full font-bold bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]">
+                            Consulta Regular
                           </span>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-sm text-[var(--color-text)]">

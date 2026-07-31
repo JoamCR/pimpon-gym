@@ -56,9 +56,8 @@ const allMetrics = [
   { id: 'sexDistributionPatients', label: 'Sexo de Pacientes', category: 'nutrition' },
   { id: 'absentClients', label: 'Clientes Ausentes', category: 'gym' },
   { id: 'alertClients', label: 'Clientes en Alerta', category: 'gym' },
-  { id: 'nutritionFreeConsults', label: 'Consultas Gratuitas', category: 'nutrition' },
+  { id: 'nutritionEvaluations', label: 'Evaluaciones Realizadas', category: 'nutrition' },
   { id: 'nutritionPaidConsults', label: 'Consultas Pagadas', category: 'nutrition' },
-  { id: 'nutritionFreePaidConversion', label: 'Conversión Gratuita → Pago', category: 'nutrition' },
   { id: 'nutritionPatientsToClients', label: 'Pacientes → Clientes', category: 'nutrition' },
   { id: 'nutritionRetention', label: 'Retención de Pacientes', category: 'nutrition' },
   { id: 'nutritionIncome', label: 'Ingresos del Consultorio', category: 'nutrition' },
@@ -768,15 +767,15 @@ export default function Statistics() {
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionFreeConsults' ? 'ring-2 ring-[#D97706] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionFreeConsults' ? null : 'nutritionFreeConsults')}
+            className={`cursor-pointer ${selectedCard === 'nutritionEvaluations' ? 'ring-2 ring-[#D97706] rounded-[var(--radius-lg)]' : ''}`}
+            onClick={() => setSelectedCard(selectedCard === 'nutritionEvaluations' ? null : 'nutritionEvaluations')}
           >
-            <GymCard title="Consultas Gratuitas" subtitle="Primera consulta gratis" variant="default" noPad>
+            <GymCard title="Evaluaciones Realizadas" subtitle="Evaluaciones registradas en el mes" variant="default" noPad>
               <div className="p-5">
-                <p className="text-3xl font-bold text-[#0F3E60]">{kpis.nutritionStats?.free_consults || 0}</p>
+                <p className="text-3xl font-bold text-[#0F3E60]">{kpis.nutritionStats?.total_evaluations || 0}</p>
               </div>
             </GymCard>
-            {selectedCard === 'nutritionFreeConsults' && (
+            {selectedCard === 'nutritionEvaluations' && (
               <div className="mt-4">{renderSelectedDetail()}</div>
             )}
           </motion.div>
@@ -792,21 +791,6 @@ export default function Statistics() {
               </div>
             </GymCard>
             {selectedCard === 'nutritionPaidConsults' && (
-              <div className="mt-4">{renderSelectedDetail()}</div>
-            )}
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionFreePaidConversion' ? 'ring-2 ring-[var(--color-gold)] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionFreePaidConversion' ? null : 'nutritionFreePaidConversion')}
-          >
-            <GymCard title="Conversión Gratuita → Pago" subtitle="Clientes gym que ya pagan consultas" variant="gold" noPad>
-              <div className="p-5">
-                <p className="text-3xl font-bold text-[var(--color-gold)]">{kpis.nutritionStats?.free_to_paid_conversion || 0}%</p>
-              </div>
-            </GymCard>
-            {selectedCard === 'nutritionFreePaidConversion' && (
               <div className="mt-4">{renderSelectedDetail()}</div>
             )}
           </motion.div>

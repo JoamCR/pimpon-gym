@@ -499,12 +499,10 @@ const getSixMonthEligible = async () => {
  */
 const getNutritionStats = async (year, month) => {
   const sql = `
-    WITH free_patients AS (
-      SELECT DISTINCT nr.patient_id
+    WITH total_evals AS (
+      SELECT COUNT(*) as total_evaluations
       FROM nutrition_records nr
-      WHERE nr.entity_type = 'consultorio'
-        AND nr.is_free_consult = true
-        AND EXTRACT(YEAR FROM nr.evaluation_date) = $1
+      WHERE EXTRACT(YEAR FROM nr.evaluation_date) = $1
         AND EXTRACT(MONTH FROM nr.evaluation_date) = $2
     ),
     paid_consults AS (
@@ -516,16 +514,6 @@ const getNutritionStats = async (year, month) => {
         AND EXTRACT(YEAR FROM p.paid_at) = $1
         AND EXTRACT(MONTH FROM p.paid_at) = $2
     ),
-    converted_clients AS (
-      SELECT DISTINCT nr.patient_id
-      FROM nutrition_records nr
-      JOIN payments p ON nr.patient_id = p.patient_id
-      WHERE nr.entity_type = 'consultorio'
-        AND nr.is_free_consult = true
-        AND p.entity_type = 'consultorio'
-        AND p.payment_type IN ('nutrition_consult', 'nutrition_followup')
-        AND p.is_voided = false
-    ),
     active_patients AS (
       SELECT COUNT(*) as total_patients
       FROM patients
@@ -533,12 +521,10 @@ const getNutritionStats = async (year, month) => {
     )
     SELECT
       ap.total_patients,
-      COALESCE((SELECT COUNT(*) FROM free_patients), 0) as free_consults,
+      0 as free_consults,
+      COALESCE((SELECT total_evaluations FROM total_evals), 0) as total_evaluations,
       COALESCE((SELECT total_paid_consults FROM paid_consults), 0) as paid_consults,
-      ROUND(
-        100.0 * COALESCE((SELECT COUNT(*) FROM converted_clients), 0) / NULLIF(COALESCE((SELECT COUNT(*) FROM free_patients), 0), 0),
-        2
-      ) as free_to_paid_conversion
+      0 as free_to_paid_conversion
     FROM active_patients ap
   `;
   try {
@@ -550,32 +536,10 @@ const getNutritionStats = async (year, month) => {
 };
 
 /**
- * getNutritionFreeConsults(): pacientes con consultas gratuitas en Nutriología
+ * getNutritionFreeConsults(): retorna array vacío dado que ya no existen consultas gratuitas
  */
 const getNutritionFreeConsults = async (year, month) => {
-  const sql = `
-    SELECT
-      p.id,
-      p.first_name,
-      p.last_name,
-      p.phone,
-      COUNT(*) as consult_count,
-      MIN(nr.evaluation_date) as first_consult_date
-    FROM nutrition_records nr
-    JOIN patients p ON nr.patient_id = p.id
-    WHERE nr.entity_type = 'consultorio'
-      AND nr.is_free_consult = true
-      AND EXTRACT(YEAR FROM nr.evaluation_date) = $1
-      AND EXTRACT(MONTH FROM nr.evaluation_date) = $2
-    GROUP BY p.id, p.first_name, p.last_name, p.phone
-    ORDER BY first_consult_date DESC
-  `;
-  try {
-    const result = await pool.query(sql, [year, month]);
-    return result.rows;
-  } catch (err) {
-    throw createError(500, 'Error obteniendo consultas gratuitas');
-  }
+  return [];
 };
 
 /**
@@ -752,28 +716,23 @@ const getNutritionConversionPaid = async () => {
       JOIN subscriptions s ON c.id = s.client_id
       WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
     ),
-    free_gym_clients AS (
+    gym_clients_with_nutrition AS (
       SELECT DISTINCT nr.client_id
       FROM nutrition_records nr
-      WHERE nr.entity_type = 'gym'
-        AND nr.is_free_consult = true
-        AND nr.client_id IS NOT NULL
+      WHERE nr.client_id IS NOT NULL
     ),
     paid_gym_clients AS (
       SELECT DISTINCT p.client_id
       FROM payments p
-      WHERE p.entity_type = 'consultorio'
-        AND p.payment_type IN ('nutrition_consult', 'nutrition_followup')
+      WHERE p.payment_type IN ('nutrition_consult', 'nutrition_followup')
         AND p.is_voided = false
         AND p.client_id IS NOT NULL
     )
     SELECT
       COUNT(DISTINCT gc.id) as total_gym_clients,
-      COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM free_gym_clients)
-                            AND gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) as with_paid_nutrition,
+      COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) as with_paid_nutrition,
       ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM free_gym_clients)
-                                      AND gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) / 
+        100.0 * COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) / 
         NULLIF(COUNT(DISTINCT gc.id), 0), 2
       ) as conversion_rate
     FROM gym_clients gc
@@ -835,30 +794,12 @@ const getAbsentClients = async () => {
     throw createError(500, 'Error obteniendo clientes ausentes');
   }
 };
+
 /**
- * 24. getNutritionFreeToConversionClients(): clientes gym que iniciaron con consulta gratuita y ahora pagan
+ * 24. getNutritionFreeToConversionClients(): deshabilitado dado que ya no existen consultas gratuitas
  */
 const getNutritionFreeToConversionClients = async () => {
-  const sql = `
-    SELECT 
-      p.id, p.first_name, p.last_name, p.phone,
-      (SELECT COUNT(*) FROM nutrition_records WHERE patient_id = p.id AND is_free_consult = true AND entity_type = 'consultorio') as free_consults,
-      (SELECT COUNT(*) FROM payments WHERE patient_id = p.id AND payment_type IN ('nutrition_consult', 'nutrition_followup') AND is_voided = false AND entity_type = 'consultorio') as paid_consults
-    FROM patients p
-    WHERE (
-      SELECT COUNT(*) FROM nutrition_records WHERE patient_id = p.id AND is_free_consult = true AND entity_type = 'consultorio'
-    ) > 0
-    AND (
-      SELECT COUNT(*) FROM payments WHERE patient_id = p.id AND payment_type IN ('nutrition_consult', 'nutrition_followup') AND is_voided = false AND entity_type = 'consultorio'
-    ) > 0
-    GROUP BY p.id, p.first_name, p.last_name, p.phone
-  `;
-  try {
-    const result = await pool.query(sql);
-    return result.rows;
-  } catch (err) {
-    throw createError(500, 'Error obteniendo pacientes con conversión gratuita a pago');
-  }
+  return [];
 };
 
 /**

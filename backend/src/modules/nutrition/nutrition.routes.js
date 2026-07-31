@@ -30,7 +30,7 @@ async function nutritionRoutes(fastify, options) {
   /**
    * POST /api/nutrition/evaluations
    * Crea una nueva evaluación nutricional
-   * Reglas: Primera consulta gratis, segunda requiere pago
+   * Reglas: Todas las consultas son de pago
    */
   fastify.post('/evaluations', async (request, reply) => {
     try {

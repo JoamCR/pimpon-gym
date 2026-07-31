@@ -22,7 +22,6 @@ import '../styles/nutrition.css';
 const ClientCard = ({ patient, onEvaluate, onShowDetails, onViewPatient }) => {
   const isClient = patient.userType === 'client';
   const days = isClient && patient.end_date ? Math.max(0, Math.ceil((new Date(patient.end_date) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
-  const isFreeConsult = patient.userType === 'patient' && patient.is_free_consult;
 
   return (
     <motion.div
@@ -40,7 +39,7 @@ const ClientCard = ({ patient, onEvaluate, onShowDetails, onViewPatient }) => {
           </p>
           <p className="text-sm text-[var(--color-text-muted)]">{patient.phone || 'Sin teléfono'}</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold text-center ${isFreeConsult ? 'bg-[rgba(34,197,94,0.15)] text-[var(--color-success)]' : 'bg-[rgba(14,116,144,0.12)] text-[var(--color-teal)]'}`}>
+        <span className="rounded-full px-3 py-1 text-xs font-semibold text-center bg-[rgba(14,116,144,0.12)] text-[var(--color-teal)]">
           {patient.consultType || 'Regular'}
         </span>
       </div>
@@ -69,9 +68,6 @@ const EvaluationRow = ({ evaluation, onEdit }) => {
       <div className="flex items-start justify-between gap-4 mb-3">
         <div>
           <p className="font-semibold text-[var(--color-text)]">{date}</p>
-          {evaluation.is_free_consult && (
-            <span className="mt-2 inline-flex rounded-full bg-[rgba(34,197,94,0.16)] px-3 py-1 text-xs font-semibold text-[var(--color-success)]">Primera consulta gratis</span>
-          )}
         </div>
         <GymButton size="xs" variant="ghost" onClick={() => onEdit(evaluation)}>Editar</GymButton>
       </div>
@@ -110,7 +106,7 @@ export default function Nutrition() {
   const rawClients = Array.isArray(clientsResponse) ? clientsResponse : clientsResponse?.data || [];
   const queueLoading = patientsLoading || clientsLoading;
 
-  const patientsQueue = rawPatients.map(p => ({ ...p, userType: 'patient', consultType: p.is_free_consult ? 'Primera consulta gratis' : 'Consulta regular' }));
+  const patientsQueue = rawPatients.map(p => ({ ...p, userType: 'patient', consultType: 'Consulta regular' }));
   const clientsQueue = rawClients.map(c => ({ ...c, userType: 'client', consultType: 'Cliente de gimnasio' }));
   const queue = [...patientsQueue, ...clientsQueue];
 

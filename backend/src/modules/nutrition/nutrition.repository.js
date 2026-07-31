@@ -144,15 +144,6 @@ const createRecord = async (data, nutritionistId, dbClient) => {
   try {
     const result = await executor.query(sql, params);
     const record = result.rows[0];
-    
-    // Si es primera consulta gratis, marcar en clients
-    if (data.is_free_consult) {
-      await executor.query(
-        'UPDATE clients SET first_consult_used = true WHERE id = $1',
-        [data.client_id]
-      );
-    }
-    
     return record;
   } catch (err) {
     console.error('Error en createRecord:', err.message);

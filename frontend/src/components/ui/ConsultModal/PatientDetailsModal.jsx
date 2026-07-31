@@ -168,7 +168,7 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
                       {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\b\w/g, (c) => c.toUpperCase())}
                     </span>
                     <span className="text-xs px-2 py-1 rounded bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)]">
-                      {evaluation.is_free_consult ? 'Gratis' : 'Regular'}
+                      Regular
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-sm text-[var(--color-text-muted)]">

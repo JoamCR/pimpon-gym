@@ -8,17 +8,16 @@ const { createError } = require('../../lib/appError');
  */
 
 /**
- * Obtiene la cola de pacientes con flag de si es primera consulta
+ * Obtiene la cola de pacientes para evaluación nutricional
  */
 const getPatientQueue = async () => {
   try {
     const queue = await repository.getQueue();
     
-    // Agregar flag de si es primera consulta gratis
     return queue.map(patient => ({
       ...patient,
-      isFirstConsult: !patient.first_consult_used,
-      consultType: patient.first_consult_used ? 'De pago' : 'Gratis'
+      isFirstConsult: false,
+      consultType: 'Consulta regular'
     }));
   } catch (error) {
     console.error('Error en getPatientQueue:', error);
@@ -29,10 +28,7 @@ const getPatientQueue = async () => {
 
 /**
  * Crea una evaluación nutricional
- * Reglas críticas:
- * 1. Cliente debe tener plan con includes_nutrition=true
- * 2. Si first_consult_used=true: verificar pago 'nutrition_consult' del día
- * 3. Si is_free_consult=true: marcar first_consult_used en clients
+ * Reglas: Todas las consultas son de pago / regulares.
  */
 const createEvaluation = async (clientId, data, nutritionistId) => {
   const dbClient = await pool.connect();
@@ -49,7 +45,7 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
     // 1. Si se especificó client_id o entity_type 'gym', buscar en la tabla clients primero
     if (data.entity_type === 'gym' || data.client_id) {
       const clientCheckSql = `
-        SELECT c.*, p.includes_nutrition, c.first_consult_used
+        SELECT c.*, p.includes_nutrition
         FROM clients c
         LEFT JOIN plans p ON c.plan_id = p.id
         WHERE c.id = $1
@@ -78,7 +74,7 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
     // 3. Fallback: Si con targetId no estuvo en patients, intentar en clients por si acaso
     if (!entity && targetId) {
       const clientCheckSql = `
-        SELECT c.*, p.includes_nutrition, c.first_consult_used
+        SELECT c.*, p.includes_nutrition
         FROM clients c
         LEFT JOIN plans p ON c.plan_id = p.id
         WHERE c.id = $1
@@ -101,7 +97,7 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
       entity_type: resolvedEntityType,
       client_id: resolvedClientId,
       patient_id: resolvedPatientId,
-      is_free_consult: !entity.first_consult_used
+      is_free_consult: false
     };
     
     const evaluation = await repository.createRecord(
@@ -141,14 +137,6 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
             [...queryParams, resolvedPatientId]
           );
         }
-      }
-    }
-
-    if (!entity.first_consult_used) {
-      if (resolvedEntityType === 'gym' && resolvedClientId) {
-        await dbClient.query('UPDATE clients SET first_consult_used = true WHERE id = $1', [resolvedClientId]);
-      } else if (resolvedPatientId) {
-        await dbClient.query('UPDATE patients SET first_consult_used = true WHERE id = $1', [resolvedPatientId]);
       }
     }
     
