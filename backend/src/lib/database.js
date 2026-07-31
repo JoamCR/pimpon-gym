@@ -1,32 +1,38 @@
 const { Pool } = require('pg');
 const { createError } = require('./appError');
 
-// Intentar crear el pool si existe DATABASE_URL. No lanzamos en el require
-// para evitar que la aplicación se caiga durante el arranque en entornos
-// sin base de datos (ej. entornos de diseño). En su lugar exportamos
-// `isConfigured` para que los módulos superiores puedan decidir conducta.
 let pool = null;
 let isConfigured = false;
+
 if (process.env.DATABASE_URL) {
   isConfigured = true;
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
   const poolConfig = {
     connectionString: process.env.DATABASE_URL,
+    // 1. Limitar el pool por instancia Serverless
+    // En Vercel Serverless, 1 o 2 conexiones por Lambda es lo óptimo.
+    max: isProduction ? 2 : 10,
+    // 2. Liberar conexiones inactivas rápidamente (10 segundos)
+    idleTimeoutMillis: 10000,
+    // 3. Timeout corto para reaccionar rápido si la DB se satura
+    connectionTimeoutMillis: 5000,
   };
-  // En producción (Render, Vercel, etc.), Supabase requiere SSL.
-  if (process.env.NODE_ENV === 'production') {
+
+  if (isProduction) {
     poolConfig.ssl = { rejectUnauthorized: false };
   }
+
   pool = new Pool(poolConfig);
 
-  // Manejo de errores en el pool (clientes inactivos que pierden conexión)
-  pool.on('error', (err, client) => {
+  pool.on('error', (err) => {
     console.error('Error en pool de conexiones de base de datos:', err);
   });
 } else {
   console.warn('DATABASE_URL no configurado. La aplicación seguirá funcionando en modo sin-BD con datos por defecto.');
 }
 
-// Si no hay pool, exportamos un objeto con query que lanza un AppError al usarse
 if (!pool) {
   pool = {
     query: async () => {
@@ -37,11 +43,6 @@ if (!pool) {
 
 /**
  * Helper unificado para realizar consultas a la base de datos.
- * Utiliza async/await y maneja errores encapsulándolos en un AppError.
- * 
- * @param {string} text - Consulta SQL (puede tener placeholders $1, $2, etc.)
- * @param {Array} params - Parámetros a inyectar en la consulta
- * @returns {Promise<Object>} Resultado emitido por pg (rows, rowCount, etc.)
  */
 const query = async (text, params) => {
   try {
@@ -49,7 +50,6 @@ const query = async (text, params) => {
     return res;
   } catch (err) {
     console.error('Error de ejecución SQL:', err.message);
-    // Lanzar un error operativo unificado para evitar filtraciones de logs de DB al cliente
     throw createError(500, 'Error interno de base de datos.');
   }
 };
