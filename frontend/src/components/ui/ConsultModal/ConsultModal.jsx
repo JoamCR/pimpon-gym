@@ -152,22 +152,27 @@ export function ConsultForm({
   submitLabel = 'Guardar Consulta',
   planSubmitLabel = 'Guardar Plan',
 }) {
+  const latestEval = evaluations && evaluations.length > 0
+    ? [...evaluations].sort((a, b) => new Date(b.evaluation_date || b.created_at || 0) - new Date(a.evaluation_date || a.created_at || 0))[0]
+    : null;
+
   const previousEvalWithHeight = evaluations?.find(e => e.height_cm !== null && e.height_cm !== undefined && e.height_cm !== '');
   const previousEvalWithTargets = evaluations?.find(e =>
     e.target_weight_kg || e.target_waist_cm || e.target_body_fat_pct || e.target_muscle_mass_kg || e.target_visceral_fat_pct
   );
 
   const initialHeight = evaluation?.height_cm
+    || latestEval?.height_cm
     || previousEvalWithHeight?.height_cm
     || patient?.quick_height_cm
     || patient?.height_cm
     || '';
 
-  const initialTargetWeight = evaluation?.target_weight_kg || previousEvalWithTargets?.target_weight_kg || '';
-  const initialTargetWaist = evaluation?.target_waist_cm || previousEvalWithTargets?.target_waist_cm || '';
-  const initialTargetBodyFat = evaluation?.target_body_fat_pct || previousEvalWithTargets?.target_body_fat_pct || '';
-  const initialTargetMuscleMass = evaluation?.target_muscle_mass_kg || previousEvalWithTargets?.target_muscle_mass_kg || '';
-  const initialTargetVisceralFat = evaluation?.target_visceral_fat_pct || previousEvalWithTargets?.target_visceral_fat_pct || '';
+  const initialTargetWeight = evaluation?.target_weight_kg || latestEval?.target_weight_kg || previousEvalWithTargets?.target_weight_kg || '';
+  const initialTargetWaist = evaluation?.target_waist_cm || latestEval?.target_waist_cm || previousEvalWithTargets?.target_waist_cm || '';
+  const initialTargetBodyFat = evaluation?.target_body_fat_pct || latestEval?.target_body_fat_pct || previousEvalWithTargets?.target_body_fat_pct || '';
+  const initialTargetMuscleMass = evaluation?.target_muscle_mass_kg || latestEval?.target_muscle_mass_kg || previousEvalWithTargets?.target_muscle_mass_kg || '';
+  const initialTargetVisceralFat = evaluation?.target_visceral_fat_pct || latestEval?.target_visceral_fat_pct || previousEvalWithTargets?.target_visceral_fat_pct || '';
 
   const hasTargetsDefined = Boolean(initialTargetWeight || initialTargetWaist || initialTargetBodyFat || initialTargetMuscleMass || initialTargetVisceralFat);
 
@@ -187,9 +192,49 @@ export function ConsultForm({
         target_visceral_fat_pct: evaluation.target_visceral_fat_pct || initialTargetVisceralFat,
       };
     }
+
+    if (latestEval) {
+      return {
+        ...base,
+        family_history: latestEval.family_history || '',
+        pathological_history: latestEval.pathological_history || '',
+        personal_history: latestEval.personal_history || '',
+        smokes: latestEval.smokes || false,
+        smokes_description: latestEval.smokes_description || '',
+        drinks_alcohol: latestEval.drinks_alcohol || false,
+        drinks_alcohol_description: latestEval.drinks_alcohol_description || '',
+        uses_drugs: latestEval.uses_drugs || false,
+        drugs_description: latestEval.drugs_description || '',
+        drinks_soda: latestEval.drinks_soda || false,
+        drinks_soda_description: latestEval.drinks_soda_description || '',
+        eats_junk_food: latestEval.eats_junk_food || false,
+        junk_food_description: latestEval.junk_food_description || '',
+        diet_adherence: latestEval.diet_adherence || 5,
+        routine_adherence: latestEval.routine_adherence || 5,
+        energy_level: latestEval.energy_level || 5,
+        bowel_movements: latestEval.bowel_movements || 3,
+        hunger_level: latestEval.hunger_level || 5,
+        sleep_quality: latestEval.sleep_quality || 5,
+        concentration_level: latestEval.concentration_level || 5,
+        mood_level: latestEval.mood_level || 5,
+        height_cm: initialHeight,
+        waist_cm: latestEval.waist_cm || '',
+        weight_kg: latestEval.weight_kg || patient?.quick_weight_kg || '',
+        body_fat_pct: latestEval.body_fat_pct || '',
+        muscle_mass_kg: latestEval.muscle_mass_kg || '',
+        visceral_fat_pct: latestEval.visceral_fat_pct || '',
+        target_weight_kg: initialTargetWeight,
+        target_waist_cm: initialTargetWaist,
+        target_body_fat_pct: initialTargetBodyFat,
+        target_muscle_mass_kg: initialTargetMuscleMass,
+        target_visceral_fat_pct: initialTargetVisceralFat,
+      };
+    }
+
     return {
       ...base,
       height_cm: initialHeight,
+      weight_kg: patient?.quick_weight_kg || '',
       target_weight_kg: initialTargetWeight,
       target_waist_cm: initialTargetWaist,
       target_body_fat_pct: initialTargetBodyFat,
