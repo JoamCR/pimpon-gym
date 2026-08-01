@@ -299,11 +299,21 @@ const getClientHistory = async (clientId) => {
   };
 };
 
+const remove = async (id) => {
+  const deleted = await repository.remove(id);
+  if (!deleted) {
+    throw createError(404, 'Cliente no encontrado');
+  }
+  return deleted;
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
+  remove,
   getExpiringClients,
   getClientHistory
 };
+

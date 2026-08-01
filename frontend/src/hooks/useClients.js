@@ -3,10 +3,10 @@ import { useAuthStore } from '../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-const getHeaders = () => {
+const getHeaders = (hasBody = true) => {
   const token = useAuthStore.getState().token;
   return {
-    'Content-Type': 'application/json',
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
@@ -143,3 +143,25 @@ export const validateClientField = async (field, value, excludeId = null) => {
   }
   return true;
 };
+
+export const useDeleteClient = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await fetch(`${API_URL}/clients/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(false),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Error al eliminar el cliente');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+  });
+};
+

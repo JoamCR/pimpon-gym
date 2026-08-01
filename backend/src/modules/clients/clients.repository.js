@@ -311,12 +311,21 @@ const findClientHistory = async (clientId) => {
   return { subscriptions, payments };
 };
 
+const remove = async (id) => {
+  await query('UPDATE patients SET client_id = NULL WHERE client_id = $1', [id]);
+  await query('UPDATE clients SET patient_id = NULL WHERE id = $1', [id]);
+
+  const res = await query('DELETE FROM clients WHERE id = $1 RETURNING *', [id]);
+  return res.rows[0] || null;
+};
+
 module.exports = {
   findAll,
   findById,
   findByPhoneOrRfc,
   create,
   update,
+  remove,
   findExpiring,
   findExpiredToday,
   findWithoutAttendanceThisMonth,
@@ -326,3 +335,4 @@ module.exports = {
   updateTransferControl,
   findClientHistory
 };
+

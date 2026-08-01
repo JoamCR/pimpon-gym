@@ -3,10 +3,10 @@ import { useAuthStore } from '../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-const getHeaders = () => {
+const getHeaders = (hasBody = true) => {
   const token = useAuthStore.getState().token;
   return {
-    'Content-Type': 'application/json',
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
@@ -143,4 +143,26 @@ export const useEnrollPatientToGym = () => {
   });
 };
 
+export const useDeletePatient = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/patients/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(false),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Error al eliminar paciente');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['patients']);
+      qc.invalidateQueries(['clients']);
+    }
+  });
+};
+
 export default usePatients;
+

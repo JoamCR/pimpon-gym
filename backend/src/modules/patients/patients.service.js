@@ -195,10 +195,20 @@ const enrollPatientToGym = async (patientId, data, registeredBy) => {
   }
 };
 
+const remove = async (id) => {
+  const deleted = await repository.remove(id);
+  if (!deleted) {
+    throw createError(404, 'Paciente no encontrado');
+  }
+  return deleted;
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
-  enrollPatientToGym
+  enrollPatientToGym,
+  remove
 };
+

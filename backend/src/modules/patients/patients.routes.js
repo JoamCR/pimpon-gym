@@ -72,6 +72,13 @@ async function patientRoutes(fastify, options) {
     const result = await service.enrollPatientToGym(id, request.body, registeredBy);
     return reply.status(200).send({ data: result });
   });
+
+  fastify.delete('/:id', async (request, reply) => {
+    const { id } = request.params;
+    await service.remove(id);
+    return { success: true, message: 'Paciente eliminado correctamente' };
+  });
 }
 
 module.exports = patientRoutes;
+

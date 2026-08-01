@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { usePatients, useCreatePatient, useCreatePayment, validatePatientField, useEnrollPatientToGym } from '../hooks/usePatients';
+import { usePatients, useCreatePatient, useCreatePayment, validatePatientField, useEnrollPatientToGym, useDeletePatient } from '../hooks/usePatients';
 import { usePlans } from '../hooks/useClients';
 import { useCreateAgenda } from '../hooks/useAgenda';
 import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan } from '../hooks/useNutrition';
@@ -12,7 +12,7 @@ import { AgregarPaciente } from '../components/ui/AgregarPaciente';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { HybridDateInput } from '../components/ui/HybridDateInput';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope, IconDumbbell } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope, IconDumbbell, IconTrash } from '@tabler/icons-react';
 
 const HealthSlider = ({ label, value, onChange }) => {
   const getSegmentColor = (index, val) => {
@@ -74,8 +74,31 @@ export default function Patients() {
   const createExercisePlanMutation = useCreateExercisePlan();
   const createPaymentMutation = useCreatePayment();
   const enrollPatientMutation = useEnrollPatientToGym();
+  const deletePatientMutation = useDeletePatient();
   const { data: plansData } = usePlans();
   const planOptions = Array.isArray(plansData?.data) ? plansData.data : [];
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState(null);
+
+  const handleOpenDeleteModal = (patient) => {
+    setPatientToDelete(patient);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!patientToDelete) return;
+    deletePatientMutation.mutate(patientToDelete.id, {
+      onSuccess: () => {
+        toast.success('Paciente eliminado correctamente');
+        setDeleteModalOpen(false);
+        setPatientToDelete(null);
+      },
+      onError: (err) => {
+        toast.error(err.message || 'Error al eliminar el paciente');
+      }
+    });
+  };
 
   const [enrollGymModalOpen, setEnrollGymModalOpen] = useState(false);
   const [enrollGymForm, setEnrollGymForm] = useState({ plan_id: '', payment_method: 'cash', payment_amount: '', enrollment_amount: '500' });
@@ -561,9 +584,10 @@ export default function Patients() {
                         )}
                       </td>
                       <td className="px-4 py-4 text-sm text-[var(--color-text)]">{new Date(patient.created_at).toLocaleDateString('es-MX')}</td>
-                      <td className="px-4 py-4 space-x-2">
+                      <td className="px-4 py-4 space-x-2 whitespace-nowrap">
                         <GymButton size="xs" variant="secondary" icon={<IconEye size={16} />} onClick={() => handleOpenPatientModal(patient, 'view')}>Ver</GymButton>
                         <GymButton size="xs" variant="primary" icon={<IconEdit size={16} />} onClick={() => handleOpenPatientModal(patient, 'edit')}>Editar</GymButton>
+                        <GymButton size="xs" variant="danger" icon={<IconTrash size={16} />} onClick={() => handleOpenDeleteModal(patient)}>Eliminar</GymButton>
                       </td>
                     </tr>
                   );
@@ -684,6 +708,35 @@ export default function Patients() {
         isLoadingEvaluations={isLoadingEvaluations}
         initialMode={patientModalMode}
       />
+
+      <GymModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Confirmar Eliminación"
+        width="sm"
+      >
+        <div className="space-y-4 text-[var(--color-text)]">
+          <p className="text-sm">
+            ¿Estás seguro de que deseas eliminar al paciente{' '}
+            <strong className="text-[var(--color-text)] font-semibold">
+              {patientToDelete?.first_name} {patientToDelete?.last_name}
+            </strong>
+            ? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
+            <GymButton variant="secondary" onClick={() => setDeleteModalOpen(false)}>
+              Cancelar
+            </GymButton>
+            <GymButton
+              variant="danger"
+              loading={deletePatientMutation.isPending}
+              onClick={handleConfirmDelete}
+            >
+              Eliminar
+            </GymButton>
+          </div>
+        </div>
+      </GymModal>
 
     </div>
   );

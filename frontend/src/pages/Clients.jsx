@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useClients, useCreateClient, useUpdateClient, usePlans, validateClientField, useClientHistory } from '../hooks/useClients';
+import { useClients, useCreateClient, useUpdateClient, usePlans, validateClientField, useClientHistory, useDeleteClient } from '../hooks/useClients';
 import { useRenewSubscription } from '../hooks/useDashboard';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh, IconAlertTriangle } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh, IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { HybridDateInput } from '../components/ui/HybridDateInput';
@@ -52,6 +52,30 @@ export default function Clients() {
   const [renewModal, setRenewModal] = useState(false);
   const [renewTab, setRenewTab] = useState('monthly');
   const [renewFormData, setRenewFormData] = useState({ payment_method: 'cash', plan_id: null, enrollment_amount: 500, penalty_amount: 0 });
+
+  // Delete state
+  const deleteClientMutation = useDeleteClient();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
+
+  const handleOpenDeleteModal = (client) => {
+    setClientToDelete(client);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!clientToDelete) return;
+    deleteClientMutation.mutate(clientToDelete.id, {
+      onSuccess: () => {
+        toast.success('Cliente eliminado correctamente');
+        setDeleteModalOpen(false);
+        setClientToDelete(null);
+      },
+      onError: (err) => {
+        toast.error(err.message || 'Error al eliminar el cliente');
+      }
+    });
+  };
 
   const [step, setStep] = useState(1);
 
@@ -859,6 +883,7 @@ export default function Clients() {
                       <td className="px-4 py-4 space-x-2 whitespace-nowrap">
                         <GymButton size="xs" variant="secondary" onClick={() => handleViewClient(client)}>Ver</GymButton>
                         <GymButton size="xs" variant="primary" onClick={() => handleEditClient(client)}>Editar</GymButton>
+                        <GymButton size="xs" variant="danger" icon={<IconTrash size={14} />} onClick={() => handleOpenDeleteModal(client)}>Eliminar</GymButton>
                         <GymButton size="xs" variant="warning" icon={<IconRefresh size={14} />} onClick={() => handleRenewClient(client)}>Renovar</GymButton>
                       </td>
                     </tr>
@@ -1556,6 +1581,35 @@ export default function Clients() {
             <GymButton type="submit" variant="primary" loading={updateClientMutation.isLoading}>Guardar Cambios</GymButton>
           </div>
         </form>
+      </GymModal>
+
+      <GymModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Confirmar Eliminación"
+        width="sm"
+      >
+        <div className="space-y-4 text-[var(--color-text)]">
+          <p className="text-sm">
+            ¿Estás seguro de que deseas eliminar al cliente{' '}
+            <strong className="text-[var(--color-text)] font-semibold">
+              {clientToDelete?.first_name} {clientToDelete?.last_name}
+            </strong>
+            ? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
+            <GymButton variant="secondary" onClick={() => setDeleteModalOpen(false)}>
+              Cancelar
+            </GymButton>
+            <GymButton
+              variant="danger"
+              loading={deleteClientMutation.isPending}
+              onClick={handleConfirmDelete}
+            >
+              Eliminar
+            </GymButton>
+          </div>
+        </div>
       </GymModal>
     </div>
   );

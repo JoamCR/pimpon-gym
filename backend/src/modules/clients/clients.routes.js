@@ -92,6 +92,13 @@ async function clientRoutes(fastify, options) {
     return { data: updated };
   });
 
+  // DELETE /api/clients/:id
+  fastify.delete('/:id', async (request, reply) => {
+    const { id } = request.params;
+    await service.remove(id);
+    return { success: true, message: 'Cliente eliminado correctamente' };
+  });
+
   // GET /api/dashboard/expiring
   // NOTA: Si este archivo se registra con prefix '/api/clients', 
   // la ruta final será '/api/clients/dashboard/expiring'.
@@ -103,3 +110,4 @@ async function clientRoutes(fastify, options) {
 }
 
 module.exports = clientRoutes;
+

@@ -259,10 +259,23 @@ const update = async (id, data, dbClient) => {
   return rows[0];
 };
 
+const remove = async (id) => {
+  await query('UPDATE clients SET patient_id = NULL WHERE patient_id = $1', [id]);
+  await query('UPDATE patients SET client_id = NULL WHERE id = $1', [id]);
+
+  const res = await query('DELETE FROM patients WHERE id = $1 RETURNING *', [id]);
+  if (res.rows.length > 0) return res.rows[0];
+
+  const resClient = await query('DELETE FROM clients WHERE id = $1 RETURNING *', [id]);
+  return resClient.rows[0] || null;
+};
+
 module.exports = {
   findAll,
   findById,
   findByPhoneOrRfc,
   create,
-  update
+  update,
+  remove
 };
+
