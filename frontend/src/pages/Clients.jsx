@@ -68,13 +68,13 @@ export default function Clients() {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const handleRenewClient = (client) => {
+  const handleRenewClient = (client, initialTab = 'monthly') => {
     setSelectedClient(client);
     const clientPlan = planOptions.find(p => p.id === client.plan_id);
     const defaultEnrollmentPrice = clientPlan?.price_enrollment ? parseFloat(clientPlan.price_enrollment) : 500;
     const defaultMonthlyPrice = clientPlan?.price_monthly ? parseFloat(clientPlan.price_monthly) : 0;
     
-    setRenewTab('monthly');
+    setRenewTab(initialTab);
     setRenewFormData({
       payment_method: 'cash',
       plan_id: client.plan_id,
@@ -174,10 +174,11 @@ export default function Clients() {
   // Efecto para abrir automáticamente el modal de renovación si se navega desde el Dashboard con renewClientId
   useEffect(() => {
     const targetId = location.state?.renewClientId;
+    const initialTab = location.state?.renewTab || 'monthly';
     if (targetId && clients.length > 0 && planOptions.length > 0) {
       const clientToRenew = clients.find(c => c.id === targetId);
       if (clientToRenew) {
-        handleRenewClient(clientToRenew);
+        handleRenewClient(clientToRenew, initialTab);
       }
       navigate(location.pathname, { replace: true, state: {} });
     }

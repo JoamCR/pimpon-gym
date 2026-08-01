@@ -195,8 +195,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleRenew = (client) => {
-    navigate('/clients', { state: { renewClientId: client?.id } });
+  const handleRenew = (client, tab = 'monthly') => {
+    navigate('/clients', { state: { renewClientId: client?.id, renewTab: tab } });
   };
 
   const toggleSection = (section) => {
@@ -452,7 +452,7 @@ export default function Dashboard() {
                       <p className="text-[var(--color-text-muted)]">{searchTerm ? 'No se encontraron resultados.' : 'No hay cancelaciones de anualidad.'}</p>
                     )}
                     {expandedSection === 'annualCancellations' && filteredAnnualCancellations.map(client => (
-                      <ClientRow key={client.id} client={client} />
+                      <ClientRow key={client.id} client={client} onAction={(c) => handleRenew(c, 'enrollment')} actionLabel="Renovar" actionVariant="success" actionIcon={<IconCreditCard size={18} />} />
                     ))}
 
                     {expandedSection === 'annualExpiring' && filteredAnnualExpiring.length === 0 && (
