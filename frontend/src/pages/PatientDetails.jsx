@@ -34,6 +34,7 @@ export default function PatientDetails() {
   }, [tabFromQuery]);
 
   const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
+  const [consultKey, setConsultKey] = useState(0);
 
   // Find patient by slug (first_name or id)
   const { data: patientsData, isLoading: isLoadingPatients } = usePatients();
@@ -209,6 +210,7 @@ export default function PatientDetails() {
       }
 
       toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
+      setConsultKey((prev) => prev + 1);
       setActiveTab('history');
     } catch (error) {
       toast.error(error.message || 'Error al guardar el expediente');
@@ -563,23 +565,25 @@ export default function PatientDetails() {
             </div>
           )}
 
-          {activeTab === 'consult' && (
-            <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
-              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
-                Nueva Consulta
-              </h2>
-              <div className="bg-[var(--color-surface)] p-6 rounded-lg border border-[var(--color-border)]">
-                <ConsultForm
-                  patient={patient}
-                  evaluations={evaluations}
-                  onSubmit={handleSaveConsult}
-                  onCancel={() => setActiveTab('history')}
-                  submitLabel="Guardar Expediente"
-                  planSubmitLabel="Guardar Plan"
-                />
-              </div>
+          <div className={`space-y-6 text-[var(--color-text)] ${activeTab === 'consult' ? 'animate-in fade-in duration-300' : 'hidden'}`}>
+            <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
+              Nueva Consulta
+            </h2>
+            <div className="bg-[var(--color-surface)] p-6 rounded-lg border border-[var(--color-border)]">
+              <ConsultForm
+                key={`${patient?.id}-${consultKey}`}
+                patient={patient}
+                evaluations={evaluations}
+                onSubmit={handleSaveConsult}
+                onCancel={() => {
+                  setConsultKey((prev) => prev + 1);
+                  setActiveTab('history');
+                }}
+                submitLabel="Guardar Expediente"
+                planSubmitLabel="Guardar Plan"
+              />
             </div>
-          )}
+          </div>
           {activeTab === 'schedule' && (
              <div className="space-y-6 text-[var(--color-text)] animate-in fade-in duration-300">
                 <div className="flex justify-between items-center">

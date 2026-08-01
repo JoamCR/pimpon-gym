@@ -274,11 +274,70 @@ export function ConsultForm({
     return getInitialPlanForm();
   });
 
-  const hasAutoLoadedLatestPlanRef = useRef(Boolean(plan || latestPlan));
+  const lastLoadedEvalIdRef = useRef(evaluation?.id || latestEval?.id || null);
   useEffect(() => {
-    if (!plan && latestPlan && !hasAutoLoadedLatestPlanRef.current) {
-      hasAutoLoadedLatestPlanRef.current = true;
-      setPlanForm(normalizePlanForm(latestPlan));
+    if (!evaluation && latestEval) {
+      const currentEvalId = latestEval.id || latestEval.created_at || latestEval.evaluation_date;
+      if (currentEvalId && currentEvalId !== lastLoadedEvalIdRef.current) {
+        lastLoadedEvalIdRef.current = currentEvalId;
+        const base = getInitialEvaluation();
+        setEvaluationForm({
+          ...base,
+          family_history: latestEval.family_history || '',
+          pathological_history: latestEval.pathological_history || '',
+          personal_history: latestEval.personal_history || '',
+          smokes: latestEval.smokes || false,
+          smokes_description: latestEval.smokes_description || '',
+          drinks_alcohol: latestEval.drinks_alcohol || false,
+          drinks_alcohol_description: latestEval.drinks_alcohol_description || '',
+          uses_drugs: latestEval.uses_drugs || false,
+          drugs_description: latestEval.drugs_description || '',
+          drinks_soda: latestEval.drinks_soda || false,
+          drinks_soda_description: latestEval.drinks_soda_description || '',
+          eats_junk_food: latestEval.eats_junk_food || false,
+          junk_food_description: latestEval.junk_food_description || '',
+          diet_adherence: latestEval.diet_adherence || 5,
+          routine_adherence: latestEval.routine_adherence || 5,
+          energy_level: latestEval.energy_level || 5,
+          bowel_movements: latestEval.bowel_movements || 3,
+          hunger_level: latestEval.hunger_level || 5,
+          sleep_quality: latestEval.sleep_quality || 5,
+          concentration_level: latestEval.concentration_level || 5,
+          mood_level: latestEval.mood_level || 5,
+          height_cm: initialHeight,
+          waist_cm: latestEval.waist_cm || '',
+          weight_kg: latestEval.weight_kg || patient?.quick_weight_kg || '',
+          body_fat_pct: latestEval.body_fat_pct || '',
+          muscle_mass_kg: latestEval.muscle_mass_kg || '',
+          visceral_fat_pct: latestEval.visceral_fat_pct || '',
+          target_weight_kg: initialTargetWeight,
+          target_waist_cm: initialTargetWaist,
+          target_body_fat_pct: initialTargetBodyFat,
+          target_muscle_mass_kg: initialTargetMuscleMass,
+          target_visceral_fat_pct: initialTargetVisceralFat,
+          body_composition_notes: latestEval.body_composition_notes || '',
+          sp_notes: latestEval.sp_notes || '',
+          diet_plan: latestEval.diet_plan || '',
+          caloric_target: latestEval.caloric_target || '',
+          protein_target_g: latestEval.protein_target_g || '',
+          carbs_target_g: latestEval.carbs_target_g || '',
+          fat_target_g: latestEval.fat_target_g || '',
+        });
+        if (hasTargetsDefined) {
+          setIsEditingTargets(false);
+        }
+      }
+    }
+  }, [evaluation, latestEval, initialHeight, initialTargetWeight, initialTargetWaist, initialTargetBodyFat, initialTargetMuscleMass, initialTargetVisceralFat, patient?.quick_weight_kg, hasTargetsDefined]);
+
+  const lastLoadedPlanIdRef = useRef(plan?.id || plan?.month_year || latestPlan?.id || latestPlan?.month_year || null);
+  useEffect(() => {
+    if (!plan && latestPlan) {
+      const currentPlanId = latestPlan.id || latestPlan.month_year || latestPlan.created_at;
+      if (currentPlanId && currentPlanId !== lastLoadedPlanIdRef.current) {
+        lastLoadedPlanIdRef.current = currentPlanId;
+        setPlanForm(normalizePlanForm(latestPlan));
+      }
     }
   }, [plan, latestPlan]);
   const [evaluationTab, setEvaluationTab] = useState(defaultTab || 'clinical_history');
@@ -302,7 +361,6 @@ export function ConsultForm({
       };
 
       await onSubmit(payload);
-      if (onCancel) onCancel();
     } catch (error) {
       console.error('Error al guardar consulta:', error);
     }
