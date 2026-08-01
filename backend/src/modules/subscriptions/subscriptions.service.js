@@ -49,11 +49,17 @@ const getDashboardData = async () => {
       todayAttendanceAll,
       totalClientsCount,
       todayVisitorsCount,
+      monthVisitorsCount,
       renewalsThisMonthCount,
       cancellationsThisMonthCount,
       newClientsThisMonthCount,
-      annualCancellationsList,
-      annualExpiringList
+      activeAnnualList,
+      annualExpiring3DaysList,
+      annualExpiringTodayList,
+      annualExpiredThisMonthList,
+      newAnnualThisMonthList,
+      annualRenewalsThisMonthList,
+      allAnnualExpiredList
     ] = await Promise.all([
       repository.findExpiringIn3Days(),
       repository.findExpiringToday(),
@@ -66,11 +72,17 @@ const getDashboardData = async () => {
       repository.getTodayAttendanceAll(),
       repository.countTotalClients(),
       repository.countTodayVisitors(),
+      repository.countMonthVisitors(),
       repository.countRenewalsThisMonth(),
       repository.countCancellationsThisMonth(),
       repository.countNewClientsThisMonth(),
-      repository.findAnnualCancellations(),
-      repository.findAnnualExpiringIn3Months()
+      repository.findActiveAnnual(),
+      repository.findAnnualExpiringIn3Days(),
+      repository.findAnnualExpiringToday(),
+      repository.findAnnualExpiredThisMonth(),
+      repository.findNewAnnualThisMonth(),
+      repository.findAnnualRenewalsThisMonth(),
+      repository.findAllAnnualExpired()
     ]);
 
     // Calcular porcentaje de transferencias
@@ -99,16 +111,36 @@ const getDashboardData = async () => {
       totalClientsList: totalClientsCount || [],
       todayVisitors: todayVisitorsCount ? todayVisitorsCount.length : 0,
       todayVisitorsList: todayVisitorsCount || [],
+      monthVisitorsCount: monthVisitorsCount ? monthVisitorsCount.length : 0,
+      monthVisitorsList: monthVisitorsCount || [],
       renewalsThisMonth: renewalsThisMonthCount ? renewalsThisMonthCount.length : 0,
       renewalsThisMonthList: renewalsThisMonthCount || [],
       cancellationsThisMonth: cancellationsThisMonthCount ? cancellationsThisMonthCount.length : 0,
       cancellationsThisMonthList: cancellationsThisMonthCount || [],
       newClientsThisMonth: newClientsThisMonthCount ? newClientsThisMonthCount.length : 0,
       newClientsThisMonthList: newClientsThisMonthCount || [],
-      annualCancellationsCount: annualCancellationsList ? annualCancellationsList.length : 0,
-      annualCancellationsList: annualCancellationsList || [],
-      annualExpiringCount: annualExpiringList ? annualExpiringList.length : 0,
-      annualExpiringList: annualExpiringList || []
+
+      // Anualidades
+      activeAnnualCount: activeAnnualList ? activeAnnualList.length : 0,
+      activeAnnualList: activeAnnualList || [],
+      annualExpiring3DaysCount: annualExpiring3DaysList ? annualExpiring3DaysList.length : 0,
+      annualExpiring3DaysList: annualExpiring3DaysList || [],
+      annualExpiringTodayCount: annualExpiringTodayList ? annualExpiringTodayList.length : 0,
+      annualExpiringTodayList: annualExpiringTodayList || [],
+      annualExpiredThisMonthCount: annualExpiredThisMonthList ? annualExpiredThisMonthList.length : 0,
+      annualExpiredThisMonthList: annualExpiredThisMonthList || [],
+      newAnnualThisMonthCount: newAnnualThisMonthList ? newAnnualThisMonthList.length : 0,
+      newAnnualThisMonthList: newAnnualThisMonthList || [],
+      annualRenewalsThisMonthCount: annualRenewalsThisMonthList ? annualRenewalsThisMonthList.length : 0,
+      annualRenewalsThisMonthList: annualRenewalsThisMonthList || [],
+      allAnnualExpiredCount: allAnnualExpiredList ? allAnnualExpiredList.length : 0,
+      allAnnualExpiredList: allAnnualExpiredList || [],
+
+      // Retrocompatibilidad
+      annualCancellationsCount: annualExpiredThisMonthList ? annualExpiredThisMonthList.length : 0,
+      annualCancellationsList: annualExpiredThisMonthList || [],
+      annualExpiringCount: annualExpiring3DaysList ? annualExpiring3DaysList.length : 0,
+      annualExpiringList: annualExpiring3DaysList || []
     };
   } catch (error) {
     console.error('Error en getDashboardData:', error);

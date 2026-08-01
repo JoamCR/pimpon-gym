@@ -477,6 +477,198 @@ const findAnnualExpiringIn3Months = async () => {
   }
 };
 
+/**
+ * Obtiene los clientes con anualidad activa
+ */
+const findActiveAnnual = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at >= CURRENT_DATE
+    ORDER BY c.enrollment_expires_at ASC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findActiveAnnual:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene los clientes cuyas anualidades vencen en los próximos 3 días
+ */
+const findAnnualExpiringIn3Days = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at > CURRENT_DATE
+      AND c.enrollment_expires_at <= (CURRENT_DATE + INTERVAL '3 days')::date
+    ORDER BY c.enrollment_expires_at ASC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAnnualExpiringIn3Days:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene los clientes cuya anualidad vence hoy
+ */
+const findAnnualExpiringToday = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at::date = CURRENT_DATE
+    ORDER BY c.enrollment_expires_at ASC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAnnualExpiringToday:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene los clientes cuyas anualidades vencieron en el mes actual
+ */
+const findAnnualExpiredThisMonth = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at < CURRENT_DATE
+      AND DATE_TRUNC('month', c.enrollment_expires_at) = DATE_TRUNC('month', CURRENT_DATE)
+    ORDER BY c.enrollment_expires_at DESC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAnnualExpiredThisMonth:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene las nuevas anualidades pagadas en el mes actual (clientes registrados este mes)
+ */
+const findNewAnnualThisMonth = async () => {
+  const query = `
+    SELECT 
+      p.id, p.amount, p.paid_at, c.id as client_id, c.first_name, c.last_name, c.phone, pl.name as plan_name, c.enrollment_expires_at as end_date
+    FROM payments p
+    JOIN clients c ON p.client_id = c.id
+    LEFT JOIN plans pl ON c.plan_id = pl.id
+    WHERE p.payment_type = 'enrollment' 
+      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+    ORDER BY p.paid_at DESC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findNewAnnualThisMonth:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene las renovaciones de anualidad pagadas en el mes actual (clientes registrados antes de este mes)
+ */
+const findAnnualRenewalsThisMonth = async () => {
+  const query = `
+    SELECT 
+      p.id, p.amount, p.paid_at, c.id as client_id, c.first_name, c.last_name, c.phone, pl.name as plan_name, c.enrollment_expires_at as end_date
+    FROM payments p
+    JOIN clients c ON p.client_id = c.id
+    LEFT JOIN plans pl ON c.plan_id = pl.id
+    WHERE p.payment_type = 'enrollment' 
+      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND DATE_TRUNC('month', c.created_at) < DATE_TRUNC('month', CURRENT_DATE)
+    ORDER BY p.paid_at DESC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAnnualRenewalsThisMonth:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene todas las anualidades vencidas (histórico completo)
+ */
+const findAllAnnualExpired = async () => {
+  const query = `
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, c.email, c.enrollment_expires_at as end_date, p.name as plan_name
+    FROM clients c
+    JOIN plans p ON c.plan_id = p.id
+    WHERE c.is_active = true
+      AND p.requires_enrollment = true
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at < CURRENT_DATE
+    ORDER BY c.enrollment_expires_at DESC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en findAllAnnualExpired:', err);
+    return [];
+  }
+};
+
+/**
+ * Obtiene los visitantes del mes actual (pagos de tipo visit)
+ */
+const countMonthVisitors = async () => {
+  const query = `
+    SELECT 
+      p.id, p.amount, p.paid_at, c.first_name, c.last_name, c.phone
+    FROM payments p
+    JOIN clients c ON p.client_id = c.id
+    WHERE p.payment_type = 'visit' 
+      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
+    ORDER BY p.paid_at DESC;
+  `;
+  try {
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (err) {
+    console.error('Error en countMonthVisitors:', err);
+    return [];
+  }
+};
+
 module.exports = {
   findExpiringIn3Days,
   findExpiringToday,
@@ -489,9 +681,17 @@ module.exports = {
   getTodayAttendanceAll,
   countTotalClients,
   countTodayVisitors,
+  countMonthVisitors,
   countRenewalsThisMonth,
   countCancellationsThisMonth,
   countNewClientsThisMonth,
   findAnnualCancellations,
   findAnnualExpiringIn3Months,
+  findActiveAnnual,
+  findAnnualExpiringIn3Days,
+  findAnnualExpiringToday,
+  findAnnualExpiredThisMonth,
+  findNewAnnualThisMonth,
+  findAnnualRenewalsThisMonth,
+  findAllAnnualExpired,
 };
