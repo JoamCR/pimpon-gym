@@ -677,6 +677,98 @@ export default function Statistics() {
     );
   };
 
+  const exportAllStatisticsCSV = () => {
+    const lines = [];
+
+    // Metadatos de cabecera
+    lines.push(`REPORTES_ESTADISTICAS_PIMPON_GYM`);
+    lines.push(`Fecha de generación: "${new Date().toLocaleString('es-MX')}"`);
+    lines.push(`Filtros aplicados: ${startDate || endDate ? `Desde ${startDate || 'Inicio'} Hasta ${endDate || 'Hoy'}` : 'Sin filtro (Mes completo)'}`);
+    lines.push('');
+
+    // SECCIÓN 1: ESTADÍSTICAS DEL GIMNASIO (CLIENTES)
+    lines.push(`=== SECCIÓN 1: ESTADÍSTICAS DEL GIMNASIO (CLIENTES) ===`);
+    lines.push(`Métrica,Valor,Detalle / Notas`);
+    lines.push(`Visitas del Día,${kpis.visitStats?.today || 0},Asistencias hoy`);
+    lines.push(`Visitas del Mes,${kpis.visitStats?.month || 0},Asistencias este mes`);
+    lines.push(`Visitas del Año,${kpis.visitStats?.year || 0},Asistencias acumuladas año`);
+    lines.push(`Origen: Solo Gimnasio,${acquisitionOriginData?.gimnasio_only || 0},${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total`);
+    lines.push(`Nutrición -> Gimnasio,${acquisitionOriginData?.nutricion_to_gimnasio || 0},${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones`);
+    lines.push(`Retención de Clientes,${kpis.retention?.retention_percentage || 0}%,${kpis.retention?.retained_clients || 0} clientes retenidos`);
+    lines.push(`Ingresos del Mes (Gimnasio),$${(totalIncome || 0).toLocaleString('es-MX')},${incomeByMethod.length} métodos de pago`);
+    lines.push(`Clientes Ausentes,${absentClients?.length || 0},Anualidad activa sin mensualidad`);
+    lines.push(`Clientes en Alerta,${alertClients?.length || 0},15+ días sin asistir`);
+    lines.push(`Anualidad Vencida,${expiredClients?.length || 0},Sin renovación`);
+    lines.push('');
+
+    // DESGLOSE DE INGRESOS GIMNASIO POR MÉTODO DE PAGO
+    lines.push(`--- DESGLOSE DE INGRESOS GIMNASIO ---`);
+    lines.push(`Método de Pago,Transacciones,Monto Total`);
+    (incomeByMethod || []).forEach(b => {
+      const method = b.payment_method === 'cash' ? 'Efectivo' : b.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta';
+      lines.push(`${method},${b.transaction_count || 0},$${parseFloat(b.total || 0).toLocaleString('es-MX')}`);
+    });
+    lines.push('');
+
+    // SECCIÓN 2: NUTRIOLOGÍA (PACIENTES)
+    lines.push(`=== SECCIÓN 2: ESTADÍSTICAS DE NUTRIOLOGÍA (PACIENTES) ===`);
+    lines.push(`Métrica,Valor,Detalle / Notas`);
+    lines.push(`Citas del Día,${appointmentStats?.today || 0},Consultas agendadas hoy`);
+    lines.push(`Citas del Mes,${appointmentStats?.month || 0},Consultas acumuladas mes`);
+    lines.push(`Citas del Año,${appointmentStats?.year || 0},Consultas acumuladas año`);
+    lines.push(`Origen: Solo Nutrición,${acquisitionOriginData?.nutricion_only || 0},${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total`);
+    lines.push(`Gimnasio -> Nutrición,${acquisitionOriginData?.gimnasio_to_nutricion || 0},${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones`);
+    lines.push(`Retención de Pacientes,${(retention3Months || []).length || 0},3+ consultas realizadas`);
+    lines.push(`Ingresos del Mes (Consultorio),$${(nutritionIncomeReal?.total || 0).toLocaleString('es-MX')},Pagos reales consultorio`);
+    lines.push(`Pacientes Ausentes,${absentPatients?.length || 0},30+ días sin consulta`);
+    lines.push(`Evaluaciones Realizadas,${kpis.nutritionStats?.total_evaluations || 0},Evaluaciones registradas en el mes`);
+    lines.push(`Seguimiento Pacientes,${consultationDurations?.consulted_patients || 0},Con al menos 1 consulta`);
+    lines.push('');
+
+    // DESGLOSE DE INGRESOS CONSULTORIO POR MÉTODO DE PAGO
+    lines.push(`--- DESGLOSE DE INGRESOS CONSULTORIO NUTRICIÓN ---`);
+    lines.push(`Método de Pago,Transacciones,Monto Total`);
+    (nutritionIncomeReal?.by_method || []).forEach(b => {
+      const method = b.payment_method === 'cash' ? 'Efectivo' : b.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta';
+      lines.push(`${method},${b.count || 0},$${parseFloat(b.total || 0).toLocaleString('es-MX')}`);
+    });
+    lines.push('');
+
+    // LISTADO DETALLADO DE CLIENTES SOLO GIMNASIO
+    lines.push(`--- LISTADO DE CLIENTES (SOLO GIMNASIO) ---`);
+    lines.push(`Nombre,Teléfono,Plan,Fecha Registro`);
+    (gymOnlyClients || []).forEach(c => {
+      lines.push(`"${c.first_name} ${c.last_name || ''}","${c.phone || 'Sin tel.'}","${c.plan_name || 'Sin plan'}","${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : ''}"`);
+    });
+    lines.push('');
+
+    // LISTADO DETALLADO DE PACIENTES SOLO NUTRICIÓN
+    lines.push(`--- LISTADO DE PACIENTES (SOLO NUTRICIÓN) ---`);
+    lines.push(`Nombre,Teléfono,Fecha Registro`);
+    (nutritionOnlyPatients || []).forEach(p => {
+      lines.push(`"${p.first_name} ${p.last_name || ''}","${p.phone || 'Sin tel.'}","${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : ''}"`);
+    });
+    lines.push('');
+
+    // LISTADO DETALLADO DE EVALUACIONES REALIZADAS
+    lines.push(`--- LISTADO DE EVALUACIONES DE NUTRICIÓN REALIZADAS ---`);
+    lines.push(`Nombre,Teléfono,IMC,Fecha Evaluación`);
+    const rawEvals = Array.isArray(nutritionEvaluationsList) ? nutritionEvaluationsList : (nutritionEvaluationsList?.data || []);
+    rawEvals.forEach(e => {
+      lines.push(`"${e.first_name} ${e.last_name || ''}","${e.phone || 'Sin tel.'}","${e.bmi || 'N/A'}","${e.evaluation_date ? new Date(e.evaluation_date).toLocaleDateString('es-MX') : ''}"`);
+    });
+
+    const csvContent = '\uFEFF' + lines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Estadisticas_Generales_PimponGym_${year}_${month}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-8">
       {/* Header */}
@@ -1197,17 +1289,15 @@ export default function Statistics() {
               </div>
             </div>
           </div>
-
           <div className="rounded-lg bg-[var(--color-card-alt)] p-6 overflow-x-auto">
             {renderChart()}
           </div>
         </div>
       </GymCard>
 
-      {/* Acciones Rápidas */}
       <GymCard title="Acciones Rápidas" variant="default">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <GymButton variant="secondary" size="lg">
+          <GymButton variant="secondary" size="lg" onClick={exportAllStatisticsCSV}>
             <span className="flex items-center justify-center gap-2"><IconDownload size={20} /> Exportar Reporte</span>
           </GymButton>
           <GymButton variant="primary" size="lg">
