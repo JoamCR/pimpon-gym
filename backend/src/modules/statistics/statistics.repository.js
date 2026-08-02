@@ -502,8 +502,8 @@ const getNutritionStats = async (year, month) => {
     WITH total_evals AS (
       SELECT COUNT(*) as total_evaluations
       FROM nutrition_records nr
-      WHERE EXTRACT(YEAR FROM nr.evaluation_date) = $1
-        AND EXTRACT(MONTH FROM nr.evaluation_date) = $2
+      WHERE EXTRACT(YEAR FROM COALESCE(nr.evaluation_date, nr.created_at)) = $1
+        AND EXTRACT(MONTH FROM COALESCE(nr.evaluation_date, nr.created_at)) = $2
     ),
     paid_consults AS (
       SELECT COUNT(*) as total_paid_consults
@@ -634,6 +634,7 @@ const getMonthlyIncomeByMethod = async (year, month) => {
     WHERE EXTRACT(YEAR FROM paid_at) = $1
       AND EXTRACT(MONTH FROM paid_at) = $2
       AND is_voided = false
+      AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
     GROUP BY payment_method
     ORDER BY total DESC
   `;
@@ -694,7 +695,7 @@ const getMonthlyIncomeDetails = async (year, month) => {
     WHERE EXTRACT(YEAR FROM p.paid_at) = $1
       AND EXTRACT(MONTH FROM p.paid_at) = $2
       AND p.is_voided = false
-      AND p.entity_type = 'gym'
+      AND (p.entity_type = 'gym' OR (p.entity_type IS NULL AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
     ORDER BY p.paid_at DESC
   `;
   try {
@@ -831,34 +832,22 @@ const getNutritionPatientsToClientsConversion = async () => {
  */
 const getNutritionRetentionByThreeMonths = async () => {
   const sql = `
-    WITH consults AS (
-      SELECT patient_id, paid_at as consult_date
-      FROM payments
-      WHERE entity_type = 'consultorio'
-        AND payment_type IN ('nutrition_consult', 'nutrition_followup')
-        AND is_voided = false
-        AND patient_id IS NOT NULL
-      UNION ALL
-      SELECT patient_id, evaluation_date as consult_date
-      FROM nutrition_records
-      WHERE entity_type = 'consultorio'
-        AND patient_id IS NOT NULL
-    ),
-    patient_counts AS (
+    WITH patient_counts AS (
       SELECT patient_id, COUNT(*) as total_consults
-      FROM consults
+      FROM nutrition_records
+      WHERE patient_id IS NOT NULL
       GROUP BY patient_id
     )
     SELECT
       p.id,
       p.first_name,
       p.last_name,
-      pc.total_consults,
-      ROUND(100.0 * pc.total_consults / NULLIF((SELECT COUNT(*) FROM patients WHERE is_active = true), 0), 2) as consult_percentage
+      p.phone,
+      pc.total_consults::int
     FROM patient_counts pc
     JOIN patients p ON p.id = pc.patient_id
     WHERE pc.total_consults >= 3
-    ORDER BY pc.total_consults DESC, p.last_name ASC
+    ORDER BY pc.total_consults DESC, p.first_name ASC
   `;
   try {
     const result = await pool.query(sql);
@@ -918,8 +907,8 @@ const getNutritionConsultationDurations = async () => {
  * 28. getNutritionIncomeReal(year, month): ingresos reales de las consultas del consultorio
  */
 const getNutritionIncomeReal = async (year, month) => {
-  const sql = `
-    SELECT
+  const sqlByMethod = `
+    SELECT 
       payment_method,
       SUM(amount) as total,
       COUNT(*) as transaction_count,
@@ -928,19 +917,75 @@ const getNutritionIncomeReal = async (year, month) => {
     WHERE EXTRACT(YEAR FROM paid_at) = $1
       AND EXTRACT(MONTH FROM paid_at) = $2
       AND is_voided = false
-      AND entity_type = 'consultorio'
+      AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
     GROUP BY payment_method
     ORDER BY total DESC
   `;
+
+  const sqlDetails = `
+    SELECT 
+      p.id,
+      COALESCE(p.patient_id, p.client_id) as patient_id,
+      COALESCE(pat.first_name, c.first_name, 'Cliente') as first_name,
+      COALESCE(pat.last_name, c.last_name, '') as last_name,
+      COALESCE(pat.phone, c.phone, 'Sin teléfono') as phone,
+      p.amount,
+      p.payment_method,
+      p.payment_type,
+      p.paid_at
+    FROM payments p
+    LEFT JOIN patients pat ON p.patient_id = pat.id
+    LEFT JOIN clients c ON p.client_id = c.id
+    WHERE EXTRACT(YEAR FROM p.paid_at) = $1
+      AND EXTRACT(MONTH FROM p.paid_at) = $2
+      AND p.is_voided = false
+      AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+    ORDER BY p.paid_at DESC
+  `;
+
   try {
-    const result = await pool.query(sql, [year, month]);
-    const total = result.rows.reduce((sum, row) => sum + parseFloat(row.total || 0), 0);
+    const resByMethod = await pool.query(sqlByMethod, [year, month]);
+    const resDetails = await pool.query(sqlDetails, [year, month]);
+    const total = resByMethod.rows.reduce((sum, row) => sum + parseFloat(row.total || 0), 0);
     return {
-      by_method: result.rows,
+      by_method: resByMethod.rows,
+      details: resDetails.rows,
       total: total
     };
   } catch (err) {
+    console.error('Error obteniendo ingresos del consultorio:', err);
     throw createError(500, 'Error obteniendo ingresos del consultorio');
+  }
+};
+
+/**
+ * 28. getNutritionEvaluationsList(year, month): listado de evaluaciones realizadas en el mes
+ */
+const getNutritionEvaluationsList = async (year, month) => {
+  const sql = `
+    SELECT 
+      nr.id,
+      COALESCE(p.id, c.id) as patient_id,
+      COALESCE(p.first_name, c.first_name, 'Paciente') as first_name,
+      COALESCE(p.last_name, c.last_name, '') as last_name,
+      COALESCE(p.phone, c.phone, 'Sin teléfono') as phone,
+      COALESCE(nr.evaluation_date, nr.created_at) as evaluation_date,
+      nr.weight_kg,
+      nr.body_fat_pct,
+      ROUND((nr.weight_kg / NULLIF((nr.height_cm / 100.0) ^ 2, 0))::numeric, 1) as bmi
+    FROM nutrition_records nr
+    LEFT JOIN patients p ON nr.patient_id = p.id
+    LEFT JOIN clients c ON nr.client_id = c.id
+    WHERE EXTRACT(YEAR FROM COALESCE(nr.evaluation_date, nr.created_at)) = $1
+      AND EXTRACT(MONTH FROM COALESCE(nr.evaluation_date, nr.created_at)) = $2
+    ORDER BY COALESCE(nr.evaluation_date, nr.created_at) DESC
+  `;
+  try {
+    const result = await pool.query(sql, [year, month]);
+    return result.rows;
+  } catch (err) {
+    console.error('Error obteniendo listado de evaluaciones:', err);
+    throw createError(500, 'Error obteniendo listado de evaluaciones');
   }
 };
 
@@ -1036,6 +1081,120 @@ const getVisitStats = async (year, month) => {
   }
 };
 
+/**
+ * 37. getNutritionAppointmentStats(year, month): citas del día, mes y año
+ */
+const getNutritionAppointmentStats = async (year, month) => {
+  const sql = `
+    SELECT 
+      (SELECT COUNT(*)::int FROM nutrition_records WHERE evaluation_date::date = CURRENT_DATE) as today,
+      (SELECT COUNT(*)::int FROM nutrition_records WHERE EXTRACT(YEAR FROM evaluation_date) = $1 AND EXTRACT(MONTH FROM evaluation_date) = $2) as month,
+      (SELECT COUNT(*)::int FROM nutrition_records WHERE EXTRACT(YEAR FROM evaluation_date) = $1) as year
+  `;
+  try {
+    const result = await pool.query(sql, [year, month]);
+    const row = result.rows[0] || {};
+    return {
+      today: row.today || 0,
+      month: row.month || 0,
+      year: row.year || 0
+    };
+  } catch (err) {
+    console.error('Error obteniendo estadísticas de citas de nutrición:', err);
+    throw createError(500, 'Error obteniendo estadísticas de citas de nutrición');
+  }
+};
+
+/**
+ * 38. getAbsentPatients(): pacientes sin consulta en 30 días o más
+ */
+const getAbsentPatients = async () => {
+  const sql = `
+    SELECT 
+      p.id, 
+      p.first_name, 
+      p.last_name, 
+      p.phone, 
+      MAX(nr.evaluation_date) as last_consultation_date,
+      CASE 
+        WHEN MAX(nr.evaluation_date) IS NULL THEN 'Sin consultas'
+        ELSE (CURRENT_DATE - MAX(nr.evaluation_date)::date)::text || ' días sin consultar'
+      END as status_text,
+      COALESCE((CURRENT_DATE - MAX(nr.evaluation_date)::date), 999) as days_without_consult
+    FROM patients p
+    LEFT JOIN nutrition_records nr ON nr.patient_id = p.id
+    WHERE p.is_active = true
+    GROUP BY p.id, p.first_name, p.last_name, p.phone
+    HAVING MAX(nr.evaluation_date) IS NULL OR (CURRENT_DATE - MAX(nr.evaluation_date)::date) >= 30
+    ORDER BY days_without_consult DESC
+  `;
+  try {
+    const result = await pool.query(sql);
+    return result.rows;
+  } catch (err) {
+    console.error('Error obteniendo pacientes ausentes:', err);
+    throw createError(500, 'Error obteniendo pacientes ausentes');
+  }
+};
+
+/**
+ * 39. getGymOnlyClientsList(): lista de clientes que ingresaron solo a gimnasio
+ */
+const getGymOnlyClientsList = async () => {
+  const sql = `
+    SELECT c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at
+    FROM clients c
+    LEFT JOIN plans p ON c.plan_id = p.id
+    WHERE c.patient_id IS NULL AND (c.current_flow = 'gimnasio' OR c.current_flow IS NULL)
+    ORDER BY c.created_at DESC
+  `;
+  try {
+    const result = await pool.query(sql);
+    return result.rows;
+  } catch (err) {
+    console.error('Error obteniendo listado solo gimnasio:', err);
+    throw createError(500, 'Error obteniendo listado solo gimnasio');
+  }
+};
+
+/**
+ * 40. getNutritionOnlyPatientsList(): lista de pacientes que ingresaron solo a nutrición
+ */
+const getNutritionOnlyPatientsList = async () => {
+  const sql = `
+    SELECT p.id, p.first_name, p.last_name, p.phone, p.created_at
+    FROM patients p
+    WHERE p.client_id IS NULL AND (p.current_flow = 'nutricion' OR p.current_flow IS NULL)
+    ORDER BY p.created_at DESC
+  `;
+  try {
+    const result = await pool.query(sql);
+    return result.rows;
+  } catch (err) {
+    console.error('Error obteniendo listado solo nutrición:', err);
+    throw createError(500, 'Error obteniendo listado solo nutrición');
+  }
+};
+
+/**
+ * 41. getGymToNutritionList(): clientes de gimnasio que pasaron a nutrición
+ */
+const getGymToNutritionList = async () => {
+  const sql = `
+    SELECT p.id, p.first_name, p.last_name, p.phone, p.created_at
+    FROM patients p
+    WHERE p.client_id IS NOT NULL OR p.current_flow = 'nutricion_y_gimnasio'
+    ORDER BY p.created_at DESC
+  `;
+  try {
+    const result = await pool.query(sql);
+    return result.rows;
+  } catch (err) {
+    console.error('Error obteniendo listado gimnasio a nutrición:', err);
+    throw createError(500, 'Error obteniendo listado gimnasio a nutrición');
+  }
+};
+
 module.exports = {
   getMonthlyIncome,
   getActiveClientsReal,
@@ -1072,5 +1231,11 @@ module.exports = {
   getNutritionConsultationDurations,
   getNutritionIncomeReal,
   getAcquisitionOriginStats,
-  getVisitStats
+  getVisitStats,
+  getNutritionAppointmentStats,
+  getAbsentPatients,
+  getGymOnlyClientsList,
+  getNutritionOnlyPatientsList,
+  getGymToNutritionList,
+  getNutritionEvaluationsList
 };

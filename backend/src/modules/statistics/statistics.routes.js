@@ -250,6 +250,46 @@ async function statisticsRoutes(fastify, options) {
     const data = await service.getAcquisitionOriginStats();
     return { data };
   });
+
+  fastify.get('/nutrition-appointment-stats', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionAppointmentStats(year, month);
+    return { data };
+  });
+
+  fastify.get('/absent-patients', async (request, reply) => {
+    const data = await service.getAbsentPatients();
+    return { data };
+  });
+
+  fastify.get('/gym-only-clients', async (request, reply) => {
+    const data = await service.getGymOnlyClientsList();
+    return { data };
+  });
+
+  fastify.get('/nutrition-only-patients', async (request, reply) => {
+    const data = await service.getNutritionOnlyPatientsList();
+    return { data };
+  });
+
+  fastify.get('/gym-to-nutrition-patients', async (request, reply) => {
+    const data = await service.getGymToNutritionList();
+    return { data };
+  });
+
+  fastify.get('/nutrition-evaluations-list', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionEvaluationsList(year, month);
+    return { data };
+  });
 }
 
 module.exports = statisticsRoutes;

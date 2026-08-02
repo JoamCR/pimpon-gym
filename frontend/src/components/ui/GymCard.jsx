@@ -38,10 +38,10 @@ const variantStyles = {
     accent:     'bg-emerald-500',
   },
   gold: {
-    border:     'border-[#d48806]',
-    headerBg:   'bg-gradient-to-r from-[var(--color-gold)] via-[var(--color-secondary)] to-[#ffb84d]',
+    border:     'border-[var(--color-card-border)]',
+    headerBg:   'bg-gradient-to-r from-[var(--color-card-header-bg)] via-[var(--color-card-header-via)] to-[var(--color-card-header-to)]',
     titleColor: 'text-white',
-    accent:     'bg-gradient-to-b from-[var(--color-gold)] to-[var(--color-accent)]',
+    accent:     'bg-gradient-to-b from-[var(--color-secondary)] to-[var(--color-accent)]',
   },
 };
 

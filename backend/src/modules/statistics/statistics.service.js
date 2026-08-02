@@ -427,6 +427,64 @@ const getAcquisitionOriginStats = async () => {
   }
 };
 
+const getNutritionAppointmentStats = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionAppointmentStats(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener citas de nutrición');
+  }
+};
+
+const getAbsentPatients = async () => {
+  try {
+    return await repository.getAbsentPatients();
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener pacientes ausentes');
+  }
+};
+
+const getGymOnlyClientsList = async () => {
+  try {
+    return await repository.getGymOnlyClientsList();
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener lista solo gimnasio');
+  }
+};
+
+const getNutritionOnlyPatientsList = async () => {
+  try {
+    return await repository.getNutritionOnlyPatientsList();
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener lista solo nutrición');
+  }
+};
+
+const getGymToNutritionList = async () => {
+  try {
+    return await repository.getGymToNutritionList();
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener lista gimnasio a nutrición');
+  }
+};
+
+const getNutritionEvaluationsList = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionEvaluationsList(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener listado de evaluaciones');
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getExpiredClients,
@@ -459,5 +517,11 @@ module.exports = {
   getNutritionRetentionByThreeMonths,
   getNutritionConsultationDurations,
   getNutritionIncomeReal,
-  getAcquisitionOriginStats
+  getAcquisitionOriginStats,
+  getNutritionAppointmentStats,
+  getAbsentPatients,
+  getGymOnlyClientsList,
+  getNutritionOnlyPatientsList,
+  getGymToNutritionList,
+  getNutritionEvaluationsList
 };

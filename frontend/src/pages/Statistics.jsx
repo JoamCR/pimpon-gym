@@ -12,7 +12,9 @@ import {
   IconShare,
   IconSpeakerphone,
   IconMessage,
-  IconCalendarEvent
+  IconCalendarEvent,
+  IconStethoscope,
+  IconUsers
 } from '@tabler/icons-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis,
@@ -21,23 +23,28 @@ import {
 import { useComprehensiveStats } from '../hooks/useStatistics';
 import {
   useMonthlyIncomeByMethod,
-  useNutritionConversionPaid,
   useAbsentClients,
   useAlertClients,
-  useNutritionFreeToConversion,
+  useExpiredClients,
   useNutritionPatientsToClients,
   useNutritionRetention3Months,
   useNutritionConsultationDurations,
   useNutritionIncomeReal,
   useMonthlyIncomeDetails,
-  useRetainedClients,
-  useNutritionFreeConsults,
   useNutritionPaidConsults,
+  useRetainedClients,
   useConsistentClients,
-  useAcquisitionOriginStats
+  useAcquisitionOriginStats,
+  useNutritionAppointmentStats,
+  useAbsentPatients,
+  useGymOnlyClients,
+  useNutritionOnlyPatients,
+  useGymToNutritionPatients,
+  useNutritionEvaluationsList
 } from '../hooks/useStatistics';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
+import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 
 const COLORS = ['#0F3E60', '#E29A00', '#16A34A', '#DC2626', '#0D1B2A', '#8B5CF6'];
 
@@ -47,53 +54,70 @@ const chartTypes = [
 ];
 
 const allMetrics = [
+  // Subgrupo 1: Gimnasio (Clientes)
   { id: 'clientsByPlan', label: 'Clientes por Plan', category: 'gym' },
+  { id: 'gymOnly', label: 'Origen: Solo Gimnasio', category: 'gym' },
+  { id: 'nutToGym', label: 'Conversión: Nutrición → Gimnasio', category: 'gym' },
   { id: 'retentionRate', label: 'Retención de Clientes', category: 'gym' },
-  { id: 'monthlyIncome', label: 'Ingreso de Efectivo del Mes', category: 'gym' },
+  { id: 'monthlyIncome', label: 'Ingresos del Mes (Gimnasio)', category: 'gym' },
   { id: 'paymentMethods', label: 'Origen de Ingresos', category: 'gym' },
-  { id: 'ageDistributionClients', label: 'Edad de Clientes', category: 'gym' },
-  { id: 'sexDistributionClients', label: 'Sexo de Clientes', category: 'gym' },
-  { id: 'ageDistributionPatients', label: 'Edad de Pacientes', category: 'nutrition' },
-  { id: 'sexDistributionPatients', label: 'Sexo de Pacientes', category: 'nutrition' },
   { id: 'absentClients', label: 'Clientes Ausentes', category: 'gym' },
   { id: 'alertClients', label: 'Clientes en Alerta', category: 'gym' },
-  { id: 'nutritionEvaluations', label: 'Evaluaciones Realizadas', category: 'nutrition' },
-  { id: 'nutritionPaidConsults', label: 'Consultas Pagadas', category: 'nutrition' },
-  { id: 'nutritionPatientsToClients', label: 'Pacientes → Clientes', category: 'nutrition' },
+  { id: 'expiredClients', label: 'Anualidad Vencida', category: 'gym' },
+  { id: 'sexDistributionClients', label: 'Sexo de Clientes', category: 'gym' },
+  { id: 'ageDistributionClients', label: 'Edad de Clientes', category: 'gym' },
+  { id: 'attendance', label: 'Asistencia Diaria Gimnasio', category: 'gym' },
+
+  // Subgrupo 2: Nutriología (Pacientes)
+  { id: 'nutritionOnly', label: 'Origen: Solo Nutrición', category: 'nutrition' },
+  { id: 'gymToNut', label: 'Conversión: Gimnasio → Nutrición', category: 'nutrition' },
   { id: 'nutritionRetention', label: 'Retención de Pacientes', category: 'nutrition' },
   { id: 'nutritionIncome', label: 'Ingresos del Consultorio', category: 'nutrition' },
+  { id: 'absentPatients', label: 'Pacientes Ausentes (30+ días)', category: 'nutrition' },
+  { id: 'nutritionEvaluations', label: 'Evaluaciones Realizadas', category: 'nutrition' },
+  { id: 'nutritionConsultations', label: 'Seguimiento de Pacientes', category: 'nutrition' },
+  { id: 'sexDistributionPatients', label: 'Sexo de Pacientes', category: 'nutrition' },
+  { id: 'ageDistributionPatients', label: 'Edad de Pacientes', category: 'nutrition' },
+  { id: 'appointmentStats', label: 'Control de Citas Nutrición', category: 'nutrition' },
 ];
 
 export default function Statistics() {
   const [chartType, setChartType] = useState('bar');
   const [selectedMetric, setSelectedMetric] = useState('clientsByPlan');
   const [filterMetric, setFilterMetric] = useState('all');
-  const [selectedCard, setSelectedCard] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [entityType, setEntityType] = useState('clients');
+
+  // Selección de tarjetas interactiva para Tablas Cebra
+  const [selectedGymCard, setSelectedGymCard] = useState('gymOnly');
+  const [selectedNutritionCard, setSelectedNutritionCard] = useState('nutritionOnly');
 
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  // Cargar todos los datos
+  // Hooks de datos
   const { data, isLoading, error } = useComprehensiveStats(year, month);
   const { data: monthlyIncomeData } = useMonthlyIncomeByMethod(year, month);
-  const { data: nutritionConversionPaid } = useNutritionConversionPaid();
   const { data: absentClients } = useAbsentClients();
   const { data: alertClients } = useAlertClients();
-  const { data: freeToConversion } = useNutritionFreeToConversion();
+  const { data: expiredClients } = useExpiredClients();
   const { data: patientsToClients } = useNutritionPatientsToClients();
   const { data: retention3Months } = useNutritionRetention3Months();
   const { data: consultationDurations } = useNutritionConsultationDurations();
   const { data: nutritionIncomeReal } = useNutritionIncomeReal(year, month);
   const { data: monthlyIncomeDetails } = useMonthlyIncomeDetails(year, month);
-  const { data: nutritionFreeConsults } = useNutritionFreeConsults(year, month);
   const { data: nutritionPaidConsults } = useNutritionPaidConsults(year, month);
   const { data: retentionClients } = useRetainedClients();
-  const { data: consistentClients } = useConsistentClients(6);
   const { data: acquisitionOriginData } = useAcquisitionOriginStats();
+
+  // Nuevos hooks para la paridad simétrica y desgloses
+  const { data: appointmentStats } = useNutritionAppointmentStats(year, month);
+  const { data: absentPatients } = useAbsentPatients();
+  const { data: gymOnlyClients } = useGymOnlyClients();
+  const { data: nutritionOnlyPatients } = useNutritionOnlyPatients();
+  const { data: gymToNutritionPatients } = useGymToNutritionPatients();
+  const { data: nutritionEvaluationsList } = useNutritionEvaluationsList(year, month);
 
   if (error) {
     return (
@@ -120,7 +144,7 @@ export default function Statistics() {
         >
           <IconLoader size={40} />
         </motion.div>
-        <p className="ml-4 text-[var(--color-text-muted)]">Cargando estadísticas...</p>
+        <p className="ml-4 text-[var(--color-text-muted)]">Cargando estadísticas simétricas...</p>
       </div>
     );
   }
@@ -129,11 +153,9 @@ export default function Statistics() {
   const kpis = stats.kpis || {};
   const charts = stats.charts || {};
 
-  // Calcular totales
   const totalIncome = monthlyIncomeData?.total || 0;
   const incomeByMethod = monthlyIncomeData?.payment_breakdown || [];
 
-  // Preparar datos para gráficos
   const paymentData = (charts.paymentMethods || []).map(d => ({
     name: d.payment_method === 'cash' ? 'Efectivo' : d.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
     value: parseFloat(d.percentage) || 0,
@@ -157,7 +179,7 @@ export default function Statistics() {
   }));
 
   const sexDataClients = (charts.sexDistributionClients || []).map(d => ({
-    name: d.sex,
+    name: d.sex === 'M' ? 'Masculino' : d.sex === 'F' ? 'Femenino' : (d.sex || 'Sin dato'),
     value: parseInt(d.count, 10) || 0
   }));
 
@@ -167,7 +189,7 @@ export default function Statistics() {
   }));
 
   const sexDataPatients = (charts.sexDistributionPatients || []).map(d => ({
-    name: d.sex,
+    name: d.sex === 'M' ? 'Masculino' : d.sex === 'F' ? 'Femenino' : (d.sex || 'Sin dato'),
     value: parseInt(d.count, 10) || 0
   }));
 
@@ -176,929 +198,1006 @@ export default function Statistics() {
     value: parseFloat(d.total) || 0
   }));
 
+  // Helper para evaluar si una fecha cae dentro del rango seleccionado (Desde / Hasta)
+  const isDateFilterActive = Boolean(startDate || endDate);
+  const isInvalidRange = Boolean(startDate && endDate && startDate > endDate);
+
+  const isWithinDateRange = (dateStr) => {
+    if (isInvalidRange) return false;
+    if (!startDate && !endDate) return true;
+    if (!dateStr) return false;
+    const formatted = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    if (startDate && formatted < startDate) return false;
+    if (endDate && formatted > endDate) return false;
+    return true;
+  };
+
+  const filteredAttendanceData = attendanceData.filter(d => isWithinDateRange(d.date));
+  const filteredGymOnlyClients = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at));
+  const filteredNutritionOnlyPatients = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at));
+  const filteredAbsentClients = (absentClients || []).filter(c => isWithinDateRange(c.created_at || c.last_attendance_date));
+  const filteredAlertClients = (alertClients || []).filter(c => isWithinDateRange(c.created_at || c.last_attendance_date));
+  const filteredExpiredClients = (expiredClients || []).filter(c => isWithinDateRange(c.end_date || c.created_at));
+  const filteredAbsentPatients = (absentPatients || []).filter(p => isWithinDateRange(p.created_at || p.last_consultation_date));
+  const filteredPatientsToClients = (patientsToClients || []).filter(p => isWithinDateRange(p.conversion_date || p.created_at));
+
+  const rawEvalsList = Array.isArray(nutritionEvaluationsList) 
+    ? nutritionEvaluationsList 
+    : (nutritionEvaluationsList?.data || []);
+  const filteredNutritionEvaluations = rawEvalsList.filter(e => isWithinDateRange(e.evaluation_date || e.created_at));
+
+  const filteredMonthlyIncomeDetails = (monthlyIncomeDetails || []).filter(p => isWithinDateRange(p.payment_date || p.created_at));
+
+  const filteredIncomeMethodData = isDateFilterActive
+    ? (isInvalidRange ? [] : [
+        { name: 'Efectivo', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'cash').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
+        { name: 'Transferencia', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'transfer').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
+        { name: 'Tarjeta', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'card').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) }
+      ].filter(d => d.value > 0))
+    : incomeMethodData;
+
+  const totalFilteredIncome = filteredIncomeMethodData.reduce((acc, curr) => acc + curr.value, 0);
+  const filteredPaymentData = isDateFilterActive
+    ? filteredIncomeMethodData.map(d => ({
+        name: d.name,
+        value: totalFilteredIncome > 0 ? Math.round((d.value / totalFilteredIncome) * 100) : 0,
+        total: d.value
+      }))
+    : paymentData;
+
+  const filteredPlansData = isDateFilterActive
+    ? (isInvalidRange ? [] : (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, client) => {
+        const plan = client.plan_name || 'Sin plan';
+        const existing = acc.find(item => item.name === plan);
+        if (existing) existing.value += 1;
+        else acc.push({ name: plan, value: 1 });
+        return acc;
+      }, []))
+    : plansData;
+
+  const filteredSexDataClients = isDateFilterActive
+    ? (isInvalidRange ? [] : (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
+        const sex = c.sex === 'M' ? 'Masculino' : c.sex === 'F' ? 'Femenino' : 'Sin dato';
+        const existing = acc.find(item => item.name === sex);
+        if (existing) existing.value += 1;
+        else acc.push({ name: sex, value: 1 });
+        return acc;
+      }, []))
+    : sexDataClients;
+
+  const filteredAgeDataClients = isDateFilterActive
+    ? (isInvalidRange ? [] : (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
+        const range = c.age ? (c.age < 18 ? '<18' : c.age <= 25 ? '18-25' : c.age <= 35 ? '26-35' : c.age <= 50 ? '36-50' : '50+') : 'Sin dato';
+        const existing = acc.find(item => item.name === range);
+        if (existing) existing.value += 1;
+        else acc.push({ name: range, value: 1 });
+        return acc;
+      }, []))
+    : ageDataClients;
+
+  const filteredSexDataPatients = isDateFilterActive
+    ? (isInvalidRange ? [] : (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
+        const sex = p.sex === 'M' ? 'Masculino' : p.sex === 'F' ? 'Femenino' : 'Sin dato';
+        const existing = acc.find(item => item.name === sex);
+        if (existing) existing.value += 1;
+        else acc.push({ name: sex, value: 1 });
+        return acc;
+      }, []))
+    : sexDataPatients;
+
+  const filteredAgeDataPatients = isDateFilterActive
+    ? (isInvalidRange ? [] : (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
+        const range = p.age ? (p.age < 18 ? '<18' : p.age <= 25 ? '18-25' : p.age <= 35 ? '26-35' : p.age <= 50 ? '36-50' : '50+') : 'Sin dato';
+        const existing = acc.find(item => item.name === range);
+        if (existing) existing.value += 1;
+        else acc.push({ name: range, value: 1 });
+        return acc;
+      }, []))
+    : ageDataPatients;
+
   const chartConfig = {
-    clientsByPlan: {
-      data: plansData,
-      title: 'Distribución de Clientes por Plan',
-      dataKey: 'value',
-      nameKey: 'name'
+    // Gimnasio (Clientes)
+    clientsByPlan: { data: filteredPlansData, title: 'Distribución de Clientes por Plan', dataKey: 'value', nameKey: 'name' },
+    gymOnly: {
+      data: [
+        { name: 'Solo Gimnasio', value: filteredGymOnlyClients.length },
+        { name: 'Otros clientes', value: isDateFilterActive ? 0 : Math.max((acquisitionOriginData?.total_clients || 0) - filteredGymOnlyClients.length, 0) }
+      ].filter(d => d.value > 0),
+      title: 'Origen: Solo Gimnasio', dataKey: 'value', nameKey: 'name'
+    },
+    nutToGym: {
+      data: [{ name: 'Nutrición → Gimnasio', value: filteredPatientsToClients.length }],
+      title: 'Conversión: Nutrición a Gimnasio', dataKey: 'value', nameKey: 'name'
     },
     retentionRate: {
-      data: [
-        { name: 'Retención', value: parseFloat(kpis.retention?.retention_percentage) || 0 },
-        { name: 'No retenidos', value: Math.max((parseFloat(kpis.retention?.total_clients) || 0) - (parseFloat(kpis.retention?.retained_clients) || 0), 0) }
-      ],
-      title: 'Retención de Clientes',
-      dataKey: 'value',
-      nameKey: 'name'
+      data: isDateFilterActive
+        ? [{ name: 'Retención en período', value: (retentionClients || []).filter(r => isWithinDateRange(r.created_at)).length }]
+        : [
+            { name: 'Retención', value: parseFloat(kpis.retention?.retention_percentage) || 0 },
+            { name: 'No retenidos', value: Math.max((parseFloat(kpis.retention?.total_clients) || 0) - (parseFloat(kpis.retention?.retained_clients) || 0), 0) }
+          ],
+      title: 'Retención de Clientes', dataKey: 'value', nameKey: 'name'
     },
-    monthlyIncome: {
-      data: incomeMethodData,
-      title: 'Ingreso de Efectivo del Mes',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
-    paymentMethods: {
-      data: paymentData,
-      title: 'Origen de Ingresos',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
-    attendance: {
-      data: attendanceData,
-      title: 'Asistencia Diaria (últimos 30 días)',
-      dataKey: 'visitantes',
-      nameKey: 'date'
-    },
-    ageDistributionClients: {
-      data: ageDataClients,
-      title: 'Distribución por Edad (Clientes)',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
-    sexDistributionClients: {
-      data: sexDataClients,
-      title: 'Distribución por Sexo (Clientes)',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
-    ageDistributionPatients: {
-      data: ageDataPatients,
-      title: 'Distribución por Edad (Pacientes)',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
-    sexDistributionPatients: {
-      data: sexDataPatients,
-      title: 'Distribución por Sexo (Pacientes)',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
+    monthlyIncome: { data: filteredIncomeMethodData, title: 'Ingresos Efectivos (Gimnasio)', dataKey: 'value', nameKey: 'name' },
+    paymentMethods: { data: filteredPaymentData, title: 'Origen de Ingresos', dataKey: 'value', nameKey: 'name' },
+    attendance: { data: filteredAttendanceData, title: 'Asistencia Diaria', dataKey: 'visitantes', nameKey: 'date' },
     absentClients: {
-      data: (absentClients || []).reduce((acc, client) => {
+      data: filteredAbsentClients.reduce((acc, client) => {
         const plan = client.plan_name || 'Sin plan';
         const existing = acc.find(item => item.name === plan);
         if (existing) existing.value += 1;
         else acc.push({ name: plan, value: 1 });
         return acc;
       }, []),
-      title: 'Clientes Ausentes por Plan',
-      dataKey: 'value',
-      nameKey: 'name'
+      title: 'Clientes Ausentes por Plan', dataKey: 'value', nameKey: 'name'
     },
     alertClients: {
-      data: (alertClients || []).reduce((acc, client) => {
+      data: filteredAlertClients.reduce((acc, client) => {
         const plan = client.plan_name || 'Sin plan';
         const existing = acc.find(item => item.name === plan);
         if (existing) existing.value += 1;
         else acc.push({ name: plan, value: 1 });
         return acc;
       }, []),
-      title: 'Clientes en Alerta por Plan',
-      dataKey: 'value',
-      nameKey: 'name'
+      title: 'Clientes en Alerta por Plan', dataKey: 'value', nameKey: 'name'
     },
-    nutritionFreeConsults: {
-      data: [{ name: 'Gratuitas', value: kpis.nutritionStats?.free_consults || 0 }],
-      title: 'Consultas Gratuitas',
-      dataKey: 'value',
-      nameKey: 'name'
+    expiredClients: {
+      data: filteredExpiredClients.reduce((acc, client) => {
+        const plan = client.plan_name || 'Sin plan';
+        const existing = acc.find(item => item.name === plan);
+        if (existing) existing.value += 1;
+        else acc.push({ name: plan, value: 1 });
+        return acc;
+      }, []),
+      title: 'Anualidad Vencida por Plan', dataKey: 'value', nameKey: 'name'
     },
-    nutritionPaidConsults: {
-      data: [{ name: 'Pagadas', value: kpis.nutritionStats?.paid_consults || 0 }],
-      title: 'Consultas Pagadas',
-      dataKey: 'value',
-      nameKey: 'name'
-    },
-    nutritionFreePaidConversion: {
+    sexDistributionClients: { data: filteredSexDataClients, title: 'Distribución por Sexo (Clientes)', dataKey: 'value', nameKey: 'name' },
+    ageDistributionClients: { data: filteredAgeDataClients, title: 'Distribución por Edad (Clientes)', dataKey: 'value', nameKey: 'name' },
+
+    // Nutriología (Pacientes)
+    nutritionOnly: {
       data: [
-        { name: 'Convertidos', value: nutritionConversionPaid?.with_paid_nutrition || 0 },
-        { name: 'No convertidos', value: Math.max((nutritionConversionPaid?.total_gym_clients || 0) - (nutritionConversionPaid?.with_paid_nutrition || 0), 0) }
-      ],
-      title: 'Conversión Gratuita → Pago',
-      dataKey: 'value',
-      nameKey: 'name'
+        { name: 'Solo Nutrición', value: filteredNutritionOnlyPatients.length },
+        { name: 'Otros pacientes', value: isDateFilterActive ? 0 : Math.max((acquisitionOriginData?.total_patients || 0) - filteredNutritionOnlyPatients.length, 0) }
+      ].filter(d => d.value > 0),
+      title: 'Origen: Solo Nutrición', dataKey: 'value', nameKey: 'name'
     },
-    nutritionPatientsToClients: {
-      data: [
-        { name: 'Convertidos', value: (patientsToClients || []).length },
-        { name: 'Resto de pacientes', value: 0 }
-      ],
-      title: 'Pacientes → Clientes',
-      dataKey: 'value',
-      nameKey: 'name'
+    gymToNut: {
+      data: [{ name: 'Gimnasio → Nutrición', value: isDateFilterActive ? (isInvalidRange ? 0 : (acquisitionOriginData?.gimnasio_to_nutricion || 0)) : (acquisitionOriginData?.gimnasio_to_nutricion || 0) }],
+      title: 'Conversión: Gimnasio a Nutrición', dataKey: 'value', nameKey: 'name'
     },
     nutritionRetention: {
-      data: [
-        { name: '3+ Consultas', value: (retention3Months || []).length },
-        { name: 'Resto', value: Math.max((consultationDurations?.total_patients || 0) - (retention3Months || []).length, 0) }
-      ],
-      title: 'Retención de Pacientes',
-      dataKey: 'value',
-      nameKey: 'name'
+      data: isDateFilterActive
+        ? [{ name: '3+ Consultas en período', value: (retention3Months || []).filter(r => isWithinDateRange(r.created_at)).length }]
+        : [
+            { name: '3+ Consultas', value: (retention3Months || []).length },
+            { name: 'Resto', value: Math.max((consultationDurations?.total_patients || 0) - (retention3Months || []).length, 0) }
+          ],
+      title: 'Retención de Pacientes', dataKey: 'value', nameKey: 'name'
     },
     nutritionIncome: {
-      data: nutritionIncomeReal?.by_method?.map(d => ({
-        name: d.payment_method === 'cash' ? 'Efectivo' : d.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
-        value: parseFloat(d.total) || 0
-      })) || [],
-      title: 'Ingresos del Consultorio',
-      dataKey: 'value',
-      nameKey: 'name'
+      data: isDateFilterActive
+        ? [{ name: 'Evaluaciones / Consultas', value: filteredNutritionEvaluations.length * 500 }]
+        : (nutritionIncomeReal?.by_method?.map(d => ({
+            name: d.payment_method === 'cash' ? 'Efectivo' : d.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
+            value: parseFloat(d.total) || 0
+          })) || []),
+      title: 'Ingresos del Consultorio (Nutrición)', dataKey: 'value', nameKey: 'name'
+    },
+    absentPatients: {
+      data: [{ name: 'Ausentes (30+ días)', value: filteredAbsentPatients.length }],
+      title: 'Pacientes Ausentes (30+ días)', dataKey: 'value', nameKey: 'name'
+    },
+    nutritionEvaluations: {
+      data: [{ name: 'Evaluaciones en Período', value: filteredNutritionEvaluations.length }],
+      title: 'Evaluaciones Realizadas en el Período', dataKey: 'value', nameKey: 'name'
+    },
+    nutritionConsultations: {
+      data: [
+        { name: 'Evaluaciones en Período', value: filteredNutritionEvaluations.length }
+      ],
+      title: 'Seguimiento de Pacientes por Tiempo', dataKey: 'value', nameKey: 'name'
+    },
+    sexDistributionPatients: { data: filteredSexDataPatients, title: 'Distribución por Sexo (Pacientes)', dataKey: 'value', nameKey: 'name' },
+    ageDistributionPatients: { data: filteredAgeDataPatients, title: 'Distribución por Edad (Pacientes)', dataKey: 'value', nameKey: 'name' },
+    appointmentStats: {
+      data: isDateFilterActive
+        ? [{ name: 'Consultas / Citas en Período', value: filteredNutritionEvaluations.length }]
+        : [
+            { name: 'Citas Hoy', value: appointmentStats?.today || 0 },
+            { name: 'Citas Mes', value: appointmentStats?.month || 0 },
+            { name: 'Citas Año', value: appointmentStats?.year || 0 }
+          ],
+      title: 'Control de Citas / Agendas Nutrición', dataKey: 'value', nameKey: 'name'
     }
   };
 
-  const renderSelectedDetail = () => {
-    const sharedLists = {
-      absentClients,
-      alertClients,
-      nutritionFreePaidConversion: freeToConversion,
-      nutritionPatientsToClients: patientsToClients,
-      nutritionRetention: retention3Months
-    };
+  // Helper para generar los datos de la Tabla Cebra del Gimnasio (Clientes)
+  const getGymTableData = () => {
+    switch (selectedGymCard) {
+      case 'gymOnly':
+        return {
+          title: 'Origen: Solo Gimnasio',
+          headers: ['Cliente', 'Teléfono / Plan', 'Fecha Registro'],
+          rows: (gymOnlyClients || []).map(c => ({
+            name: `${c.first_name} ${c.last_name || ''}`,
+            phone: `${c.phone || 'Sin tel.'} • ${c.plan_name || 'Sin plan'}`,
+            detail: new Date(c.created_at).toLocaleDateString('es-MX')
+          }))
+        };
+      case 'nutToGym':
+        return {
+          title: 'Conversión: Nutrición → Gimnasio',
+          headers: ['Cliente', 'Teléfono', 'Consultas Previas'],
+          rows: (patientsToClients || []).map(p => ({
+            name: `${p.first_name} ${p.last_name || ''}`,
+            phone: p.phone || 'Sin teléfono',
+            detail: `${p.total_consultations || 0} consulta(s)`
+          }))
+        };
+      case 'retentionRate':
+        return {
+          title: 'Retención de Clientes',
+          headers: ['Cliente', 'Teléfono / Plan', 'Permanencia'],
+          rows: (retentionClients || []).map(r => ({
+            name: `${r.first_name} ${r.last_name || ''}`,
+            phone: `${r.phone || 'Sin tel.'} • ${r.plan_name || 'Sin plan'}`,
+            detail: `${r.consecutive_months || 0} meses seguidos`
+          }))
+        };
+      case 'monthlyIncome':
+        const breakdownRows = (monthlyIncomeData?.payment_breakdown || []).map(b => ({
+          name: b.payment_method === 'cash' ? 'Efectivo' : b.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
+          phone: `${b.transaction_count || 0} transacción(es)`,
+          detail: `$${parseFloat(b.total || 0).toLocaleString('es-MX')}`
+        }));
 
-    if (selectedCard === 'monthlyIncome') {
-      const payments = monthlyIncomeDetails || [];
-      if (payments.length === 0) {
-        return (
-          <div className="py-8 text-center text-[var(--color-text-muted)]">
-            No hay pagos registrados para este mes.
-          </div>
-        );
-      }
-
-      return payments.slice(0, 10).map((item, idx) => (
-        <motion.div
-          key={item.id || idx}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.03 }}
-          className="rounded-lg bg-[var(--color-card-alt)] p-4 flex justify-between items-start gap-4"
-        >
-          <div>
-            <p className="font-semibold text-[var(--color-text)]">
-              {item.first_name ? `${item.first_name} ${item.last_name}` : 'Cliente desconocido'}
-            </p>
-            <p className="text-xs text-[var(--color-text-muted)]">{item.payment_type || 'Pago'} • {item.payment_method === 'cash' ? 'Efectivo' : item.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta'}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{item.phone || 'Sin teléfono'}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{new Date(item.paid_at).toLocaleDateString('es-MX')}</p>
-          </div>
-          <p className="text-right font-semibold text-[var(--color-success)]">${parseFloat(item.amount || 0).toLocaleString('es-MX')}</p>
-        </motion.div>
-      ));
+        return {
+          title: 'Ingresos Efectivos del Mes (Gimnasio)',
+          headers: ['Método de Pago', 'Transacciones', 'Monto Total'],
+          rows: breakdownRows
+        };
+      case 'absentClients':
+        return {
+          title: 'Clientes Ausentes',
+          headers: ['Cliente', 'Plan / Anualidad', 'Inasistencia'],
+          rows: (absentClients || []).map(a => ({
+            name: `${a.first_name} ${a.last_name || ''}`,
+            phone: a.plan_name || 'Sin plan',
+            detail: `${a.days_without_attendance || 'Sin datos'} días`
+          }))
+        };
+      case 'alertClients':
+        return {
+          title: 'Clientes en Alerta',
+          headers: ['Cliente', 'Teléfono', 'Sin Asistir'],
+          rows: (alertClients || []).map(a => ({
+            name: `${a.first_name} ${a.last_name || ''}`,
+            phone: a.phone || 'Sin teléfono',
+            detail: `${a.days_without_attendance || 0} días`
+          }))
+        };
+      case 'expiredClients':
+        return {
+          title: 'Anualidad Vencida',
+          headers: ['Cliente', 'Teléfono', 'Estado'],
+          rows: (expiredClients || []).map(e => ({
+            name: `${e.first_name} ${e.last_name || ''}`,
+            phone: e.phone || 'Sin teléfono',
+            detail: e.plan_name || 'Vencido'
+          }))
+        };
+      case 'sexDistributionClients':
+        return {
+          title: 'Sexo de Clientes',
+          headers: ['Género', 'Cantidad', 'Distribución'],
+          rows: sexDataClients.map(s => ({
+            name: s.name,
+            phone: `${s.value} clientes`,
+            detail: `${Math.round((s.value / (sexDataClients.reduce((a,b)=>a+b.value,0)||1))*100)}%`
+          }))
+        };
+      case 'ageDistributionClients':
+        return {
+          title: 'Edad de Clientes',
+          headers: ['Rango de Edad', 'Cantidad', 'Distribución'],
+          rows: ageDataClients.map(a => ({
+            name: a.name,
+            phone: `${a.value} clientes`,
+            detail: `${Math.round((a.value / (ageDataClients.reduce((x,y)=>x+y.value,0)||1))*100)}%`
+          }))
+        };
+      default:
+        return { title: 'Selecciona una tarjeta', headers: ['Cliente', 'Contacto', 'Detalle'], rows: [] };
     }
-
-    if (selectedCard === 'retentionRate') {
-      const list = retentionClients || [];
-      if (list.length === 0) {
-        return (
-          <div className="py-8 text-center text-[var(--color-text-muted)]">
-            No hay clientes retenidos actualmente.
-          </div>
-        );
-      }
-
-      return list.slice(0, 10).map((client, idx) => (
-        <motion.div
-          key={client.id || idx}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.03 }}
-          className="rounded-lg bg-[var(--color-card-alt)] p-4 flex justify-between items-start gap-4"
-        >
-          <div>
-            <p className="font-semibold text-[var(--color-text)]">{client.first_name} {client.last_name}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{client.plan_name || 'Sin plan'}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{client.phone || 'Sin teléfono'}</p>
-          </div>
-          <div className="text-right text-xs text-[var(--color-text-muted)]">
-            <p>{client.consecutive_months} meses consecutivos</p>
-          </div>
-        </motion.div>
-      ));
-    }
-
-    if (selectedCard === 'nutritionFreeConsults') {
-      const list = nutritionFreeConsults || [];
-      if (list.length === 0) {
-        return (
-          <div className="py-8 text-center text-[var(--color-text-muted)]">
-            No hay consultas gratuitas registradas para este mes.
-          </div>
-        );
-      }
-
-      return list.slice(0, 10).map((item, idx) => (
-        <motion.div
-          key={item.id || idx}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.03 }}
-          className="rounded-lg bg-[var(--color-card-alt)] p-4 flex justify-between items-start gap-4"
-        >
-          <div>
-            <p className="font-semibold text-[var(--color-text)]">{item.first_name} {item.last_name}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{item.phone || 'Sin teléfono'}</p>
-          </div>
-          <div className="text-right text-xs text-[var(--color-text-muted)]">
-            <p>{item.consult_count} consulta(s)</p>
-            <p>{new Date(item.first_consult_date).toLocaleDateString('es-MX')}</p>
-          </div>
-        </motion.div>
-      ));
-    }
-
-    if (selectedCard === 'nutritionPaidConsults') {
-      const list = nutritionPaidConsults || [];
-      if (list.length === 0) {
-        return (
-          <div className="py-8 text-center text-[var(--color-text-muted)]">
-            No hay consultas pagadas registradas para este mes.
-          </div>
-        );
-      }
-
-      return list.slice(0, 10).map((item, idx) => (
-        <motion.div
-          key={item.id || idx}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.03 }}
-          className="rounded-lg bg-[var(--color-card-alt)] p-4 flex justify-between items-start gap-4"
-        >
-          <div>
-            <p className="font-semibold text-[var(--color-text)]">{item.first_name} {item.last_name}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{item.phone || 'Sin teléfono'}</p>
-          </div>
-          <div className="text-right text-xs text-[var(--color-text-muted)]">
-            <p>{item.total_paid ? `$${parseFloat(item.total_paid).toLocaleString('es-MX')}` : 'Sin pago'}</p>
-            <p>{item.consult_count} consulta(s)</p>
-          </div>
-        </motion.div>
-      ));
-    }
-
-    if (selectedCard === 'nutritionIncome') {
-      const list = nutritionIncomeReal?.by_method || [];
-      if (list.length === 0) {
-        return (
-          <div className="py-8 text-center text-[var(--color-text-muted)]">
-            No hay ingresos del consultorio registrados para este mes.
-          </div>
-        );
-      }
-
-      return list.map((item, idx) => (
-        <motion.div
-          key={item.payment_method || idx}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.03 }}
-          className="rounded-lg bg-[var(--color-card-alt)] p-4 flex justify-between items-start gap-4"
-        >
-          <div>
-            <p className="font-semibold text-[var(--color-text)]">
-              {item.payment_method === 'cash' ? 'Efectivo' : item.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta'}
-            </p>
-            <p className="text-xs text-[var(--color-text-muted)]">Método de pago</p>
-          </div>
-          <p className="text-right font-semibold text-[var(--color-success)]">${parseFloat(item.total || 0).toLocaleString('es-MX')}</p>
-        </motion.div>
-      ));
-    }
-
-    const list = sharedLists[selectedCard] || [];
-    if (!list || list.length === 0) {
-      return (
-        <div className="py-8 text-center text-[var(--color-text-muted)]">
-          No hay clientes disponibles para esta estadística.
-        </div>
-      );
-    }
-
-    return list.slice(0, 10).map((item, idx) => (
-      <motion.div
-        key={item.id || idx}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: idx * 0.03 }}
-        className="rounded-lg bg-[var(--color-card-alt)] p-4 flex justify-between items-start gap-4"
-      >
-        <div>
-          <p className="font-semibold text-[var(--color-text)]">
-            {item.first_name ? `${item.first_name} ${item.last_name}` : item.name || 'Sin nombre'}
-          </p>
-          {item.plan_name && <p className="text-xs text-[var(--color-text-muted)]">{item.plan_name}</p>}
-          {item.phone && <p className="text-xs text-[var(--color-text-muted)]">{item.phone}</p>}
-        </div>
-        <div className="text-right text-xs text-[var(--color-text-muted)]">
-          {selectedCard === 'nutritionFreePaidConversion' && (
-            <>
-              <p>{item.paid_consults} pagadas</p>
-              <p>{item.free_consults} gratuitas</p>
-            </>
-          )}
-          {selectedCard === 'nutritionPatientsToClients' && item.total_consultations != null && <p>{item.total_consultations} consultas</p>}
-          {selectedCard === 'nutritionRetention' && item.total_consults != null && <p>{item.total_consults} consultas</p>}
-          {selectedCard === 'alertClients' && item.days_without_attendance != null && <p>{item.days_without_attendance} días sin asistir</p>}
-          {selectedCard === 'absentClients' && item.days_without_attendance != null && <p>{item.days_without_attendance} días sin asistir</p>}
-        </div>
-      </motion.div>
-    ));
   };
+
+  // Helper para generar los datos de la Tabla Cebra de Nutriología (Pacientes)
+  const getNutritionTableData = () => {
+    switch (selectedNutritionCard) {
+      case 'nutritionOnly':
+        return {
+          title: 'Origen: Solo Nutrición',
+          headers: ['Paciente', 'Teléfono', 'Fecha Registro'],
+          rows: (nutritionOnlyPatients || []).map(p => ({
+            name: `${p.first_name} ${p.last_name || ''}`,
+            phone: p.phone || 'Sin teléfono',
+            detail: new Date(p.created_at).toLocaleDateString('es-MX')
+          }))
+        };
+      case 'gymToNut':
+        return {
+          title: 'Conversión: Gimnasio → Nutrición',
+          headers: ['Paciente', 'Teléfono', 'Origen'],
+          rows: (gymToNutritionPatients || []).map(p => ({
+            name: `${p.first_name} ${p.last_name || ''}`,
+            phone: p.phone || 'Sin teléfono',
+            detail: 'Cliente Gimnasio'
+          }))
+        };
+      case 'nutritionRetention':
+        return {
+          title: 'Retención de Pacientes',
+          headers: ['Paciente', 'Teléfono', 'Consultas'],
+          rows: (retention3Months || []).map(r => ({
+            name: `${r.first_name} ${r.last_name || ''}`,
+            phone: r.phone || 'Sin teléfono',
+            detail: `${r.total_consults || 0} consulta(s)`
+          }))
+        };
+      case 'nutritionIncome':
+        const rawByMethod = Array.isArray(nutritionIncomeReal?.by_method) ? nutritionIncomeReal.by_method : [];
+
+        const nutBreakdownRows = rawByMethod.map(i => ({
+          name: i.payment_method === 'cash' ? 'Efectivo' : i.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
+          phone: `${i.transaction_count || 1} transacción(es)`,
+          detail: `$${parseFloat(i.total || 0).toLocaleString('es-MX')}`
+        }));
+
+        return {
+          title: 'Ingresos Efectivos del Mes (Nutrición)',
+          headers: ['Método de Pago', 'Transacciones', 'Monto Total'],
+          rows: nutBreakdownRows
+        };
+      case 'absentPatients':
+        return {
+          title: 'Pacientes Ausentes (30+ días)',
+          headers: ['Paciente', 'Teléfono', 'Sin Consulta'],
+          rows: (absentPatients || []).map(a => ({
+            name: `${a.first_name} ${a.last_name || ''}`,
+            phone: a.phone || 'Sin teléfono',
+            detail: a.status_text || 'Sin consulta reciente'
+          }))
+        };
+      case 'nutritionEvaluations':
+        const rawEvals = Array.isArray(nutritionEvaluationsList) 
+          ? nutritionEvaluationsList 
+          : (nutritionEvaluationsList?.data || []);
+
+        return {
+          title: 'Evaluaciones Realizadas en el Mes',
+          headers: ['Paciente', 'Teléfono / Detalle', 'Fecha de Evaluación'],
+          rows: rawEvals.map(e => ({
+            name: `${e.first_name} ${e.last_name || ''}`,
+            phone: `${e.phone || 'Sin teléfono'} ${e.bmi ? `• IMC: ${e.bmi}` : ''}`,
+            detail: e.evaluation_date ? new Date(e.evaluation_date).toLocaleDateString('es-MX') : 'Sin fecha'
+          }))
+        };
+      case 'nutritionConsultations':
+        return {
+          title: 'Seguimiento de Pacientes por Tiempo',
+          headers: ['Etapa de Consulta', 'Detalle', 'Pacientes'],
+          rows: [
+            { name: 'Al menos 1 consulta', phone: 'Registrado', detail: `${consultationDurations?.consulted_patients || 0} pac.` },
+            { name: '1 mes exacto', phone: 'Seguimiento inicial', detail: `${consultationDurations?.one_month_exact || 0} pac.` },
+            { name: '2 meses exactos', phone: 'Seguimiento medio', detail: `${consultationDurations?.two_months_exact || 0} pac.` },
+            { name: '3+ meses', phone: 'Seguimiento constante', detail: `${consultationDurations?.three_months_plus || 0} pac.` }
+          ]
+        };
+      case 'sexDistributionPatients':
+        return {
+          title: 'Sexo de Pacientes',
+          headers: ['Género', 'Cantidad', 'Distribución'],
+          rows: sexDataPatients.map(s => ({
+            name: s.name,
+            phone: `${s.value} pacientes`,
+            detail: `${Math.round((s.value / (sexDataPatients.reduce((a,b)=>a+b.value,0)||1))*100)}%`
+          }))
+        };
+      case 'ageDistributionPatients':
+        return {
+          title: 'Edad de Pacientes',
+          headers: ['Rango de Edad', 'Cantidad', 'Distribución'],
+          rows: ageDataPatients.map(a => ({
+            name: a.name,
+            phone: `${a.value} pacientes`,
+            detail: `${Math.round((a.value / (ageDataPatients.reduce((x,y)=>x+y.value,0)||1))*100)}%`
+          }))
+        };
+      default:
+        return { title: 'Selecciona una tarjeta', headers: ['Paciente', 'Contacto', 'Detalle'], rows: [] };
+    }
+  };
+
+  const gymTableData = getGymTableData();
+  const nutritionTableData = getNutritionTableData();
 
   const renderChart = () => {
     const config = chartConfig[selectedMetric] || chartConfig.clientsByPlan;
     const chartData = config.data || [];
 
-    if (!chartData || chartData.length === 0) {
-      return (
-        <div className="h-96 flex flex-col items-center justify-center text-[var(--color-text-muted)] gap-2">
-          <IconMailbox size={48} className="opacity-50" />
-          <span>No hay datos disponibles</span>
-        </div>
-      );
-    }
+    return (
+      <div className="space-y-4">
+        {(startDate || endDate) && (
+          <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[rgba(16,185,129,0.1)] text-[var(--color-secondary)] border border-[rgba(16,185,129,0.2)]">
+            <IconCalendarEvent size={16} />
+            Filtro de fechas activo: {startDate || 'Inicio'} → {endDate || 'Hoy'}
+          </div>
+        )}
 
-    if (chartType === 'bar') {
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={config.nameKey} />
-            <YAxis />
-            <Tooltip formatter={(value) => typeof value === 'number' ? value.toLocaleString('es-MX') : value} />
-            <Legend />
-            <Bar dataKey={config.dataKey} fill="#0F3E60" />
-          </BarChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    if (chartType === 'pie') {
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ name, value }) => `${name}: ${value.toLocaleString('es-MX')}`}
-              outerRadius={120}
-              fill="#8884d8"
-              dataKey={config.dataKey}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value) => typeof value === 'number' ? value.toLocaleString('es-MX') : value} />
-          </PieChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    return null;
+        {!chartData || chartData.length === 0 ? (
+          <div className="h-96 flex flex-col items-center justify-center text-[var(--color-text-muted)] gap-2">
+            <IconMailbox size={48} className="opacity-50" />
+            <span>No hay datos disponibles en el rango seleccionado</span>
+          </div>
+        ) : chartType === 'bar' ? (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey={config.nameKey} />
+              <YAxis />
+              <Tooltip formatter={(value) => typeof value === 'number' ? value.toLocaleString('es-MX') : value} />
+              <Legend />
+              <Bar dataKey={config.dataKey} fill="#0F3E60" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value }) => `${name}: ${value.toLocaleString('es-MX')}`}
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey={config.dataKey}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => typeof value === 'number' ? value.toLocaleString('es-MX') : value} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
+    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-8">
       {/* Header */}
       <header className="space-y-3">
         <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(226,154,0,0.12)] px-4 py-2 text-sm font-semibold text-[var(--color-secondary)]">
-          <IconTrendingUp size={20} /> Estadísticas Estratégicas
+          <IconTrendingUp size={20} /> Inteligencia de Negocio Simétrica
         </div>
         <div>
           <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">
-            Inteligencia del Gimnasio
+            Estadísticas Estratégicas
           </h1>
           <p className="text-[var(--color-text-muted)] mt-2">
-            KPIs financieros, operativos y de retención en tiempo real
+            Análisis simétrico y ordenado para Gimnasio (Clientes) y Nutriología (Pacientes)
           </p>
         </div>
       </header>
 
-      {/* Medio de Llegada y Conversiones */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-7 bg-[var(--color-success)] rounded-full" />
-          <div>
-            <h2 className="text-xl font-bold text-[var(--color-text)]">Medio de Llegada y Conversiones</h2>
-            <p className="text-xs text-[var(--color-text-muted)]">Canal de origen de tus clientes/pacientes y tasa de migración entre etapas.</p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <motion.div whileHover={{ scale: 1.02 }}>
-            <GymCard
-              title="Origen: Solo Gimnasio"
-              subtitle={`${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total registrado`}
-              variant="success"
-              noPad
-            >
-              <div className="p-5">
-                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.gimnasio_only || 0}</p>
-              </div>
-            </GymCard>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.02 }}>
-            <GymCard
-              title="Origen: Solo Nutrición"
-              subtitle={`${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total registrado`}
-              variant="success"
-              noPad
-            >
-              <div className="p-5">
-                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.nutricion_only || 0}</p>
-              </div>
-            </GymCard>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.02 }}>
-            <GymCard
-              title="Gimnasio → Nutrición"
-              subtitle={`${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones a consulta`}
-              variant="success"
-              noPad
-            >
-              <div className="p-5">
-                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.gimnasio_to_nutricion || 0}</p>
-              </div>
-            </GymCard>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.02 }}>
-            <GymCard
-              title="Nutrición → Gimnasio"
-              subtitle={`${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones a membresía`}
-              variant="success"
-              noPad
-            >
-              <div className="p-5">
-                <p className="text-3xl font-bold text-black">{acquisitionOriginData?.nutricion_to_gimnasio || 0}</p>
-              </div>
-            </GymCard>
-          </motion.div>
-        </div>
-      </section>
-
-      <div className="relative my-8">
+      {/* ==========================================
+          SECCIÓN 1: ESTADÍSTICAS DEL GIMNASIO (CLIENTES)
+         ========================================== */}
+      <div className="relative my-6">
         <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-text-muted)] to-transparent" />
         <div className="relative mx-auto inline-flex items-center gap-3 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2 text-sm text-[var(--color-text-muted)] shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-[#0F3E60]" />
-          <span className="uppercase tracking-[0.2em]">Sección de Gimnasio</span>
+          <span className="h-2.5 w-2.5 rounded-full bg-[#0F3E60]" />
+          <span className="uppercase tracking-[0.2em] font-bold text-[var(--color-secondary)]">Sección del Gimnasio</span>
         </div>
       </div>
 
-      <section>
-        <div className="mb-4 flex items-center gap-2">
+      <section className="space-y-6">
+        <div className="flex items-center gap-2">
           <div className="w-1.5 h-8 bg-[var(--color-secondary)] rounded-full" />
-          <h2 className="text-2xl font-bold text-[var(--color-text)]">Estadísticas del Gimnasio</h2>
+          <h2 className="text-2xl font-bold text-[var(--color-text)]">Estadísticas del Gimnasio (Clientes)</h2>
         </div>
 
-        {/* Control de Visitas */}
-        <div className="mb-6 space-y-3">
+        {/* Subsección 1: Control de Visitas */}
+        <div className="space-y-3">
           <div className="flex items-center gap-2">
             <IconCalendarEvent size={20} className="text-[var(--color-success)]" />
-            <h3 className="text-xl font-bold text-[var(--color-text)]">Control de Visitas</h3>
+            <h3 className="text-lg font-bold text-[var(--color-text)]">Control de Visitas del Gimnasio</h3>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <motion.div whileHover={{ scale: 1.02 }}>
-              <GymCard
-                title="Visitas del Día"
-                subtitle="Asistencias registradas hoy"
-                variant="success"
-                noPad
-              >
+              <GymCard title="Visitas del Día" subtitle="Asistencias registradas hoy" variant="success" noPad>
                 <div className="p-5">
-                  <p className="text-3xl font-bold text-black">{kpis.visitStats?.today || 0}</p>
+                  <p className="text-3xl font-bold text-[var(--color-text)]">{kpis.visitStats?.today || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
-
             <motion.div whileHover={{ scale: 1.02 }}>
-              <GymCard
-                title="Visitas del Mes"
-                subtitle="Asistencias acumuladas del mes"
-                variant="success"
-                noPad
-              >
+              <GymCard title="Visitas del Mes" subtitle="Asistencias acumuladas del mes" variant="success" noPad>
                 <div className="p-5">
-                  <p className="text-3xl font-bold text-black">{kpis.visitStats?.month || 0}</p>
+                  <p className="text-3xl font-bold text-[var(--color-text)]">{kpis.visitStats?.month || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
-
             <motion.div whileHover={{ scale: 1.02 }}>
-              <GymCard
-                title="Visitas del Año"
-                subtitle="Asistencias acumuladas del año"
-                variant="success"
-                noPad
-              >
+              <GymCard title="Visitas del Año" subtitle="Asistencias acumuladas del año" variant="success" noPad>
                 <div className="p-5">
-                  <p className="text-3xl font-bold text-black">{kpis.visitStats?.year || 0}</p>
+                  <p className="text-3xl font-bold text-[var(--color-text)]">{kpis.visitStats?.year || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
           </div>
         </div>
 
-        {/* KPIs Principales */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-          {[
-            {
-              key: 'retentionRate',
-              title: 'Retención de Clientes',
-              value: `${kpis.retention?.retention_percentage || 0}%`,
-              subtitle: `${kpis.retention?.retained_clients || 0} de ${kpis.retention?.total_clients || 0} clientes`,
-              variant: 'default'
-            },
-            {
-              key: 'monthlyIncome',
-              title: 'Ingreso de Efectivo del Mes',
-              value: `$${(totalIncome || 0).toLocaleString('es-MX')}`,
-              subtitle: `${incomeByMethod.length} métodos de pago`,
-              variant: 'success'
-            },
-            {
-              key: 'nutritionFreePaidConversion',
-              title: 'Conversión a Nutrición Pagada',
-              value: `${nutritionConversionPaid?.conversion_rate || 0}%`,
-              subtitle: `${nutritionConversionPaid?.with_paid_nutrition || 0} clientes`,
-              variant: 'warning'
-            },
-            {
-              key: 'absentClients',
-              title: 'Clientes Ausentes',
-              value: `${absentClients?.length || 0}`,
-              subtitle: 'Anualidad pagada sin mensualidad actual',
-              variant: 'gold'
-            },
-            {
-              key: 'alertClients',
-              title: 'Clientes en Alerta',
-              value: `${alertClients?.length || 0}`,
-              subtitle: 'Sin asistencia en 15+ días',
-              variant: 'danger'
-            },
-          ].map(card => (
-            <motion.div
-              key={card.key}
-              whileHover={{ scale: 1.02 }}
-              className={`cursor-pointer ${selectedCard === card.key ? 'ring-2 ring-[var(--color-secondary)]' : ''}`}
-              onClick={() => setSelectedCard(selectedCard === card.key ? null : card.key)}
-            >
-              <GymCard title={card.title} subtitle={card.subtitle} variant={card.variant} noPad>
-                <div className="p-5">
-                  <p className="text-3xl font-bold text-[var(--color-text)]">{card.value}</p>
-                </div>
-              </GymCard>
-              {selectedCard === card.key && (
-                <div className="mt-4">
-                  {renderSelectedDetail()}
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </section>
-
-        {/* Análisis de Ingresos */}
-        <section className="grid gap-6 lg:grid-cols-2 mb-6">
-          <GymCard title="Análisis de Ingresos" variant="default">
-            <div className="space-y-4">
-              <div className="rounded-lg bg-[var(--color-card-alt)] p-4">
-                <p className="text-sm text-[var(--color-text-muted)]">Total recaudado desde el día 1 del mes</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--color-secondary)]">
-                  ${totalIncome?.toLocaleString('es-MX')}
-                </p>
-              </div>
-              {incomeByMethod.map((method, idx) => (
-                <div key={idx} className="rounded-lg bg-[var(--color-card-alt)] p-4 grid gap-2">
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-sm text-[var(--color-text-muted)] capitalize">
-                      {method.payment_method === 'cash' ? 'Efectivo' : method.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta'}
-                    </p>
-                    <p className="text-sm font-semibold text-[var(--color-text)]">
-                      ${parseFloat(method.total).toLocaleString('es-MX')}
-                    </p>
+        {/* Subsección 2: Grid de 9 Tarjetas + Tabla Cebra Lateral */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Grid de 9 Tarjetas (Columna Izquierda) */}
+          <div className="lg:col-span-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[
+              {
+                id: 'gymOnly',
+                title: 'Origen: Solo Gimnasio',
+                value: acquisitionOriginData?.gimnasio_only || 0,
+                subtitle: `${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total`,
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'nutToGym',
+                title: 'Nutrición → Gimnasio',
+                value: acquisitionOriginData?.nutricion_to_gimnasio || 0,
+                subtitle: `${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones`,
+                variant: 'success',
+                color: 'text-[var(--color-success)]'
+              },
+              {
+                id: 'retentionRate',
+                title: 'Retención de Clientes',
+                value: `${kpis.retention?.retention_percentage || 0}%`,
+                subtitle: `${kpis.retention?.retained_clients || 0} retenidos`,
+                variant: 'default',
+                color: 'text-[#0F3E60]'
+              },
+              {
+                id: 'monthlyIncome',
+                title: 'Ingresos del Mes',
+                value: `$${(totalIncome || 0).toLocaleString('es-MX')}`,
+                subtitle: `${incomeByMethod.length} métodos`,
+                variant: 'success',
+                color: 'text-[var(--color-success)]'
+              },
+              {
+                id: 'absentClients',
+                title: 'Clientes Ausentes',
+                value: absentClients?.length || 0,
+                subtitle: 'Anualidad sin mensualidad',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'alertClients',
+                title: 'Clientes en Alerta',
+                value: alertClients?.length || 0,
+                subtitle: '15+ días sin asistir',
+                variant: 'danger',
+                color: 'text-red-500'
+              },
+              {
+                id: 'expiredClients',
+                title: 'Anualidad Vencida',
+                value: expiredClients?.length || 0,
+                subtitle: 'Sin renovación',
+                variant: 'danger',
+                color: 'text-red-600'
+              },
+              {
+                id: 'sexDistributionClients',
+                title: 'Sexo del Cliente',
+                value: `${sexDataClients.length} géneros`,
+                subtitle: 'Distribución por sexo',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'ageDistributionClients',
+                title: 'Edad del Cliente',
+                value: `${ageDataClients.length} rangos`,
+                subtitle: 'Rangos de edad',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              }
+            ].map(card => (
+              <motion.div
+                key={card.id}
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setSelectedGymCard(card.id)}
+                className={`cursor-pointer transition-all ${
+                  selectedGymCard === card.id ? 'ring-2 ring-[var(--color-secondary)] rounded-xl shadow-md' : ''
+                }`}
+              >
+                <GymCard title={card.title} subtitle={card.subtitle} variant={card.variant} noPad>
+                  <div className="p-4">
+                    <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {parseInt(method.transaction_count)} transacciones
-                  </p>
-                </div>
-              ))}
-            </div>
-          </GymCard>
+                </GymCard>
+              </motion.div>
+            ))}
+          </div>
 
-          <GymCard title="Clientes Ausentes" variant="warning" subtitle={`${absentClients?.length || 0} clientes`}>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {(absentClients || []).length > 0 ? (
-                (absentClients || []).slice(0, 8).map((client, idx) => (
-                  <motion.div
-                    key={client.id || idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="rounded-lg bg-[var(--color-card-alt)] p-3"
-                  >
-                    <p className="font-medium text-[var(--color-text)]">
-                      {client.first_name} {client.last_name}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">{client.plan_name}</p>
-                    <p className="text-xs text-[var(--color-danger)]">
-                      {client.days_without_attendance || 'Sin datos'} días sin asistir
-                    </p>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center text-[var(--color-text-muted)] py-8 gap-2">
-                  <IconSparkles size={32} className="text-[var(--color-success)]" />
-                  <span>¡Excelente! No hay clientes ausentes</span>
-                </div>
-              )}
+          {/* Tabla Cebra Dinámica de Clientes (Columna Derecha) */}
+          <div className="lg:col-span-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden shadow-sm sticky top-6">
+            <div className="bg-[var(--color-surface)] p-4 border-b border-[var(--color-border)] flex items-center justify-between">
+              <h4 className="font-bold text-[var(--color-text)] flex items-center gap-2 text-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-secondary)]" />
+                {gymTableData.title}
+              </h4>
+              <span className="text-xs font-semibold px-2 py-1 rounded bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)]">
+                {gymTableData.rows.length} cliente(s)
+              </span>
             </div>
-          </GymCard>
-        </section>
+
+            {gymTableData.rows.length === 0 ? (
+              <div className="p-8 text-center text-[var(--color-text-muted)] text-sm space-y-2">
+                <IconUsers size={32} className="mx-auto opacity-40" />
+                <p>Selecciona una tarjeta para ver el listado detallado de clientes.</p>
+              </div>
+            ) : (
+              <div className="max-h-[520px] overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-[var(--color-card-alt)] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">
+                    <tr>
+                      <th className="py-3 px-4">{gymTableData.headers[0]}</th>
+                      <th className="py-3 px-4">{gymTableData.headers[1]}</th>
+                      <th className="py-3 px-4 text-right">{gymTableData.headers[2]}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {gymTableData.rows.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className={`${
+                          idx % 2 === 0 ? 'bg-[var(--color-card)]' : 'bg-[var(--color-card-alt)]/50'
+                        } hover:bg-[rgba(15,62,96,0.08)] transition-colors`}
+                      >
+                        <td className="py-3 px-4 font-semibold text-[var(--color-text)]">{row.name}</td>
+                        <td className="py-3 px-4 text-[var(--color-text-muted)]">{row.phone}</td>
+                        <td className="py-3 px-4 text-right font-medium text-[var(--color-secondary)]">{row.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
+      {/* ==========================================
+          SECCIÓN 2: ESTADÍSTICAS DE NUTRIOLOGÍA (PACIENTES)
+         ========================================== */}
       <div className="relative my-10">
         <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-text-muted)] to-transparent" />
         <div className="relative mx-auto inline-flex items-center gap-3 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2 text-sm text-[var(--color-text-muted)] shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-[#D97706]" />
-          <span className="uppercase tracking-[0.2em]">Sección Nutriología</span>
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-secondary)]" />
+          <span className="uppercase tracking-[0.2em] font-bold text-[var(--color-secondary)]">Sección de Nutriología</span>
         </div>
       </div>
 
-      {/* ============ ESTADÍSTICAS DE NUTRIOLOGÍA ============ */}
-
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <div className="w-1.5 h-8 bg-[#D97706] rounded-full" />
-          <h2 className="text-2xl font-bold text-[var(--color-text)]">Estadísticas del Consultorio</h2>
+      <section className="space-y-6">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-8 bg-[var(--color-secondary)] rounded-full" />
+          <h2 className="text-2xl font-bold text-[var(--color-text)]">Estadísticas del Consultorio (Pacientes)</h2>
         </div>
 
-        {/* Tarjetas individuales de Nutriología */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionEvaluations' ? 'ring-2 ring-[#D97706] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionEvaluations' ? null : 'nutritionEvaluations')}
-          >
-            <GymCard title="Evaluaciones Realizadas" subtitle="Evaluaciones registradas en el mes" variant="default" noPad>
-              <div className="p-5">
-                <p className="text-3xl font-bold text-[#0F3E60]">{kpis.nutritionStats?.total_evaluations || 0}</p>
-              </div>
-            </GymCard>
-            {selectedCard === 'nutritionEvaluations' && (
-              <div className="mt-4">{renderSelectedDetail()}</div>
-            )}
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionPaidConsults' ? 'ring-2 ring-[var(--color-success)] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionPaidConsults' ? null : 'nutritionPaidConsults')}
-          >
-            <GymCard title="Consultas Pagadas" subtitle="Pagos registrados en Pacientes" variant="success" noPad>
-              <div className="p-5">
-                <p className="text-3xl font-bold text-[var(--color-success)]">{kpis.nutritionStats?.paid_consults || 0}</p>
-              </div>
-            </GymCard>
-            {selectedCard === 'nutritionPaidConsults' && (
-              <div className="mt-4">{renderSelectedDetail()}</div>
-            )}
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionPatientsToClients' ? 'ring-2 ring-[var(--color-warning)] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionPatientsToClients' ? null : 'nutritionPatientsToClients')}
-          >
-            <GymCard title="Pacientes → Clientes" subtitle="Quienes pasaron del consultorio al gym" variant="warning" noPad>
-              <div className="p-5">
-                <p className="text-3xl font-bold text-[#D97706]">{(patientsToClients || []).length || 0}</p>
-              </div>
-            </GymCard>
-            {selectedCard === 'nutritionPatientsToClients' && (
-              <div className="mt-4">{renderSelectedDetail()}</div>
-            )}
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionRetention' ? 'ring-2 ring-[var(--color-secondary)] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionRetention' ? null : 'nutritionRetention')}
-          >
-            <GymCard title="Retención de Pacientes" subtitle="Pacientes con 3+ consultas" variant="default" noPad>
-              <div className="p-5">
-                <p className="text-3xl font-bold text-[#0F3E60]">{(retention3Months || []).length || 0}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {(consultationDurations?.total_patients || 0) > 0
-                    ? `${Math.round(((retention3Months || []).length / consultationDurations.total_patients) * 100)}% del total`
-                    : 'No hay datos suficientes'}
-                </p>
-              </div>
-            </GymCard>
-            {selectedCard === 'nutritionRetention' && (
-              <div className="mt-4">{renderSelectedDetail()}</div>
-            )}
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className={`cursor-pointer ${selectedCard === 'nutritionIncome' ? 'ring-2 ring-[var(--color-success)] rounded-[var(--radius-lg)]' : ''}`}
-            onClick={() => setSelectedCard(selectedCard === 'nutritionIncome' ? null : 'nutritionIncome')}
-          >
-            <GymCard title="Ingresos del Consultorio" subtitle="Pagos reales registrados en Pacientes" variant="success" noPad>
-              <div className="p-5">
-                <p className="text-3xl font-bold text-[var(--color-success)]">${(nutritionIncomeReal?.total || 0).toLocaleString('es-MX')}</p>
-              </div>
-            </GymCard>
-            {selectedCard === 'nutritionIncome' && (
-              <div className="mt-4">{renderSelectedDetail()}</div>
-            )}
-          </motion.div>
-        </section>
-
-        {/* Detalles de Consultas */}
-        <section className="grid gap-6 lg:grid-cols-2 mb-6">
-          <GymCard title="Pacientes por tiempo de consulta" variant="default">
-            <div className="space-y-3">
-              <div className="rounded-lg bg-[var(--color-card-alt)] p-4">
-                <p className="text-sm text-[var(--color-text-muted)]">Han consultado al menos una vez</p>
-                <p className="mt-2 text-2xl font-bold text-[#0F3E60]">{consultationDurations?.consulted_patients || 0}</p>
-              </div>
-              <div className="rounded-lg bg-[var(--color-card-alt)] p-4">
-                <p className="text-sm text-[var(--color-text-muted)]">Exactamente 1 mes</p>
-                <p className="mt-2 text-2xl font-bold text-[#D97706]">{consultationDurations?.one_month_exact || 0}</p>
-              </div>
-              <div className="rounded-lg bg-[var(--color-card-alt)] p-4">
-                <p className="text-sm text-[var(--color-text-muted)]">Exactamente 2 meses</p>
-                <p className="mt-2 text-2xl font-bold text-[var(--color-secondary)]">{consultationDurations?.two_months_exact || 0}</p>
-              </div>
-              <div className="rounded-lg bg-[var(--color-card-alt)] p-4">
-                <p className="text-sm text-[var(--color-text-muted)]">3+ meses</p>
-                <p className="mt-2 text-2xl font-bold text-[var(--color-success)]">{consultationDurations?.three_months_plus || 0}</p>
-              </div>
-            </div>
-          </GymCard>
-
-          <GymCard title="Conversión Gratuita → Pago" variant="gold" subtitle={`${(freeToConversion || []).length} clientes`}>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {(freeToConversion || []).length > 0 ? (
-                (freeToConversion || []).slice(0, 8).map((client, idx) => (
-                  <motion.div
-                    key={client.id || idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="rounded-lg bg-[var(--color-card-alt)] p-3"
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="font-medium text-[var(--color-text)] truncate">
-                        {client.first_name} {client.last_name}
-                      </p>
-                      <div className="text-right">
-                        <p className="text-xs font-semibold text-[#D97706]">{client.paid_consults} pagadas</p>
-                        <p className="text-xs text-[var(--color-text-muted)]">Gratuitas: {client.free_consults}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="flex items-center justify-center text-[var(--color-text-muted)] py-8">
-                  <IconMailbox size={32} className="opacity-50" />
+        {/* Subsección 1: Control de Citas */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <IconStethoscope size={20} className="text-[var(--color-secondary)]" />
+            <h3 className="text-lg font-bold text-[var(--color-text)]">Control de Citas / Agendas de Nutriología</h3>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <GymCard title="Citas del Día" subtitle="Consultas agendadas hoy" variant="default" noPad>
+                <div className="p-5">
+                  <p className="text-3xl font-bold text-[var(--color-secondary)]">{appointmentStats?.today || 0}</p>
                 </div>
-              )}
+              </GymCard>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <GymCard title="Citas del Mes" subtitle="Consultas acumuladas del mes" variant="default" noPad>
+                <div className="p-5">
+                  <p className="text-3xl font-bold text-[var(--color-secondary)]">{appointmentStats?.month || 0}</p>
+                </div>
+              </GymCard>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <GymCard title="Citas del Año" subtitle="Consultas acumuladas del año" variant="default" noPad>
+                <div className="p-5">
+                  <p className="text-3xl font-bold text-[var(--color-secondary)]">{appointmentStats?.year || 0}</p>
+                </div>
+              </GymCard>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Subsección 2: Grid de 9 Tarjetas + Tabla Cebra Lateral */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Grid de 9 Tarjetas (Columna Izquierda) */}
+          <div className="lg:col-span-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[
+              {
+                id: 'nutritionOnly',
+                title: 'Origen: Solo Nutrición',
+                value: acquisitionOriginData?.nutricion_only || 0,
+                subtitle: `${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total`,
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'gymToNut',
+                title: 'Gimnasio → Nutrición',
+                value: acquisitionOriginData?.gimnasio_to_nutricion || 0,
+                subtitle: `${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones`,
+                variant: 'success',
+                color: 'text-[var(--color-success)]'
+              },
+              {
+                id: 'nutritionRetention',
+                title: 'Retención de Pacientes',
+                value: (retention3Months || []).length || 0,
+                subtitle: '3+ consultas realizadas',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'nutritionIncome',
+                title: 'Ingresos del Mes',
+                value: `$${(nutritionIncomeReal?.total || 0).toLocaleString('es-MX')}`,
+                subtitle: 'Pagos reales consultorio',
+                variant: 'success',
+                color: 'text-[var(--color-success)]'
+              },
+              {
+                id: 'absentPatients',
+                title: 'Pacientes Ausentes',
+                value: absentPatients?.length || 0,
+                subtitle: '30+ días sin consulta',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'nutritionEvaluations',
+                title: 'Evaluaciones Realizadas',
+                value: kpis.nutritionStats?.total_evaluations || 0,
+                subtitle: 'Evaluaciones en el mes',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'nutritionConsultations',
+                title: 'Seguimiento Pacientes',
+                value: consultationDurations?.consulted_patients || 0,
+                subtitle: 'Con al menos 1 consulta',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'sexDistributionPatients',
+                title: 'Sexo del Paciente',
+                value: `${sexDataPatients.length} géneros`,
+                subtitle: 'Distribución por sexo',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
+                id: 'ageDistributionPatients',
+                title: 'Edad del Paciente',
+                value: `${ageDataPatients.length} rangos`,
+                subtitle: 'Rangos de edad',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              }
+            ].map(card => (
+              <motion.div
+                key={card.id}
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setSelectedNutritionCard(card.id)}
+                className={`cursor-pointer transition-all ${
+                  selectedNutritionCard === card.id ? 'ring-2 ring-[var(--color-secondary)] rounded-xl shadow-md' : ''
+                }`}
+              >
+                <GymCard title={card.title} subtitle={card.subtitle} variant={card.variant} noPad>
+                  <div className="p-4">
+                    <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+                  </div>
+                </GymCard>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Tabla Cebra Dinámica de Pacientes (Columna Derecha) */}
+          <div className="lg:col-span-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden shadow-sm sticky top-6">
+            <div className="bg-[var(--color-surface)] p-4 border-b border-[var(--color-border)] flex items-center justify-between">
+              <h4 className="font-bold text-[var(--color-text)] flex items-center gap-2 text-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-secondary)]" />
+                {nutritionTableData.title}
+              </h4>
+              <span className="text-xs font-semibold px-2 py-1 rounded bg-[rgba(16,185,129,0.1)] text-[var(--color-secondary)]">
+                {nutritionTableData.rows.length} paciente(s)
+              </span>
             </div>
-          </GymCard>
-        </section>
+
+            {nutritionTableData.rows.length === 0 ? (
+              <div className="p-8 text-center text-[var(--color-text-muted)] text-sm space-y-2">
+                <IconStethoscope size={32} className="mx-auto opacity-40" />
+                <p>Selecciona una tarjeta para ver el listado detallado de pacientes.</p>
+              </div>
+            ) : (
+              <div className="max-h-[520px] overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-[var(--color-card-alt)] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">
+                    <tr>
+                      <th className="py-3 px-4">{nutritionTableData.headers[0]}</th>
+                      <th className="py-3 px-4">{nutritionTableData.headers[1]}</th>
+                      <th className="py-3 px-4 text-right">{nutritionTableData.headers[2]}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {nutritionTableData.rows.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className={`${
+                          idx % 2 === 0 ? 'bg-[var(--color-card)]' : 'bg-[var(--color-card-alt)]/50'
+                        } hover:bg-[rgba(16,185,129,0.08)] transition-colors`}
+                      >
+                        <td className="py-3 px-4 font-semibold text-[var(--color-text)]">{row.name}</td>
+                        <td className="py-3 px-4 text-[var(--color-text-muted)]">{row.phone}</td>
+                        <td className="py-3 px-4 text-right font-medium text-[var(--color-secondary)]">{row.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
-      {/* ============ FILTROS Y VISUALIZACIÓN ============ */}
-
+      {/* ==========================================
+          SECCIÓN 3: FILTROS Y VISUALIZADOR DE GRÁFICOS
+         ========================================== */}
       <div className="relative my-10">
         <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-text-muted)] to-transparent" />
         <div className="relative mx-auto inline-flex items-center gap-3 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2 text-sm text-[var(--color-text-muted)] shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-[#0F3E60]" />
-          <span className="uppercase tracking-[0.2em]">Sección de Filtro de Datos</span>
+          <span className="h-2 w-2 rounded-full bg-[var(--color-secondary)]" />
+          <span className="uppercase tracking-[0.2em] font-semibold text-[var(--color-text-muted)]">Visualización de Gráficos</span>
         </div>
       </div>
 
-      {/* Filtros por Período */}
-      <GymCard title="Filtrar por Período" variant="default">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-2">Estadística a filtrar</label>
-            <select
-              value={filterMetric}
-              onChange={(e) => {
-                setFilterMetric(e.target.value);
-                if (e.target.value !== 'all') {
-                  setSelectedMetric(e.target.value);
-                }
-              }}
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-            >
-              <option value="all">Todas las estadísticas</option>
-              <optgroup label="Estadísticas de Gimnasio">
-                {allMetrics.filter(metric => metric.category === 'gym').map(metric => (
-                  <option key={metric.id} value={metric.id}>{metric.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Estadísticas de Nutriología">
-                {allMetrics.filter(metric => metric.category === 'nutrition').map(metric => (
-                  <option key={metric.id} value={metric.id}>{metric.label}</option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-2">Desde</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-2">Hasta</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-            />
-          </div>
-          <button
-            onClick={() => { setStartDate(''); setEndDate(''); }}
-            className="px-4 py-2 rounded-lg bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)] font-medium hover:bg-[rgba(15,62,96,0.2)] transition"
-          >
-            Limpiar
-          </button>
-        </div>
-      </GymCard>
-
-      <div className="relative my-10">
-        <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-text-muted)] to-transparent" />
-        <div className="relative mx-auto inline-flex items-center gap-3 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2 text-sm text-[var(--color-text-muted)] shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-[#0F3E60]" />
-          <span className="uppercase tracking-[0.2em]">Sección de Visualizador</span>
-        </div>
-      </div>
-
-      {/* Visualización de Datos */}
-      <GymCard title="Visualización de Datos" variant="default">
+      <GymCard title="Visualización de Gráficos" variant="default">
         <div className="space-y-6">
-          {/* Selector de Tipo de Gráfico */}
-          <div className="space-y-3">
-            <p className="text-sm font-semibold text-[var(--color-text)]">Tipo de Gráfico</p>
-            <div className="flex flex-wrap gap-2">
-              {chartTypes.map(type => (
-                <motion.button
-                  key={type.id}
-                  onClick={() => setChartType(type.id)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    chartType === type.id
-                      ? 'bg-[var(--color-secondary)] text-white'
-                      : 'bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[rgba(15,62,96,0.1)]'
-                  }`}
-                >
-                  {type.icon} {type.label}
-                </motion.button>
-              ))}
+          {/* Cabecera integrada: Tipo de Gráfico y Filtrado por Período lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end pb-4 border-b border-[var(--color-border)]">
+            {/* Tipo de Gráfico (Izquierda) */}
+            <div className="lg:col-span-4 space-y-2">
+              <p className="text-sm font-semibold text-[var(--color-text)]">Tipo de Gráfico</p>
+              <div className="flex flex-wrap gap-2">
+                {chartTypes.map(type => (
+                  <motion.button
+                    key={type.id}
+                    onClick={() => setChartType(type.id)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all text-sm flex items-center gap-2 ${
+                      chartType === type.id
+                        ? 'bg-[var(--color-secondary)] text-white'
+                        : 'bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[rgba(15,62,96,0.1)]'
+                    }`}
+                  >
+                    {type.icon} {type.label}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtrado por Período (Derecha) usando SimpleDateInput */}
+            <div className="lg:col-span-8 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[var(--color-text)]">Filtrado por Período</p>
+                {(startDate || endDate) && (
+                  <button
+                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    className="text-xs font-semibold text-red-500 hover:underline"
+                  >
+                    Limpiar Fechas
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <SimpleDateInput
+                  label="Desde"
+                  value={startDate}
+                  onChange={(val) => setStartDate(val)}
+                />
+                <SimpleDateInput
+                  label="Hasta"
+                  value={endDate}
+                  onChange={(val) => setEndDate(val)}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Selector de Métrica */}
+          {/* Selección de Métricas agrupadas lado a lado */}
           <div className="space-y-3">
-            <p className="text-sm font-semibold text-[var(--color-text)]">Métrica a Mostrar</p>
-            <div className="flex flex-wrap gap-2">
-              {allMetrics.map(metric => (
-                <motion.button
-                  key={metric.id}
-                  onClick={() => setSelectedMetric(metric.id)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    selectedMetric === metric.id
-                      ? 'bg-[var(--color-secondary)] text-white'
-                      : 'bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[rgba(15,62,96,0.1)]'
-                  }`}
-                >
-                  {metric.label}
-                </motion.button>
-              ))}
+            <p className="text-sm font-semibold text-[var(--color-text)]">Seleccionar Métrica a Graficar</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+              {/* Panel Gimnasio (Clientes) */}
+              <div className="space-y-2.5 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)]" />
+                  Gimnasio (Clientes)
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {allMetrics.filter(m => m.category === 'gym').map(metric => (
+                    <motion.button
+                      key={metric.id}
+                      onClick={() => setSelectedMetric(metric.id)}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        selectedMetric === metric.id
+                          ? 'bg-[var(--color-secondary)] text-white shadow-sm ring-2 ring-[var(--color-secondary)]'
+                          : 'bg-[var(--color-card)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[rgba(16,185,129,0.1)]'
+                      }`}
+                    >
+                      {metric.label}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Panel Nutriología (Pacientes) */}
+              <div className="space-y-2.5 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)]" />
+                  Nutriología (Pacientes)
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {allMetrics.filter(m => m.category === 'nutrition').map(metric => (
+                    <motion.button
+                      key={metric.id}
+                      onClick={() => setSelectedMetric(metric.id)}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        selectedMetric === metric.id
+                          ? 'bg-[var(--color-secondary)] text-white shadow-sm ring-2 ring-[var(--color-secondary)]'
+                          : 'bg-[var(--color-card)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[rgba(16,185,129,0.1)]'
+                      }`}
+                    >
+                      {metric.label}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Gráfico */}
           <div className="rounded-lg bg-[var(--color-card-alt)] p-6 overflow-x-auto">
             {renderChart()}
           </div>
@@ -1109,16 +1208,16 @@ export default function Statistics() {
       <GymCard title="Acciones Rápidas" variant="default">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <GymButton variant="secondary" size="lg">
-            <span className="flex items-center justify-center gap-2"><IconDownload size={20} /> Exportar</span>
+            <span className="flex items-center justify-center gap-2"><IconDownload size={20} /> Exportar Reporte</span>
           </GymButton>
           <GymButton variant="primary" size="lg">
-            <span className="flex items-center justify-center gap-2"><IconShare size={20} /> Compartir</span>
+            <span className="flex items-center justify-center gap-2"><IconShare size={20} /> Compartir KPI</span>
           </GymButton>
           <GymButton variant="gold" size="lg">
             <span className="flex items-center justify-center gap-2"><IconSpeakerphone size={20} /> Promociones</span>
           </GymButton>
           <GymButton variant="warning" size="lg">
-            <span className="flex items-center justify-center gap-2"><IconMessage size={20} /> Contactar</span>
+            <span className="flex items-center justify-center gap-2"><IconMessage size={20} /> Contactar Ausentes</span>
           </GymButton>
         </div>
       </GymCard>

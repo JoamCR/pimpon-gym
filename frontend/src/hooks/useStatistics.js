@@ -264,3 +264,53 @@ export function useAcquisitionOriginStats() {
     staleTime: 5 * 60 * 1000
   });
 }
+
+export function useNutritionAppointmentStats(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'nutrition-appointment-stats', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-appointment-stats?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}
+
+export function useAbsentPatients() {
+  return useQuery({
+    queryKey: ['statistics', 'absent-patients'],
+    queryFn: () => fetchWithAuth('/statistics/absent-patients').then(res => res.data),
+    staleTime: 5 * 60 * 1000
+  });
+}
+
+export function useGymOnlyClients() {
+  return useQuery({
+    queryKey: ['statistics', 'gym-only-clients'],
+    queryFn: () => fetchWithAuth('/statistics/gym-only-clients').then(res => res.data),
+    staleTime: 5 * 60 * 1000
+  });
+}
+
+export function useNutritionOnlyPatients() {
+  return useQuery({
+    queryKey: ['statistics', 'nutrition-only-patients'],
+    queryFn: () => fetchWithAuth('/statistics/nutrition-only-patients').then(res => res.data),
+    staleTime: 5 * 60 * 1000
+  });
+}
+
+export function useGymToNutritionPatients() {
+  return useQuery({
+    queryKey: ['statistics', 'gym-to-nutrition-patients'],
+    queryFn: () => fetchWithAuth('/statistics/gym-to-nutrition-patients').then(res => res.data),
+    staleTime: 5 * 60 * 1000
+  });
+}
+
+export function useNutritionEvaluationsList(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'nutrition-evaluations-list', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-evaluations-list?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}
