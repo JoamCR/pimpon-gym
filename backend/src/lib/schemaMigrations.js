@@ -185,6 +185,12 @@ const runSchemaMigrations = async () => {
         ALTER TABLE nutrition_records ADD COLUMN target_muscle_mass_kg NUMERIC(5,2);
         ALTER TABLE nutrition_records ADD COLUMN target_visceral_fat_pct NUMERIC(5,2);
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'app_users' AND column_name = 'allowed_pages'
+      ) THEN
+        ALTER TABLE app_users ADD COLUMN allowed_pages JSONB DEFAULT '[]'::jsonb;
+      END IF;
     END $$;
     `,
     `

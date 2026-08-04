@@ -11,6 +11,7 @@ import Nutrition from './pages/Nutrition';
 import Statistics from './pages/Statistics';
 import Finanzas from './pages/Finanzas';
 import Config from './pages/Config';
+import Seguridad from './pages/Seguridad';
 import Agenda from './pages/Agenda';
 import AgendaToday from './pages/AgendaToday';
 import Layout from './components/ui/Layout';
@@ -48,6 +49,7 @@ function App() {
           <Route path="agenda/dia" element={<AgendaToday />} />
           <Route path="finanzas" element={<Finanzas />} />
           <Route path="config" element={<Config />} />
+          <Route path="seguridad" element={<Seguridad />} />
         </Route>
 
         {/* Redirección por defecto si no se encuentra la ruta */}

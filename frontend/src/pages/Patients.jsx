@@ -8,11 +8,12 @@ import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan } from
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { PageHeader } from '../components/ui/PageHeader';
 import { AgregarPaciente } from '../components/ui/AgregarPaciente';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
 import { HybridDateInput } from '../components/ui/HybridDateInput';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope, IconDumbbell, IconTrash } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconEye, IconEdit, IconChevronRight, IconCoin, IconStethoscope, IconDumbbell, IconTrash, IconClipboardHeart } from '@tabler/icons-react';
 
 const HealthSlider = ({ label, value, onChange }) => {
   const getSegmentColor = (index, val) => {
@@ -510,16 +511,15 @@ export default function Patients() {
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(22,163,74,0.12)] px-4 py-2 text-sm font-semibold text-[var(--color-success)]">Consultorio</div>
-          <div>
-            <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">Administración de Pacientes</h1>
-            <p className="text-[var(--color-text-muted)] mt-2">Gestiona el padrón de pacientes exclusivos del consultorio nutricional.</p>
-          </div>
-        </div>
-        <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={openModal}>Agregar Paciente</GymButton>
-      </header>
+      <PageHeader
+        icon={<IconClipboardHeart size={18} />}
+        tag="Consultorio"
+        title="Administración de Pacientes"
+        subtitle="Gestiona el padrón de pacientes exclusivos del consultorio nutricional."
+        actions={
+          <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={openModal}>Agregar Paciente</GymButton>
+        }
+      />
 
       <GymCard title="Pacientes registrados" variant="default">
         <div className="space-y-6">

@@ -14,9 +14,10 @@ import { useClients } from '../hooks/useClients';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { PageHeader } from '../components/ui/PageHeader';
 import { ConsultModal } from '../components/ui/ConsultModal/ConsultModal';
 import { PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
-import { IconClipboardHeart, IconEye, IconSearch, IconX, IconSortAscending, IconClock, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { IconClipboardHeart, IconApple, IconEye, IconSearch, IconX, IconSortAscending, IconClock, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import '../styles/nutrition.css';
 
 const ClientCard = ({ patient, onEvaluate, onShowDetails, onViewPatient }) => {
@@ -238,13 +239,12 @@ export default function Nutrition() {
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(226,154,0,0.12)] px-4 py-2 text-sm font-semibold text-[var(--color-secondary)]">Nutriología</div>
-        <div>
-          <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">Gestión de consulta nutricional</h1>
-          <p className="text-[var(--color-text-muted)] mt-2">Administra la cola de pacientes, evaluaciones y planes con estilo premium.</p>
-        </div>
-      </header>
+      <PageHeader
+        icon={<IconApple size={18} />}
+        tag="Nutriología"
+        title="Gestión de consulta nutricional"
+        subtitle="Administra la cola de pacientes, evaluaciones y planes con estilo premium."
+      />
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6 h-full">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { PageHeader } from '../components/ui/PageHeader';
 import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 import { useAgenda, useCreateAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { usePatients } from '../hooks/usePatients';
@@ -372,76 +373,53 @@ export default function Agenda() {
   };
 
   return (
-    <div className="w-full px-0 sm:px-2 py-3 bg-[var(--color-surface)] space-y-4">
-      <header className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4 px-2 sm:px-4">
-        <div className="flex-1 space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[var(--color-text)]">Agenda</h1>
-          <p className="text-[var(--color-text-muted)] text-sm sm:text-base">Calendario de actividades y citas</p>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por título, paciente, estado..."
-            className="w-full max-w-md rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-[var(--color-text)] text-sm"
-          />
-        </div>
-        <div className="flex flex-col items-end gap-3">
-          {/* Selector de modo de vista desactivado por requerimiento
-          <div className="flex p-1 bg-[var(--color-card)] rounded-md border border-[var(--color-border)]">
-            <button 
-              type="button"
-              onClick={() => setViewMode('month')} 
-              className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'month' ? 'bg-[var(--color-primary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-            >
-              Mes
-            </button>
-            <button 
-              type="button"
-              onClick={() => setViewMode('week')} 
-              className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'week' ? 'bg-[var(--color-primary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-            >
-              Semana
-            </button>
-            <button 
-              type="button"
-              onClick={() => setViewMode('day')} 
-              className={`px-4 py-1.5 text-sm rounded font-medium transition-colors ${viewMode === 'day' ? 'bg-[var(--color-primary)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-            >
-              Día
-            </button> 
-          </div>
-          */}
+    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
+      <PageHeader
+        icon={<IconCalendarEvent size={18} />}
+        tag="Agenda"
+        title="Calendario de Actividades"
+        subtitle="Calendario de actividades y citas"
+        actions={
           <div className="flex gap-2 flex-wrap justify-end">
             <GymButton onClick={() => openNew(new Date())} variant="primary"><IconPlus size={18} className="mr-1 inline" /> Nueva Agenda</GymButton>
             <GymButton onClick={navigatePrev} variant="secondary">Anterior</GymButton>
             <GymButton onClick={() => { setViewDate(new Date()); setSelectedDate(new Date()); }} variant="ghost">Hoy</GymButton>
             <GymButton onClick={navigateNext} variant="primary">Siguiente</GymButton>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="w-full space-y-6">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar por título, paciente, estado..."
+          className="w-full max-w-md rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] px-4 py-2.5 text-[var(--color-text)] text-sm"
+        />
         {/* Vista principal (Calendario / Búsqueda) */}
-        <GymCard title={getViewTitle()} variant="default" noPadding className="w-full">
-          <div className="p-0.5 sm:p-1">
-            {searchQuery ? renderSearchResults() : (
-              <>
-                {viewMode === 'month' && (
-                  <AgendaCalendar
-                    viewDate={viewDate}
-                    selectedDate={selectedDate}
-                    onSelectDate={setSelectedDate}
-                    events={events}
-                    onDayClick={openNew}
-                    onEventClick={openDetails}
-                  />
-                )}
-                {viewMode === 'week' && renderWeekView()}
-                {viewMode === 'day' && renderDayView()}
-              </>
-            )}
-          </div>
-        </GymCard>
+        <div className="-mx-4 sm:-mx-6 md:-mx-8">
+          <GymCard title={getViewTitle()} variant="default" noPadding className="w-full">
+            <div className="p-0">
+              {searchQuery ? renderSearchResults() : (
+                <>
+                  {viewMode === 'month' && (
+                    <AgendaCalendar
+                      viewDate={viewDate}
+                      selectedDate={selectedDate}
+                      onSelectDate={setSelectedDate}
+                      events={events}
+                      onDayClick={openNew}
+                      onEventClick={openDetails}
+                    />
+                  )}
+                  {viewMode === 'week' && renderWeekView()}
+                  {viewMode === 'day' && renderDayView()}
+                </>
+              )}
+            </div>
+          </GymCard>
+        </div>
       </div>
 
       <GymModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} title={selectedEvent?.title || 'Detalle de Agenda'} width="lg">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
+import { PageHeader } from '../components/ui/PageHeader';
 import { SimpleDateInput } from '../components/ui/SimpleDateInput';
 import { TodayAgendaList } from '../components/ui/TodayAgendaList';
 import { useAgenda, useUpdateAgenda, useCreateAgenda } from '../hooks/useAgenda';
@@ -175,19 +176,17 @@ export default function AgendaToday() {
   return (
     <div className="min-h-screen p-4 sm:p-6 bg-[var(--color-surface)] space-y-6">
       {/* Encabezado Principal */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-[var(--color-text)]">Agenda del Día</h1>
-          <p className="text-[var(--color-text-muted)] text-sm sm:text-base">
-            Listado y control de agendas del día seleccionado
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        icon={<IconClock size={18} />}
+        tag="Agenda del Día"
+        title="Agenda del Día"
+        subtitle="Listado y control de agendas del día seleccionado"
+        actions={
           <GymButton onClick={() => openNew(selectedDate)} variant="primary">
             <IconPlus size={18} className="mr-1.5 inline" /> Nueva Cita
           </GymButton>
-        </div>
-      </header>
+        }
+      />
 
       {/* Buscador y Contenido */}
       <div className="space-y-4">

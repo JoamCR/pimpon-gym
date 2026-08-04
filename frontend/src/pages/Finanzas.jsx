@@ -3,9 +3,14 @@ import { IconCash, IconCalendarEvent, IconX, IconPencil, IconTrash, IconCheck, I
 import { format, startOfMonth } from 'date-fns';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
+import { PageHeader } from '../components/ui/PageHeader';
 import { usePaymentsHistory, useUpdatePayment, useDeletePayment } from '../hooks/useFinances';
+import { useAuthStore } from '../stores/authStore';
 
 export default function Finanzas() {
+  const user = useAuthStore((state) => state.user);
+  const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin';
+
   const [tab, setTab] = useState('all'); // all, gym, consultorio
   const today = new Date();
   const [fromDate, setFromDate] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
@@ -99,18 +104,13 @@ export default function Finanzas() {
   const totalAmount = history.reduce((sum, item) => sum + Number(item.amount), 0);
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-[var(--color-navy)] mb-1 flex items-center gap-3">
-            <IconCash size={32} className="text-[var(--color-gold)]" />
-            Flujo de Efectivo
-          </h1>
-          <p className="text-[var(--color-text-muted)]">
-            Consulta y edita los ingresos por área, cliente y periodo.
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
+      <PageHeader
+        icon={<IconCash size={18} />}
+        tag="Finanzas"
+        title="Flujo de Efectivo"
+        subtitle="Consulta y edita los ingresos por área, cliente y periodo."
+      />
 
       <GymCard title="Historial de pagos" variant="default">
         <div className="space-y-6">
@@ -166,13 +166,15 @@ export default function Finanzas() {
             </div>
           </div>
 
-          <div className="flex justify-between items-center bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)] p-4 rounded-[var(--radius-lg)]">
-            <div>
-              <p className="text-[var(--color-success)] text-sm font-semibold mb-1">Total Ingresos ({tab === 'all' ? 'General' : tab === 'gym' ? 'Gimnasio' : 'Consultorio'})</p>
-              <h3 className="text-3xl font-bold text-[var(--color-success)]">{formatCurrency(totalAmount)}</h3>
+          {isOwnerOrAdmin && (
+            <div className="flex justify-between items-center bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)] p-4 rounded-[var(--radius-lg)]">
+              <div>
+                <p className="text-[var(--color-success)] text-sm font-semibold mb-1">Total Ingresos ({tab === 'all' ? 'General' : tab === 'gym' ? 'Gimnasio' : 'Consultorio'})</p>
+                <h3 className="text-3xl font-bold text-[var(--color-success)]">{formatCurrency(totalAmount)}</h3>
+              </div>
+              <IconCash size={40} className="text-[var(--color-success)] opacity-80" />
             </div>
-            <IconCash size={40} className="text-[var(--color-success)] opacity-80" />
-          </div>
+          )}
 
           {isLoading ? (
             <div className="text-center py-10 text-[var(--color-text-muted)]">Cargando datos...</div>

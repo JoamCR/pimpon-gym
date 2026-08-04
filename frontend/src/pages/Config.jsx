@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
+import { PageHeader } from '../components/ui/PageHeader';
+import { IconSettings } from '@tabler/icons-react';
 import { useConfig, useUpdateConfig } from '../hooks/useConfig';
 
 export default function Config() {
@@ -41,10 +43,12 @@ export default function Config() {
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <div>
-        <h1 className="text-3xl font-[var(--font-display)] font-bold text-[var(--color-text)]">Configuración</h1>
-        <p className="text-[var(--color-text-muted)] mt-2">Ajustes globales del sistema</p>
-      </div>
+      <PageHeader
+        icon={<IconSettings size={18} />}
+        tag="Configuración"
+        title="Configuración del Sistema"
+        subtitle="Ajustes globales del sistema"
+      />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <GymCard title="Control de transferencias" subtitle="Límite mensual" variant="default">

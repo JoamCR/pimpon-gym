@@ -6,7 +6,8 @@ import { useDashboard, useSendNotification, useRenewSubscription } from '../hook
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
-import { IconChartBar, IconSpeakerphone, IconSend, IconCreditCard, IconCheck, IconAlertTriangle, IconSearch } from '@tabler/icons-react';
+import { PageHeader } from '../components/ui/PageHeader';
+import { IconLayoutDashboard, IconChartBar, IconSpeakerphone, IconSend, IconCreditCard, IconCheck, IconAlertTriangle, IconSearch } from '@tabler/icons-react';
 import '../styles/dashboard.css';
 
 const ProgressBar = ({ used, limit, percentage }) => {
@@ -234,19 +235,18 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen p-6 space-y-8 bg-[var(--color-surface)]">
       {/* Header */}
-      <section className="grid gap-4 md:grid-cols-[auto_1fr] items-end">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(226,154,0,0.12)] px-4 py-2 text-[var(--color-secondary)] font-semibold text-sm">Dashboard</div>
-          <div>
-            <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">Control del gimnasio</h1>
-            <p className="text-[var(--color-text-muted)] mt-2">Visión general de clientes, pagos y asistencias.</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3 justify-start md:justify-end">
-          <GymButton icon={<IconChartBar size={18} />} variant="secondary" onClick={() => navigate('/statistics')}>Ver Informe</GymButton>
-          <GymButton icon={<IconSpeakerphone size={18} />} variant="primary" onClick={() => toast('Funcionalidad de avisos masivos en construcción', { icon: <IconAlertTriangle size={20} /> })}>Enviar Aviso</GymButton>
-        </div>
-      </section>
+      <PageHeader
+        icon={<IconLayoutDashboard size={18} />}
+        tag="Dashboard"
+        title="Control del gimnasio"
+        subtitle="Visión general de clientes, pagos y asistencias."
+        actions={
+          <>
+            <GymButton icon={<IconChartBar size={18} />} variant="secondary" onClick={() => navigate('/statistics')}>Ver Informe</GymButton>
+            <GymButton icon={<IconSpeakerphone size={18} />} variant="primary" onClick={() => toast('Funcionalidad de avisos masivos en construcción', { icon: <IconAlertTriangle size={20} /> })}>Enviar Aviso</GymButton>
+          </>
+        }
+      />
 
       {/* TARJETAS DEL DASHBOARD */}
       <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

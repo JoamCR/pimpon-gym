@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 import {
   IconLayoutDashboard,
   IconUsers,
@@ -9,6 +10,7 @@ import {
   IconChartBar,
   IconCash,
   IconSettings,
+  IconShieldLock,
   IconDoorExit,
   IconSun,
   IconMoon,
@@ -18,8 +20,17 @@ import {
   IconChevronUp,
   IconChevronRight,
   IconMenu2,
-  IconX
+  IconX,
+  IconUser
 } from '@tabler/icons-react';
+
+const ROLES_MAP = {
+  owner: 'Propietario',
+  admin: 'Administrador',
+  receptionist: 'Recepcionista',
+  nutritionist: 'Nutriólogo',
+  user: 'Usuario Personalizado'
+};
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <IconLayoutDashboard size={20} /> },
@@ -39,10 +50,54 @@ const navItems = [
   { path: '/statistics', label: 'Estadísticas', icon: <IconChartBar size={20} /> },
   { path: '/finanzas', label: 'Finanzas', icon: <IconCash size={20} /> },
   { path: '/config', label: 'Configuración', icon: <IconSettings size={20} /> },
+  { path: '/seguridad', label: 'Seguridad', icon: <IconShieldLock size={20} /> },
 ];
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
+
+  // Calcular las páginas permitidas según el usuario
+  const allowedPages = useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'owner' || user.role === 'admin') return null; // Acceso total
+    if (Array.isArray(user.allowed_pages)) return user.allowed_pages;
+    if (typeof user.allowed_pages === 'string') {
+      try {
+        return JSON.parse(user.allowed_pages);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  }, [user]);
+
+  // Filtrar ítems de navegación según los accesos permitidos
+  const filteredNavItems = useMemo(() => {
+    if (allowedPages === null) return navItems;
+
+    return navItems.filter((item) => {
+      if (item.subItems) {
+        return item.subItems.some(sub => allowedPages.includes(sub.path));
+      }
+      return allowedPages.includes(item.path);
+    }).map((item) => {
+      if (item.subItems) {
+        return {
+          ...item,
+          subItems: item.subItems.filter(sub => allowedPages.includes(sub.path))
+        };
+      }
+      return item;
+    });
+  }, [allowedPages]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
   const [isLightMode, setIsLightMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -76,7 +131,7 @@ export default function Layout() {
   };
 
   const renderNavList = (onItemClick) => {
-    return navItems.map((item) => {
+    return filteredNavItems.map((item) => {
       if (item.subItems) {
         const isChildActive = location.pathname.startsWith('/agenda');
         return (
@@ -157,7 +212,7 @@ export default function Layout() {
 
   const renderHorizontalNavList = () => {
     const flatItems = [];
-    navItems.forEach(item => {
+    filteredNavItems.forEach(item => {
       if (item.subItems) {
         item.subItems.forEach(sub => {
           flatItems.push({ path: sub.path, label: sub.label, icon: sub.icon, end: sub.end });
@@ -210,7 +265,15 @@ export default function Layout() {
           <header className={`flex flex-col backdrop-blur-md ${isLightMode ? 'bg-white/95 border-[var(--color-border)]' : 'bg-black/95 border-white/10 text-white'}`}>
             {/* Encabezado superior con título y acciones */}
             <div className="flex justify-between items-center px-4 py-2.5 border-b border-[var(--color-border)]/30">
-              <h1 className={`text-lg font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon Gym</h1>
+              <div className="flex items-center gap-2">
+                <h1 className={`text-lg font-display font-bold ${isLightMode ? 'text-[var(--color-gold)]' : 'text-white'} tracking-wide`}>Pimpon Gym</h1>
+                {user && (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--color-gold)]/10 text-[var(--color-gold)] text-xs font-bold border border-[var(--color-gold)]/20">
+                    <IconUser size={12} />
+                    {user.full_name?.split(' ')[0] || user.username}
+                  </span>
+                )}
+              </div>
               
               <div className="flex items-center gap-3">
                 <button
@@ -220,6 +283,14 @@ export default function Layout() {
                   title="Cambiar tema"
                 >
                   {isLightMode ? <IconSun size={18} /> : <IconMoon size={18} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="p-1 rounded-full text-red-400 hover:text-red-300 transition-colors"
+                  title="Cerrar sesión"
+                >
+                  <IconDoorExit size={18} />
                 </button>
                 <button
                   type="button"
@@ -262,9 +333,26 @@ export default function Layout() {
               {renderNavList(undefined)}
             </nav>
 
-            <div className={`p-4 pt-6 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-4`}>
+            <div className={`p-4 pt-4 border-t shrink-0 ${isLightMode ? 'border-[var(--color-border)]' : 'border-white/10'} mt-auto flex flex-col gap-3`}>
+              {/* Tarjeta del Usuario Registrado Actualmente */}
+              {user && (
+                <div className={`p-3 rounded-2xl flex items-center gap-3 border ${isLightMode ? 'bg-[var(--color-card-alt)] border-[var(--color-border)]' : 'bg-white/5 border-white/10'}`}>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-gold)] text-white font-bold text-base shadow-sm">
+                    {user.full_name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xs font-bold truncate ${isLightMode ? 'text-[var(--color-text)]' : 'text-white'}`}>
+                      {user.full_name || user.username}
+                    </p>
+                    <span className="inline-block text-[11px] font-semibold text-[var(--color-gold)] truncate">
+                      {ROLES_MAP[user.role] || user.role}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Theme Toggle */}
-              <div className="flex items-center justify-between px-2 py-2">
+              <div className="flex items-center justify-between px-2 py-1">
                 <span className={`text-sm font-medium flex items-center gap-2 ${isLightMode ? 'text-[var(--color-text)]' : 'text-slate-300'}`}>
                   {isLightMode ? <IconSun size={18} /> : <IconMoon size={18} />}
                   {isLightMode ? 'Modo Claro' : 'Modo Oscuro'}
@@ -279,8 +367,8 @@ export default function Layout() {
               </div>
 
               <button
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors w-full border ${isLightMode ? 'hover:bg-black/5 text-[var(--color-danger)] border-[var(--color-border)]' : 'hover:bg-white/5 text-orange-300 border-white/10'}`}
-                onClick={() => alert('Próximamente: Cerrar Sesión')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors w-full border cursor-pointer ${isLightMode ? 'hover:bg-black/5 text-[var(--color-danger)] border-[var(--color-border)]' : 'hover:bg-white/5 text-orange-300 border-white/10'}`}
+                onClick={handleLogout}
               >
                 <span className="flex items-center justify-center"><IconDoorExit size={20} /></span>
                 <span className="font-medium">Cerrar Sesión</span>
@@ -290,7 +378,7 @@ export default function Layout() {
         )}
 
         {/* CONTENIDO PRINCIPAL: Ocupa todo el ancho restante y es fluido */}
-        <main className={`flex-1 min-w-0 ${location.pathname === '/agenda' ? 'p-2 sm:p-3' : 'p-4 sm:p-6 md:p-8'} ${isLightMode ? 'bg-[var(--color-surface)]' : ''}`}>
+        <main className={`flex-1 min-w-0 p-4 sm:p-6 md:p-8 ${isLightMode ? 'bg-[var(--color-surface)]' : ''}`}>
           <Outlet />
         </main>
       </div>

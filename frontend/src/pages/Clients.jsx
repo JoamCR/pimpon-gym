@@ -6,7 +6,8 @@ import { useRenewSubscription } from '../hooks/useDashboard';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
 import { GymButton } from '../components/ui/GymButton';
-import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh, IconAlertTriangle, IconTrash } from '@tabler/icons-react';
+import { PageHeader } from '../components/ui/PageHeader';
+import { IconChevronUp, IconChevronDown, IconSelector, IconPlus, IconRefresh, IconAlertTriangle, IconTrash, IconUsers } from '@tabler/icons-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { HybridDateInput } from '../components/ui/HybridDateInput';
@@ -785,19 +786,18 @@ export default function Clients() {
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(226,154,0,0.12)] px-4 py-2 text-sm font-semibold text-[var(--color-secondary)]">Clientes</div>
-          <div>
-            <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">Administración de clientes</h1>
-            <p className="text-[var(--color-text-muted)] mt-2">Filtra, busca y registra nuevos miembros desde una interfaz premium.</p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <GymButton variant="secondary" onClick={() => openModal(true)}>Agregar visitante</GymButton>
-          <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={() => openModal(false)}>Agregar Cliente</GymButton>
-        </div>
-      </header>
+      <PageHeader
+        icon={<IconUsers size={18} />}
+        tag="Clientes"
+        title="Administración de clientes"
+        subtitle="Filtra, busca y registra nuevos miembros desde una interfaz premium."
+        actions={
+          <>
+            <GymButton variant="secondary" onClick={() => openModal(true)}>Agregar visitante</GymButton>
+            <GymButton icon={<IconPlus size={18} />} variant="primary" onClick={() => openModal(false)}>Agregar Cliente</GymButton>
+          </>
+        }
+      />
 
       <GymCard title="Clientes registrados" variant="default">
         <div className="space-y-6">

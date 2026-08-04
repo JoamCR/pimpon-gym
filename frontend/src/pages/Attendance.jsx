@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useTodayAttendance, useCreateCheckin, useCheckout } from '../hooks/useAttendance';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
-import { IconCheck, IconX, IconAlertTriangle } from '@tabler/icons-react';
+import { PageHeader } from '../components/ui/PageHeader';
+import { IconCheck, IconX, IconAlertTriangle, IconCheckbox } from '@tabler/icons-react';
 
 export default function Attendance() {
   const { data, isLoading } = useTodayAttendance();
@@ -89,13 +90,12 @@ export default function Attendance() {
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(226,154,0,0.12)] px-4 py-2 text-sm font-semibold text-[var(--color-secondary)]">Asistencia</div>
-        <div>
-          <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">Registro de entradas</h1>
-          <p className="text-[var(--color-text-muted)] mt-2">Controla la asistencia diaria y los check-outs desde un tablero moderno.</p>
-        </div>
-      </header>
+      <PageHeader
+        icon={<IconCheckbox size={18} />}
+        tag="Asistencia"
+        title="Registro de entradas"
+        subtitle="Controla la asistencia diaria y los check-outs desde un tablero moderno."
+      />
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <div className="space-y-6">

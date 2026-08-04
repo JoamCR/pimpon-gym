@@ -6,6 +6,7 @@ import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan, useEx
 import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
+import { PageHeader } from '../components/ui/PageHeader';
 import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
 import { ConsultationViewer } from '../components/ui/ConsultModal/ConsultationViewer';
 import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder, IconEdit, IconDumbbell } from '@tabler/icons-react';
@@ -330,15 +331,12 @@ export default function PatientDetails() {
 
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)] flex items-center gap-3">
-            <IconFolder className="text-[var(--color-gold)]" size={36} />
-            Expediente: {patient.first_name} {patient.last_name}
-          </h1>
-          <p className="text-[var(--color-text-muted)] mt-2">Gestiona el historial y las consultas de este paciente.</p>
-        </div>
-      </header>
+      <PageHeader
+        icon={<IconFolder size={18} />}
+        tag="Expediente Clínico"
+        title={`Expediente: ${patient.first_name} ${patient.last_name}`}
+        subtitle="Gestiona el historial y las consultas de este paciente."
+      />
 
       {/* Estilo de "Carpeta con Pestañas" */}
       <div className="mt-8">

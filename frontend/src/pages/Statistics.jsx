@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { PageHeader } from '../components/ui/PageHeader';
 import {
   IconTrendingUp,
   IconChartBar,
@@ -772,19 +773,12 @@ export default function Statistics() {
   return (
     <div className="min-h-screen p-6 bg-[var(--color-surface)] space-y-8">
       {/* Header */}
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(226,154,0,0.12)] px-4 py-2 text-sm font-semibold text-[var(--color-secondary)]">
-          <IconTrendingUp size={20} /> Inteligencia de Negocio Simétrica
-        </div>
-        <div>
-          <h1 className="text-4xl font-[var(--font-display)] font-bold text-[var(--color-text)]">
-            Estadísticas Estratégicas
-          </h1>
-          <p className="text-[var(--color-text-muted)] mt-2">
-            Análisis simétrico y ordenado para Gimnasio (Clientes) y Nutriología (Pacientes)
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        icon={<IconTrendingUp size={18} />}
+        tag="Inteligencia de Negocio Simétrica"
+        title="Estadísticas Estratégicas"
+        subtitle="Análisis simétrico y ordenado para Gimnasio (Clientes) y Nutriología (Pacientes)"
+      />
 
       {/* ==========================================
           SECCIÓN 1: ESTADÍSTICAS DEL GIMNASIO (CLIENTES)
