@@ -88,6 +88,7 @@ const start = async () => {
     await fastify.register(require('./modules/nutrition/nutrition.routes'), { prefix: '/api/nutrition' });
     await fastify.register(require('./modules/statistics/statistics.routes'), { prefix: '/api/statistics' });
     await fastify.register(require('./modules/agenda/agenda.routes'), { prefix: '/api/agenda' });
+    await fastify.register(require('./modules/expenses/expenses.routes'), { prefix: '/api/expenses' });
     await fastify.register(require('./modules/users/users.routes'), { prefix: '/api/users' });
 
     // Iniciar servidor en el puerto indicado

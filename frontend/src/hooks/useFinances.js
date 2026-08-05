@@ -72,7 +72,88 @@ export const useDeletePayment = () => {
   });
 };
 
+// ─── EGRESOS ──────────────────────────────────────────────────────────────────
 
+export const useExpenses = (from, to) => {
+  return useQuery({
+    queryKey: ['expenses', from, to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
 
+      const res = await fetch(`${API_URL}/expenses?${params.toString()}`, { headers: getHeaders(false) });
+      if (!res.ok) throw new Error('Error al obtener los egresos');
+      return res.json();
+    }
+  });
+};
 
+export const useCreateExpense = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await fetch(`${API_URL}/expenses`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || result.error || 'Error al crear el egreso');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
+  });
+};
+
+export const useUpdateExpense = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }) => {
+      const res = await fetch(`${API_URL}/expenses/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(true),
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || result.error || 'Error al actualizar el egreso');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
+  });
+};
+
+export const useDeleteExpense = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/expenses/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(false),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || result.error || 'Error al eliminar el egreso');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
+  });
+};
 

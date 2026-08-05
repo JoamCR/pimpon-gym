@@ -206,6 +206,19 @@ const runSchemaMigrations = async () => {
         AND c.enrollment_expires_at IS NULL;
     END $$;
     `,
+    // Migración: Tabla de egresos
+    `
+    CREATE TABLE IF NOT EXISTS expenses (
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      concept       VARCHAR(255) NOT NULL,
+      amount        NUMERIC(10,2) NOT NULL,
+      payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('cash', 'transfer')),
+      expense_date  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      notes         TEXT,
+      created_by    UUID REFERENCES app_users(id) ON DELETE SET NULL,
+      created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+    `,
   ];
 
   for (const statement of statements) {
