@@ -4,8 +4,8 @@ const path = require('path');
 const readline = require('readline');
 require('dotenv').config();
 
-const LOCAL_DB = process.env.DATABASE_URL || 'postgresql://pimpon_dev:pimpon_dev_2026@localhost:5432/pimpon_gym';
-const REMOTE_DB = process.env.SUPABASE_DB_URL || 'postgresql://postgres.tuhzjjhbtmfzlnxanthl:pimpon_dev_2026@aws-1-us-east-1.pooler.supabase.com:6543/postgres';
+const LOCAL_DB = process.env.DATABASE_URL;
+const REMOTE_DB = process.env.SUPABASE_DB_URL;
 
 // --- Medida de seguridad ---
 if (process.env.NODE_ENV === 'production') {

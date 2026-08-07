@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.local
+.env.*
 dist/
 build/
 *.log
@@ -10,3 +11,9 @@ Thumbs.db
 .wwebjs_cache/
 n8n_data/
 wa_session/
+
+# Data backups & confidential files
+backups/
+backend/backups/
+*.sql
+*.json.backup

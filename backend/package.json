@@ -8,7 +8,9 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node src/seed.js",
-    "backup": "node src/scripts/create_backup.js"
+    "backup": "node src/scripts/dump_and_sync_all_supabase.js",
+    "backup:fast": "node src/scripts/create_backup.js",
+    "sync:db": "node src/scripts/dump_and_sync_all_supabase.js"
   },
   "keywords": [],
   "author": "",

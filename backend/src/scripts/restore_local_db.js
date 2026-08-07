@@ -3,7 +3,12 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const LOCAL_DB = process.env.DATABASE_URL || 'postgresql://pimpon_dev:pimpon_dev_2026@localhost:5432/pimpon_gym';
+const LOCAL_DB = process.env.DATABASE_URL;
+
+if (!LOCAL_DB) {
+  console.error('❌ Error: Se requiere la variable DATABASE_URL en backend/.env');
+  process.exit(1);
+}
 
 const tablesInOrder = [
   'app_users',

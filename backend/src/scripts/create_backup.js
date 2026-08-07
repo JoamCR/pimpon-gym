@@ -3,7 +3,12 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const REMOTE_DB = process.env.SUPABASE_DB_URL || 'postgresql://postgres.tuhzjjhbtmfzlnxanthl:pimpon_dev_2026@aws-1-us-east-1.pooler.supabase.com:6543/postgres';
+const REMOTE_DB = process.env.SUPABASE_DB_URL;
+
+if (!REMOTE_DB) {
+  console.error('❌ Error: Se requiere la variable SUPABASE_DB_URL en backend/.env');
+  process.exit(1);
+}
 
 const tablesInOrder = [
   'app_users',

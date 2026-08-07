@@ -1,0 +1,6 @@
+# Ignore backups and environment variables in backend
+.env
+.env.*
+backups/
+*.sql
+*.log
