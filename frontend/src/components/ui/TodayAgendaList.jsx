@@ -39,7 +39,7 @@ export const TodayAgendaList = ({
   const dayEvents = useMemo(() => {
     return events
       .filter((ev) => {
-        if (!ev.start_at) return false;
+        if (!ev.start_at || ev.status === 'cancelada') return false;
         const evDate = new Date(ev.start_at);
         if (isNaN(evDate.getTime())) return false;
         return (

@@ -56,7 +56,7 @@ export const AgendaCalendar = ({
   const eventsByDay = useMemo(() => {
     const map = {};
     events.forEach(ev => {
-      if (!ev.start_at) return;
+      if (!ev.start_at || ev.status === 'cancelada') return;
       const d = new Date(ev.start_at);
       if (isNaN(d.getTime())) return;
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;

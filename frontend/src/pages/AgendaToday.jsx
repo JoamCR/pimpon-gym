@@ -54,7 +54,7 @@ export default function AgendaToday() {
   const optionsRef = useRef();
 
   const { data, isLoading } = useAgenda({ search: searchQuery });
-  const events = useMemo(() => data?.data || [], [data]);
+  const events = useMemo(() => (data?.data || []).filter(ev => ev?.status !== 'cancelada'), [data]);
   const { data: patientsResp } = usePatients();
   const patients = useMemo(() => patientsResp?.data || [], [patientsResp]);
 
@@ -118,11 +118,13 @@ export default function AgendaToday() {
       await updateMutation.mutateAsync({ id: ev.id, payload: { status: newStatus } });
       setSelectedEvent((s) => (s && s.id === ev.id ? { ...s, status: newStatus } : s));
       setOptionsOpen(false);
-      if (newStatus === 'en_curso') {
-        const patientId = ev.patient_id || (selectedEvent?.id === ev.id ? selectedEvent.patient_id : null);
+      if (newStatus === 'en_curso' || newStatus === 'cancelada') {
         setDetailModalOpen(false);
-        if (patientId) {
-          navigate(`/patients/${patientId}?tab=consult`);
+        if (newStatus === 'en_curso') {
+          const patientId = ev.patient_id || (selectedEvent?.id === ev.id ? selectedEvent.patient_id : null);
+          if (patientId) {
+            navigate(`/patients/${patientId}?tab=consult`);
+          }
         }
       }
     } catch (err) {
