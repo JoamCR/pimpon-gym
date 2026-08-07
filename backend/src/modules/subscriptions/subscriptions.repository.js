@@ -210,7 +210,7 @@ const findActiveClients = async () => {
 };
 
 /**
- * Obtiene los clientes con membresía vencida
+ * Obtiene los clientes con membresía vencida en el mes actual
  */
 const findExpiredClients = async () => {
   const query = `
@@ -230,7 +230,9 @@ const findExpiredClients = async () => {
       WHERE c.is_active = true AND p.is_visit_based = false
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
-    WHERE status = 'expired' OR (status = 'active' AND end_date < CURRENT_DATE)
+    WHERE (status = 'expired' OR (status = 'active' AND end_date < CURRENT_DATE))
+      AND end_date < CURRENT_DATE
+      AND DATE_TRUNC('month', end_date) = DATE_TRUNC('month', CURRENT_DATE)
     ORDER BY end_date DESC;
   `;
   

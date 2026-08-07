@@ -276,9 +276,9 @@ export default function Dashboard() {
 
         {/* 4. Vencidos */}
         <div onClick={() => toggleSection('expired')} className={`cursor-pointer transition-transform hover:scale-[1.02] ${expandedSection === 'expired' ? 'ring-2 ring-[var(--color-text-muted)] rounded-[var(--radius-lg)]' : ''}`}>
-          <GymCard title="Vencidos" subtitle={`${expiredClients.length} clientes`} variant="default" className="h-full">
+          <GymCard title="Vencidos" subtitle="Mes actual" variant="default" className="h-full">
             <div className="text-4xl font-bold text-[var(--color-text)]">{expiredClients.length}</div>
-            <p className="text-sm text-[var(--color-text-muted)] mt-2">Mensualidades vencidas.</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-2">Mensualidades vencidas este mes.</p>
           </GymCard>
         </div>
 
@@ -404,7 +404,7 @@ export default function Dashboard() {
                     expandedSection === 'active' ? 'Lista de Clientes Activos (Anualidad y Mensualidad)' :
                     expandedSection === 'expiring3Days' ? 'Clientes que vencen en 3 días (Mensualidad)' :
                     expandedSection === 'expiringToday' ? 'Clientes que vencen hoy (Mensualidad)' :
-                    expandedSection === 'expired' ? 'Clientes con mensualidad vencida' :
+                    expandedSection === 'expired' ? 'Clientes con mensualidad vencida en el mes actual' :
                     expandedSection === 'newClients' ? 'Nuevos Clientes del Mes' :
                     expandedSection === 'renewals' ? 'Renovaciones de Mensualidad del Mes' :
                     expandedSection === 'activeAnnual' ? 'Lista de Anualidades Activas' :
