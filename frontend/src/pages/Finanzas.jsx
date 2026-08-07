@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { IconCash, IconCalendarEvent, IconX, IconPencil, IconTrash, IconCheck, IconLoader2, IconPlus, IconEye, IconArrowDown, IconArrowUp, IconScale } from '@tabler/icons-react';
+import React, { useState, useRef } from 'react';
+import { IconCash, IconCalendarEvent, IconX, IconPencil, IconTrash, IconCheck, IconLoader2, IconPlus, IconEye, IconArrowDown, IconArrowUp, IconScale, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { format, startOfMonth } from 'date-fns';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -12,10 +12,25 @@ export default function Finanzas() {
   const user = useAuthStore((state) => state.user);
   const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin';
 
+  const incomeRef = useRef(null);
+  const expensesRef = useRef(null);
+
+  const scrollToIncome = () => {
+    incomeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToExpenses = () => {
+    expensesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const [tab, setTab] = useState('all'); // all, gym, consultorio
   const today = new Date();
   const [fromDate, setFromDate] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(today, 'yyyy-MM-dd'));
+
+  // Estados para desplegar la lista completa o 10 items
+  const [showAllIncome, setShowAllIncome] = useState(false);
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
 
   // Estado para la edición de importe
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -61,6 +76,9 @@ export default function Finanzas() {
   const updateExpenseMutation = useUpdateExpense();
   const deleteExpenseMutation = useDeleteExpense();
   const expenses = expensesResponse?.data || [];
+
+  const displayedHistory = showAllIncome ? history : history.slice(0, 10);
+  const displayedExpenses = showAllExpenses ? expenses : expenses.slice(0, 10);
 
   const handleClearFilters = () => {
     setFromDate('');
@@ -233,191 +251,246 @@ export default function Finanzas() {
         <GymCard title="Finanzas del Mes" variant="default">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Ingresos */}
-            <div className="flex items-center justify-between bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] p-4 rounded-[var(--radius-lg)]">
+            <div
+              onClick={scrollToIncome}
+              className="flex items-center justify-between bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] p-4 rounded-[var(--radius-lg)] cursor-pointer hover:bg-[rgba(34,197,94,0.14)] hover:scale-[1.01] transition-all shadow-xs group"
+              title="Clic para ir a la lista de Ingresos"
+            >
               <div>
-                <p className="text-[var(--color-success)] text-xs font-semibold mb-1 uppercase tracking-wide">Ingresos</p>
+                <p className="text-[var(--color-success)] text-xs font-semibold mb-1 uppercase tracking-wide flex items-center gap-1">
+                  Ingresos <span className="text-[10px] opacity-75 group-hover:translate-y-0.5 transition-transform">↓</span>
+                </p>
                 <h3 className="text-2xl font-bold text-[var(--color-success)]">{formatCurrency(totalAmount)}</h3>
               </div>
-              <IconArrowUp size={32} className="text-[var(--color-success)] opacity-70" />
+              <IconArrowUp size={32} className="text-[var(--color-success)] opacity-70 group-hover:opacity-100 transition-opacity" />
             </div>
             {/* Egresos */}
-            <div className="flex items-center justify-between bg-[rgba(220,38,38,0.08)] border border-[rgba(220,38,38,0.2)] p-4 rounded-[var(--radius-lg)]">
+            <div
+              onClick={scrollToExpenses}
+              className="flex items-center justify-between bg-[rgba(220,38,38,0.08)] border border-[rgba(220,38,38,0.2)] p-4 rounded-[var(--radius-lg)] cursor-pointer hover:bg-[rgba(220,38,38,0.14)] hover:scale-[1.01] transition-all shadow-xs group"
+              title="Clic para ir a la lista de Egresos"
+            >
               <div>
-                <p className="text-red-500 text-xs font-semibold mb-1 uppercase tracking-wide">Egresos</p>
+                <p className="text-red-500 text-xs font-semibold mb-1 uppercase tracking-wide flex items-center gap-1">
+                  Egresos <span className="text-[10px] opacity-75 group-hover:translate-y-0.5 transition-transform">↓</span>
+                </p>
                 <h3 className="text-2xl font-bold text-red-500">{formatCurrency(totalExpenses)}</h3>
               </div>
-              <IconArrowDown size={32} className="text-red-500 opacity-70" />
+              <IconArrowDown size={32} className="text-red-500 opacity-70 group-hover:opacity-100 transition-opacity" />
             </div>
             {/* Balance */}
-            <div className={`flex items-center justify-between p-4 rounded-[var(--radius-lg)] border ${
-              (totalAmount - totalExpenses) >= 0
+            <div className={`flex items-center justify-between p-4 rounded-[var(--radius-lg)] border ${(totalAmount - totalExpenses) >= 0
                 ? 'bg-[rgba(34,197,94,0.05)] border-[rgba(34,197,94,0.15)]'
                 : 'bg-[rgba(220,38,38,0.05)] border-[rgba(220,38,38,0.15)]'
-            }`}>
+              }`}>
               <div>
-                <p className={`text-xs font-semibold mb-1 uppercase tracking-wide ${
-                  (totalAmount - totalExpenses) >= 0 ? 'text-[var(--color-success)]' : 'text-red-500'
-                }`}>Balance</p>
-                <h3 className={`text-2xl font-bold ${
-                  (totalAmount - totalExpenses) >= 0 ? 'text-[var(--color-success)]' : 'text-red-500'
-                }`}>{formatCurrency(totalAmount - totalExpenses)}</h3>
+                <p className={`text-xs font-semibold mb-1 uppercase tracking-wide ${(totalAmount - totalExpenses) >= 0 ? 'text-[var(--color-success)]' : 'text-red-500'
+                  }`}>Balance</p>
+                <h3 className={`text-2xl font-bold ${(totalAmount - totalExpenses) >= 0 ? 'text-[var(--color-success)]' : 'text-red-500'
+                  }`}>{formatCurrency(totalAmount - totalExpenses)}</h3>
               </div>
-              <IconScale size={32} className={`opacity-70 ${
-                (totalAmount - totalExpenses) >= 0 ? 'text-[var(--color-success)]' : 'text-red-500'
-              }`} />
+              <IconScale size={32} className={`opacity-70 ${(totalAmount - totalExpenses) >= 0 ? 'text-[var(--color-success)]' : 'text-red-500'}`} />
             </div>
           </div>
         </GymCard>
       )}
 
-      <GymCard title="Ingresos" variant="default">
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center justify-between">
-            <div className="flex flex-wrap items-center gap-2 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] p-1 shrink-0 border border-[var(--color-border)] shadow-sm">
+      {/* ══════════════════════════════════════════════════════════════════════
+          SECCIÓN DE INGRESOS
+          ══════════════════════════════════════════════════════════════════════ */}
+      <div ref={incomeRef} className="scroll-mt-6">
+        <GymCard
+          title="Ingresos"
+          subtitle={history.length > 10 ? (showAllIncome ? `Mostrando todos (${history.length} registros)` : `Mostrando 10 de ${history.length} registros`) : undefined}
+          variant="default"
+          onHeaderClick={history.length > 10 ? () => setShowAllIncome((prev) => !prev) : undefined}
+          headerAction={
+            history.length > 10 ? (
               <button
-                onClick={() => setTab('all')}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === 'all' ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAllIncome((prev) => !prev);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+                title={showAllIncome ? "Mostrar 10 registros" : "Mostrar todos los registros"}
               >
-                General
+                {showAllIncome ? (
+                  <>
+                    <span>Ver menos</span>
+                    <IconChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    <span>Ver más ({history.length})</span>
+                    <IconChevronDown size={14} />
+                  </>
+                )}
               </button>
-              <button
-                onClick={() => setTab('gym')}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === 'gym' ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-              >
-                Gimnasio
-              </button>
-              <button
-                onClick={() => setTab('consultorio')}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === 'consultorio' ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-              >
-                Consultorio
-              </button>
-            </div>
-
-            {/* Filtro por fechas — comentado temporalmente
-            <div className="flex gap-3 items-center w-full lg:w-auto">
-              <div className="relative flex-1 md:w-40">
-                <IconCalendarEvent size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-                <input 
-                  type="date" 
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 text-sm rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-secondary)]"
-                  title="Fecha desde"
-                />
-              </div>
-              <span className="text-[var(--color-text-muted)]">-</span>
-              <div className="relative flex-1 md:w-40">
-                <IconCalendarEvent size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-                <input 
-                  type="date" 
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 text-sm rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-secondary)]"
-                  title="Fecha hasta"
-                />
-              </div>
-              {(fromDate || toDate) && (
-                <button onClick={handleClearFilters} className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] transition-colors" title="Limpiar fechas">
-                  <IconX size={20} />
+            ) : null
+          }
+        >
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center justify-between">
+              <div className="flex flex-wrap items-center gap-2 bg-[var(--color-card-alt)] rounded-[var(--radius-lg)] p-1 shrink-0 border border-[var(--color-border)] shadow-sm">
+                <button
+                  onClick={() => setTab('all')}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === 'all' ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                >
+                  General
                 </button>
-              )}
-            </div>
-            */}
-          </div>
-
-          {isOwnerOrAdmin && (
-            <div className="flex justify-between items-center bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)] p-4 rounded-[var(--radius-lg)]">
-              <div>
-                <p className="text-[var(--color-success)] text-sm font-semibold mb-1">Total Ingresos ({tab === 'all' ? 'General' : tab === 'gym' ? 'Gimnasio' : 'Consultorio'})</p>
-                <h3 className="text-3xl font-bold text-[var(--color-success)]">{formatCurrency(totalAmount)}</h3>
+                <button
+                  onClick={() => setTab('gym')}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === 'gym' ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                >
+                  Gimnasio
+                </button>
+                <button
+                  onClick={() => setTab('consultorio')}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === 'consultorio' ? 'bg-[var(--color-secondary)] text-black' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                >
+                  Consultorio
+                </button>
               </div>
-              <IconArrowUp size={40} className="text-[var(--color-success)] opacity-80" />
             </div>
-          )}
 
-          {isLoading ? (
-            <div className="text-center py-10 text-[var(--color-text-muted)]">Cargando datos...</div>
-          ) : isError ? (
-            <div className="text-center py-10 text-[var(--color-danger)]">Error al cargar el historial</div>
-          ) : history.length === 0 ? (
-            <div className="text-center py-10 text-[var(--color-text-muted)]">No hay registros para este filtro</div>
-          ) : (
-            <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)]">
-              <table className="min-w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-surface)] text-[var(--color-text-muted)] text-xs uppercase tracking-[0.15em] select-none">
-                    <th className="px-4 py-4">Fecha</th>
-                    <th className="px-4 py-4">Cliente / Paciente</th>
-                    <th className="px-4 py-4">Concepto</th>
-                    <th className="px-4 py-4">Plan</th>
-                    <th className="px-4 py-4">Método</th>
-                    <th className="px-4 py-4">Entidad</th>
-                    <th className="px-4 py-4 text-right">Monto</th>
-                    <th className="px-4 py-4 text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
-                      <td className="px-4 py-4 text-sm text-[var(--color-text)]">
-                        {format(new Date(item.paid_at), 'dd/MM/yyyy HH:mm')}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold text-[var(--color-text)]">
-                        {item.entity_type === 'gym' 
-                          ? `${item.client_first_name || ''} ${item.client_last_name || ''}`.trim() || 'Desconocido'
-                          : `${item.patient_first_name || ''} ${item.patient_last_name || ''}`.trim() || 'Desconocido'
-                        }
-                      </td>
-                      <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                        {getTypeLabel(item.payment_type)}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-medium text-[var(--color-text)]">
-                        {item.plan_name || '-'}
-                      </td>
-                      <td className="px-4 py-4 text-sm capitalize text-[var(--color-text-muted)]">
-                        {item.payment_method === 'cash' ? 'Efectivo' : item.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta'}
-                      </td>
-                      <td className="px-4 py-4">
-                        {getEntityBadge(item.entity_type)}
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-green-600 dark:text-green-400">
-                        {formatCurrency(item.amount)}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleOpenEditModal(item)}
-                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                            title="Editar importe"
-                          >
-                            <IconPencil size={18} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPaymentToDelete(item);
-                              setDeleteError('');
-                            }}
-                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                            title="Anular / Eliminar cobro duplicado"
-                          >
-                            <IconTrash size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </GymCard>
+            {isOwnerOrAdmin && (
+              <div className="flex justify-between items-center bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)] p-4 rounded-[var(--radius-lg)]">
+                <div>
+                  <p className="text-[var(--color-success)] text-sm font-semibold mb-1">Total Ingresos ({tab === 'all' ? 'General' : tab === 'gym' ? 'Gimnasio' : 'Consultorio'})</p>
+                  <h3 className="text-3xl font-bold text-[var(--color-success)]">{formatCurrency(totalAmount)}</h3>
+                </div>
+                <IconArrowUp size={40} className="text-[var(--color-success)] opacity-80" />
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="text-center py-10 text-[var(--color-text-muted)]">Cargando datos...</div>
+            ) : isError ? (
+              <div className="text-center py-10 text-[var(--color-danger)]">Error al cargar el historial</div>
+            ) : history.length === 0 ? (
+              <div className="text-center py-10 text-[var(--color-text-muted)]">No hay registros para este filtro</div>
+            ) : (
+              <>
+                <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)]">
+                  <table className="min-w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[var(--color-surface)] text-[var(--color-text-muted)] text-xs uppercase tracking-[0.15em] select-none">
+                        <th className="px-4 py-4">Fecha</th>
+                        <th className="px-4 py-4">Cliente / Paciente</th>
+                        <th className="px-4 py-4">Concepto</th>
+                        <th className="px-4 py-4">Plan</th>
+                        <th className="px-4 py-4">Método</th>
+                        <th className="px-4 py-4">Entidad</th>
+                        <th className="px-4 py-4 text-right">Monto</th>
+                        <th className="px-4 py-4 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedHistory.map((item, index) => (
+                        <tr key={item.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
+                          <td className="px-4 py-4 text-sm text-[var(--color-text)]">
+                            {format(new Date(item.paid_at), 'dd/MM/yyyy HH:mm')}
+                          </td>
+                          <td className="px-4 py-4 text-sm font-semibold text-[var(--color-text)]">
+                            {item.entity_type === 'gym' 
+                              ? `${item.client_first_name || ''} ${item.client_last_name || ''}`.trim() || 'Desconocido'
+                              : `${item.patient_first_name || ''} ${item.patient_last_name || ''}`.trim() || 'Desconocido'
+                            }
+                          </td>
+                          <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                            {getTypeLabel(item.payment_type)}
+                          </td>
+                          <td className="px-4 py-4 text-sm font-medium text-[var(--color-text)]">
+                            {item.plan_name || '-'}
+                          </td>
+                          <td className="px-4 py-4 text-sm capitalize text-[var(--color-text-muted)]">
+                            {item.payment_method === 'cash' ? 'Efectivo' : item.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta'}
+                          </td>
+                          <td className="px-4 py-4">
+                            {getEntityBadge(item.entity_type)}
+                          </td>
+                          <td className="px-4 py-4 text-right font-bold text-green-600 dark:text-green-400">
+                            {formatCurrency(item.amount)}
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleOpenEditModal(item)}
+                                className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                title="Editar importe"
+                              >
+                                <IconPencil size={18} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setPaymentToDelete(item);
+                                  setDeleteError('');
+                                }}
+                                className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                                title="Anular / Eliminar cobro duplicado"
+                              >
+                                <IconTrash size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {history.length > 10 && (
+                  <div className="flex justify-center pt-2">
+                    <GymButton
+                      variant="secondary"
+                      size="xs"
+                      icon={showAllIncome ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                      onClick={() => setShowAllIncome((prev) => !prev)}
+                    >
+                      {showAllIncome ? 'Ver menos' : 'Ver más'}
+                    </GymButton>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </GymCard>
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           SECCIÓN DE EGRESOS
           ══════════════════════════════════════════════════════════════════════ */}
-      <GymCard title="Egresos" variant="default">
+      <div ref={expensesRef} className="scroll-mt-6">
+        <GymCard
+          title="Egresos"
+          subtitle={expenses.length > 10 ? (showAllExpenses ? `Mostrando todos (${expenses.length} registros)` : `Mostrando 10 de ${expenses.length} registros`) : undefined}
+          variant="default"
+          onHeaderClick={expenses.length > 10 ? () => setShowAllExpenses((prev) => !prev) : undefined}
+          headerAction={
+            expenses.length > 10 ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAllExpenses((prev) => !prev);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+                title={showAllExpenses ? "Mostrar 10 registros" : "Mostrar todos los registros"}
+              >
+                {showAllExpenses ? (
+                  <>
+                    <span>Ver menos</span>
+                    <IconChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    <span>Ver más ({expenses.length})</span>
+                    <IconChevronDown size={14} />
+                  </>
+                )}
+              </button>
+            ) : null
+          }
+        >
         <div className="space-y-6">
           {/* Header con botón Añadir Egreso */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
@@ -460,68 +533,84 @@ export default function Finanzas() {
           ) : expenses.length === 0 ? (
             <div className="text-center py-10 text-[var(--color-text-muted)]">No hay egresos registrados para este periodo</div>
           ) : (
-            <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)]">
-              <table className="min-w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[var(--color-surface)] text-[var(--color-text-muted)] text-xs uppercase tracking-[0.15em] select-none">
-                    <th className="px-4 py-4">Fecha</th>
-                    <th className="px-4 py-4">Concepto</th>
-                    <th className="px-4 py-4">Método</th>
-                    <th className="px-4 py-4 text-right">Monto</th>
-                    <th className="px-4 py-4 text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
-                      <td className="px-4 py-4 text-sm text-[var(--color-text)]">
-                        {format(new Date(item.expense_date), 'dd/MM/yyyy HH:mm')}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold text-[var(--color-text)]">
-                        {item.concept}
-                      </td>
-                      <td className="px-4 py-4 text-sm capitalize text-[var(--color-text-muted)]">
-                        {item.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'}
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-red-500">
-                        -{formatCurrency(item.amount)}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => setViewExpense(item)}
-                            className="p-1.5 rounded-lg text-[var(--color-secondary)] hover:bg-[var(--color-secondary)]/10 transition-colors"
-                            title="Ver detalle"
-                          >
-                            <IconEye size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleOpenEditExpense(item)}
-                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                            title="Editar egreso"
-                          >
-                            <IconPencil size={18} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setExpenseToDelete(item);
-                              setExpDeleteError('');
-                            }}
-                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                            title="Eliminar egreso"
-                          >
-                            <IconTrash size={18} />
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-alt)]">
+                <table className="min-w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[var(--color-surface)] text-[var(--color-text-muted)] text-xs uppercase tracking-[0.15em] select-none">
+                      <th className="px-4 py-4">Fecha</th>
+                      <th className="px-4 py-4">Concepto</th>
+                      <th className="px-4 py-4">Método</th>
+                      <th className="px-4 py-4 text-right">Monto</th>
+                      <th className="px-4 py-4 text-center">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {displayedExpenses.map((item, index) => (
+                      <tr key={item.id} className={index % 2 === 0 ? 'bg-[var(--color-card-alt)]' : 'bg-[var(--color-card)]'}>
+                        <td className="px-4 py-4 text-sm text-[var(--color-text)]">
+                          {format(new Date(item.expense_date), 'dd/MM/yyyy HH:mm')}
+                        </td>
+                        <td className="px-4 py-4 text-sm font-semibold text-[var(--color-text)]">
+                          {item.concept}
+                        </td>
+                        <td className="px-4 py-4 text-sm capitalize text-[var(--color-text-muted)]">
+                          {item.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'}
+                        </td>
+                        <td className="px-4 py-4 text-right font-bold text-red-500">
+                          -{formatCurrency(item.amount)}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => setViewExpense(item)}
+                              className="p-1.5 rounded-lg text-[var(--color-secondary)] hover:bg-[var(--color-secondary)]/10 transition-colors"
+                              title="Ver detalle"
+                            >
+                              <IconEye size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditExpense(item)}
+                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                              title="Editar egreso"
+                            >
+                              <IconPencil size={18} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setExpenseToDelete(item);
+                                setExpDeleteError('');
+                              }}
+                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                              title="Eliminar egreso"
+                            >
+                              <IconTrash size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {expenses.length > 10 && (
+                <div className="flex justify-center pt-2">
+                  <GymButton
+                    variant="secondary"
+                    size="xs"
+                    icon={showAllExpenses ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                    onClick={() => setShowAllExpenses((prev) => !prev)}
+                  >
+                    {showAllExpenses ? 'Ver menos' : 'Ver más'}
+                  </GymButton>
+                </div>
+              )}
+            </>
           )}
         </div>
       </GymCard>
+    </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           MODALES DE INGRESOS (existentes)

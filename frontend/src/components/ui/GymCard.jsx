@@ -47,7 +47,8 @@ const variantStyles = {
 
 export function GymCard({
   title, subtitle, children, variant = 'default',
-  headerAction, className = '', noPadding = false
+  headerAction, className = '', noPadding = false,
+  onHeaderClick
 }) {
   const s = variantStyles[variant];
 
@@ -65,7 +66,14 @@ export function GymCard({
       ].join(' ')}
     >
       {/* Header */}
-      <div className={['flex items-center justify-between px-5 py-4', s.headerBg].join(' ')}>
+      <div
+        className={[
+          'flex items-center justify-between px-5 py-4',
+          s.headerBg,
+          onHeaderClick ? 'cursor-pointer select-none hover:brightness-105 transition-all' : ''
+        ].join(' ')}
+        onClick={onHeaderClick}
+      >
         <div className="flex items-center gap-3">
           <div className={['w-1.5 h-7 rounded-full', s.accent].join(' ')} />
           <div>
