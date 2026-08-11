@@ -9,7 +9,7 @@ import {
   useExercisePlans,
   useCreateExercisePlan,
 } from '../hooks/useNutrition';
-import { usePatients } from '../hooks/usePatients';
+import { usePatients, useCreatePayment } from '../hooks/usePatients';
 import { useClients } from '../hooks/useClients';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -169,12 +169,23 @@ export default function Nutrition() {
     setModalDetails(true);
   };
 
+  const createPaymentMutation = useCreatePayment();
+
   const handleSaveEvaluation = async (payload) => {
-    const entityType = selectedPatient?.userType === 'client' ? 'gym' : 'consultorio';
+    const isClientUser = Boolean(
+      selectedPatient?.userType === 'client' || 
+      selectedPatient?.user_type === 'client' || 
+      (selectedPatient?.gym_client_id && !selectedPatient?.id)
+    );
+    const entityType = isClientUser ? 'gym' : 'consultorio';
+    const paymentData = payload?.paymentData;
+
     const cleanedPayload = {
       ...payload,
       entity_type: entityType,
+      [isClientUser ? 'client_id' : 'patient_id']: selectedPatient?.id,
     };
+    delete cleanedPayload.paymentData;
 
     ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g', 'energy_level', 'hunger_level', 'sleep_quality', 'concentration_level', 'mood_level'].forEach((key) => {
       if (cleanedPayload[key] !== undefined && cleanedPayload[key] !== '') {
@@ -220,8 +231,8 @@ export default function Nutrition() {
 
         const planPayload = {
           entity_type: entityType,
-          client_id: entityType === 'gym' ? selectedPatient?.id : undefined,
-          patient_id: entityType === 'consultorio' ? selectedPatient?.id : undefined,
+          client_id: isClientUser ? selectedPatient?.id : undefined,
+          patient_id: !isClientUser ? selectedPatient?.id : undefined,
           nutrition_record_id: savedEvaluation?.data?.id || savedEvaluation?.id || selectedEvaluation?.id || null,
           month_year: planData?.month_year || new Date().toISOString().slice(0, 7),
           content,
@@ -230,7 +241,21 @@ export default function Nutrition() {
         await createExercisePlan.mutateAsync(planPayload);
       }
 
-      toast.success(hasPlanContent ? 'Consulta y plan guardados' : 'Consulta guardada');
+      if (paymentData && Number(paymentData.amount) > 0) {
+        const paymentPayload = {
+          entity_type: entityType,
+          [isClientUser ? 'client_id' : 'patient_id']: selectedPatient?.id,
+          amount: Number(paymentData.amount),
+          payment_method: paymentData.payment_method || 'cash',
+          payment_type: 'nutrition_consult',
+          notes: paymentData.notes || `Cobro de consulta de ${selectedPatient?.first_name || ''} ${selectedPatient?.last_name || ''}`.trim()
+        };
+        await createPaymentMutation.mutateAsync(paymentPayload);
+        toast.success(`Consulta guardada y pago registrado exitosamente ($${paymentPayload.amount} MXN)`);
+      } else {
+        toast.success(hasPlanContent ? 'Consulta y plan guardados' : 'Consulta guardada');
+      }
+
       setModalEvaluate(false);
     } catch (error) {
       toast.error(error.message || 'Error al guardar evaluación');

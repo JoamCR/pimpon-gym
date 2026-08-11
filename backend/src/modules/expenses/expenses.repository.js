@@ -52,12 +52,12 @@ const findAll = async (from, to) => {
 
   if (from) {
     params.push(from);
-    sql += ` AND e.expense_date::date >= $${params.length}::date`;
+    sql += ` AND (e.expense_date AT TIME ZONE 'America/Mexico_City')::date >= $${params.length}::date`;
   }
 
   if (to) {
     params.push(to);
-    sql += ` AND e.expense_date::date <= $${params.length}::date`;
+    sql += ` AND (e.expense_date AT TIME ZONE 'America/Mexico_City')::date <= $${params.length}::date`;
   }
 
   sql += ` ORDER BY e.expense_date DESC`;

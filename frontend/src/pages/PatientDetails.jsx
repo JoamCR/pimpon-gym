@@ -160,12 +160,19 @@ export default function PatientDetails() {
   const events = useMemo(() => agendaData?.data || [], [agendaData]);
 
   const handleSaveConsult = async (payload) => {
-    const isClient = patient?.userType === 'client' || patient?.user_type === 'client';
+    const isClientUser = Boolean(
+      patient?.userType === 'client' || 
+      patient?.user_type === 'client' || 
+      (patient?.gym_client_id && !patient?.id)
+    );
+
+    const paymentData = payload?.paymentData;
     const cleanedPayload = {
       ...payload,
-      entity_type: isClient ? 'gym' : 'consultorio',
-      [isClient ? 'client_id' : 'patient_id']: patient.id,
+      entity_type: isClientUser ? 'gym' : 'consultorio',
+      [isClientUser ? 'client_id' : 'patient_id']: patient.id,
     };
+    delete cleanedPayload.paymentData;
 
     ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g'].forEach((key) => {
       if (cleanedPayload[key]) cleanedPayload[key] = Number(cleanedPayload[key]);
@@ -202,15 +209,29 @@ export default function PatientDetails() {
         };
 
         await createExercisePlanMutation.mutateAsync({
-          entity_type: isClient ? 'gym' : 'consultorio',
-          [isClient ? 'client_id' : 'patient_id']: patient.id,
+          entity_type: isClientUser ? 'gym' : 'consultorio',
+          [isClientUser ? 'client_id' : 'patient_id']: patient.id,
           nutrition_record_id: savedEvaluation?.data?.id || savedEvaluation?.id || null,
           month_year: planData?.month_year || new Date().toISOString().slice(0, 7),
           content,
         });
       }
 
-      toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
+      if (paymentData && Number(paymentData.amount) > 0) {
+        const paymentPayload = {
+          entity_type: isClientUser ? 'gym' : 'consultorio',
+          [isClientUser ? 'client_id' : 'patient_id']: patient.id,
+          amount: Number(paymentData.amount),
+          payment_method: paymentData.payment_method || 'cash',
+          payment_type: 'nutrition_consult',
+          notes: paymentData.notes || `Cobro de consulta de ${patient.first_name} ${patient.last_name || ''}`.trim()
+        };
+        await createPaymentMutation.mutateAsync(paymentPayload);
+        toast.success(`Consulta guardada y pago registrado exitosamente ($${paymentPayload.amount} MXN)`);
+      } else {
+        toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
+      }
+
       setConsultKey((prev) => prev + 1);
       setActiveTab('history');
     } catch (error) {
@@ -220,14 +241,19 @@ export default function PatientDetails() {
   };
 
   const handleSavePayment = () => {
-    const isClient = patient.userType === 'client';
+    const isClientUser = Boolean(
+      patient?.userType === 'client' || 
+      patient?.user_type === 'client' || 
+      (patient?.gym_client_id && !patient?.id)
+    );
+
     const payload = {
-      entity_type: isClient ? 'gym' : 'consultorio',
-      [isClient ? 'client_id' : 'patient_id']: patient.id,
+      entity_type: isClientUser ? 'gym' : 'consultorio',
+      [isClientUser ? 'client_id' : 'patient_id']: patient.id,
       amount: Number(paymentForm.amount),
       payment_method: paymentForm.payment_method,
       payment_type: 'nutrition_consult',
-      notes: paymentForm.notes
+      notes: paymentForm.notes || `Cobro de consulta de ${patient.first_name} ${patient.last_name || ''}`.trim()
     };
     
     if (!payload.amount || payload.amount <= 0) {
@@ -237,7 +263,7 @@ export default function PatientDetails() {
 
     createPaymentMutation.mutate(payload, {
       onSuccess: () => {
-        toast.success('Pago de consulta registrado exitosamente');
+        toast.success(`Pago de consulta ($${payload.amount} MXN) registrado exitosamente`);
         setActiveTab('details');
       },
       onError: (error) => {
@@ -415,11 +441,24 @@ export default function PatientDetails() {
         <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-b-xl rounded-tr-xl p-6 shadow-lg min-h-[50vh]">
           {activeTab === 'details' && (
             <div className="animate-in fade-in duration-300">
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-[var(--color-border)]">
+              <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-[var(--color-border)]">
                 <h2 className="text-2xl font-bold text-[var(--color-gold)]">Información del Paciente</h2>
-                <GymButton variant="primary" size="sm" icon={<IconEdit size={16} />} onClick={() => setIsEditModalOpen(true)}>
-                  Editar Paciente
-                </GymButton>
+                <div className="flex gap-2">
+                  <GymButton 
+                    variant="gold" 
+                    size="sm" 
+                    icon={<IconCoin size={16} />} 
+                    onClick={() => {
+                      setPaymentForm({ amount: '500', payment_method: 'cash', notes: `Cobro de consulta` });
+                      setActiveTab('payment');
+                    }}
+                  >
+                    Cobrar Consulta
+                  </GymButton>
+                  <GymButton variant="primary" size="sm" icon={<IconEdit size={16} />} onClick={() => setIsEditModalOpen(true)}>
+                    Editar Paciente
+                  </GymButton>
+                </div>
               </div>
               <PatientDetailsContent 
                 patient={patient} 
@@ -432,9 +471,22 @@ export default function PatientDetails() {
 
           {activeTab === 'history' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <h2 className="text-2xl font-bold border-b border-[var(--color-border)] pb-2 mb-4 text-[var(--color-gold)]">
-                Historial Médico y Nutricional
-              </h2>
+              <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-2 mb-4">
+                <h2 className="text-2xl font-bold text-[var(--color-gold)]">
+                  Historial Médico y Nutricional
+                </h2>
+                <GymButton 
+                  variant="gold" 
+                  size="sm" 
+                  icon={<IconCoin size={16} />} 
+                  onClick={() => {
+                    setPaymentForm({ amount: '500', payment_method: 'cash', notes: `Cobro de consulta` });
+                    setActiveTab('payment');
+                  }}
+                >
+                  Cobrar Consulta
+                </GymButton>
+              </div>
               {isLoadingEvaluations ? (
                 <p className="text-[var(--color-text-muted)] text-center py-8">Cargando historial...</p>
               ) : evaluations.length > 0 ? (
@@ -480,7 +532,23 @@ export default function PatientDetails() {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-4 flex justify-end gap-3">
+                          <GymButton
+                            variant="gold"
+                            size="sm"
+                            icon={<IconCoin size={16} />}
+                            onClick={() => {
+                              const dateStr = new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+                              setPaymentForm({
+                                amount: '500',
+                                payment_method: 'cash',
+                                notes: `Cobro de consulta del ${dateStr}`
+                              });
+                              setActiveTab('payment');
+                            }}
+                          >
+                            Cobrar esta consulta
+                          </GymButton>
                           <GymButton
                             variant={isSelected ? 'primary' : 'secondary'}
                             onClick={() => setSelectedEvaluationId(isSelected ? null : evaluation.id)}

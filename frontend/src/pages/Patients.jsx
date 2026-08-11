@@ -150,14 +150,19 @@ export default function Patients() {
   };
 
   const handleSavePayment = () => {
-    const isClient = selectedPatient?.userType === 'client';
+    const isClientUser = Boolean(
+      selectedPatient?.userType === 'client' || 
+      selectedPatient?.user_type === 'client' || 
+      (selectedPatient?.gym_client_id && !selectedPatient?.id)
+    );
+
     const payload = {
-      entity_type: isClient ? 'gym' : 'consultorio',
-      [isClient ? 'client_id' : 'patient_id']: selectedPatient.id,
+      entity_type: isClientUser ? 'gym' : 'consultorio',
+      [isClientUser ? 'client_id' : 'patient_id']: selectedPatient?.id,
       amount: Number(paymentForm.amount),
       payment_method: paymentForm.payment_method,
       payment_type: 'nutrition_consult',
-      notes: paymentForm.notes
+      notes: paymentForm.notes || `Cobro de consulta de ${selectedPatient?.first_name || ''} ${selectedPatient?.last_name || ''}`.trim()
     };
     
     if (!payload.amount || payload.amount <= 0) {
@@ -167,7 +172,7 @@ export default function Patients() {
 
     createPaymentMutation.mutate(payload, {
       onSuccess: () => {
-        toast.success('Pago de consulta registrado exitosamente');
+        toast.success(`Pago de consulta ($${payload.amount} MXN) registrado exitosamente`);
         setPaymentModalOpen(false);
       },
       onError: (error) => {
@@ -188,12 +193,19 @@ export default function Patients() {
   };
 
   const handleSaveConsult = async (payload) => {
-    const isClient = selectedPatient?.userType === 'client' || selectedPatient?.user_type === 'client';
+    const isClientUser = Boolean(
+      selectedPatient?.userType === 'client' || 
+      selectedPatient?.user_type === 'client' || 
+      (selectedPatient?.gym_client_id && !selectedPatient?.id)
+    );
+
+    const paymentData = payload?.paymentData;
     const cleanedPayload = {
       ...payload,
-      entity_type: isClient ? 'gym' : 'consultorio',
-      [isClient ? 'client_id' : 'patient_id']: selectedPatient.id,
+      entity_type: isClientUser ? 'gym' : 'consultorio',
+      [isClientUser ? 'client_id' : 'patient_id']: selectedPatient?.id,
     };
+    delete cleanedPayload.paymentData;
 
     ['weight_kg', 'height_cm', 'body_fat_pct', 'visceral_fat_pct', 'muscle_mass_kg', 'waist_cm', 'caloric_target', 'protein_target_g', 'carbs_target_g', 'fat_target_g'].forEach((key) => {
       if (cleanedPayload[key]) cleanedPayload[key] = Number(cleanedPayload[key]);
@@ -230,15 +242,29 @@ export default function Patients() {
         };
 
         await createExercisePlanMutation.mutateAsync({
-          entity_type: isClient ? 'gym' : 'consultorio',
-          [isClient ? 'client_id' : 'patient_id']: selectedPatient?.id,
+          entity_type: isClientUser ? 'gym' : 'consultorio',
+          [isClientUser ? 'client_id' : 'patient_id']: selectedPatient?.id,
           nutrition_record_id: savedEvaluation?.data?.id || savedEvaluation?.id || null,
           month_year: planData?.month_year || new Date().toISOString().slice(0, 7),
           content,
         });
       }
 
-      toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
+      if (paymentData && Number(paymentData.amount) > 0) {
+        const paymentPayload = {
+          entity_type: isClientUser ? 'gym' : 'consultorio',
+          [isClientUser ? 'client_id' : 'patient_id']: selectedPatient?.id,
+          amount: Number(paymentData.amount),
+          payment_method: paymentData.payment_method || 'cash',
+          payment_type: 'nutrition_consult',
+          notes: paymentData.notes || `Cobro de consulta de ${selectedPatient?.first_name || ''} ${selectedPatient?.last_name || ''}`.trim()
+        };
+        await createPaymentMutation.mutateAsync(paymentPayload);
+        toast.success(`Consulta guardada y pago registrado exitosamente ($${paymentPayload.amount} MXN)`);
+      } else {
+        toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
+      }
+
       setConsultModalOpen(false);
     } catch (error) {
       toast.error(error.message || 'Error al guardar el expediente');

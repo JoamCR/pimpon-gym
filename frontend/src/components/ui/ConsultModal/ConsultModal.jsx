@@ -3,7 +3,7 @@ import { GymModal } from '../GymModal';
 import { GymButton } from '../GymButton';
 import RutinaGym from './RutinaGym';
 import { PlanNutricionalPlatos } from './PlanNutricionalPlatos';
-import { IconEdit, IconCheck } from '@tabler/icons-react';
+import { IconEdit, IconCheck, IconCoin } from '@tabler/icons-react';
 import { useExercisePlans } from '../../../hooks/useNutrition';
 
 const getInitialEvaluation = () => ({
@@ -341,6 +341,12 @@ export function ConsultForm({
     }
   }, [plan, latestPlan]);
   const [evaluationTab, setEvaluationTab] = useState(defaultTab || 'clinical_history');
+  const [includePayment, setIncludePayment] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: '500',
+    payment_method: 'cash',
+    notes: '',
+  });
 
   const handlePlanChange = (nextPlan) => {
     setPlanForm(nextPlan);
@@ -358,6 +364,7 @@ export function ConsultForm({
         entity_type: isClient ? 'gym' : 'consultorio',
         [isClient ? 'client_id' : 'patient_id']: patient.id,
         plan: planForm,
+        paymentData: includePayment ? paymentData : null,
       };
 
       await onSubmit(payload);
@@ -712,13 +719,82 @@ export function ConsultForm({
         </div>
       )}
 
-      <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
-        <div className="flex justify-end gap-3">
+      {/* Sección opcional de Cobro de Consulta */}
+      <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-alt)] p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-5 h-5 accent-[var(--color-gold)] rounded bg-[var(--color-card)] border-[var(--color-border)]"
+              checked={includePayment}
+              onChange={(e) => setIncludePayment(e.target.checked)}
+            />
+            <span className="font-bold text-base text-[var(--color-text)] flex items-center gap-2">
+              <IconCoin className="text-[var(--color-gold)]" size={20} />
+              ¿Cobrar esta consulta al guardar?
+            </span>
+          </label>
+        </div>
+
+        {includePayment && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[var(--color-border)] animate-in fade-in duration-200">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Monto ($ MXN)</label>
+              <input
+                type="number"
+                value={paymentData.amount}
+                onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
+                placeholder="500"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] font-bold focus:border-[var(--color-gold)] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Método de Pago</label>
+              <select
+                value={paymentData.payment_method}
+                onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] font-semibold"
+              >
+                <option value="cash">Efectivo</option>
+                <option value="transfer">Transferencia</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Notas / Concepto</label>
+              <input
+                type="text"
+                value={paymentData.notes}
+                onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
+                placeholder="Cobro de consulta nutricional"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-gold)] focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 pt-4 border-t border-[var(--color-border)]">
+        <div className="text-xs text-[var(--color-text-muted)]">
+          {includePayment && Number(paymentData.amount) > 0 ? (
+            <span className="text-[var(--color-gold)] font-semibold flex items-center gap-1">
+              <IconCheck size={16} /> Se registrará cobro por ${paymentData.amount} MXN
+            </span>
+          ) : (
+            <span>Se guardará el expediente sin registrar cobro</span>
+          )}
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto justify-end">
           {onCancel && <GymButton variant="secondary" onClick={onCancel}>Cancelar</GymButton>}
           {showNextButton && (
             <GymButton variant="secondary" onClick={handleNext}>Siguiente</GymButton>
           )}
-          <GymButton variant="success" onClick={handleSubmit} disabled={!isSaveEnabled}>{currentSubmitLabel}</GymButton>
+          <GymButton 
+            variant={includePayment ? "gold" : "success"} 
+            onClick={handleSubmit} 
+            disabled={!isSaveEnabled}
+          >
+            {includePayment ? 'Guardar y Cobrar Consulta' : currentSubmitLabel}
+          </GymButton>
         </div>
       </div>
     </div>

@@ -143,7 +143,8 @@ const getCashCutoff = async (from, to) => {
   const sql = `
     SELECT payment_method, payment_type, SUM(amount) as total, COUNT(id) as count
     FROM payments
-    WHERE paid_at::date >= $1::date AND paid_at::date <= $2::date
+    WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date 
+      AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
       AND is_voided = false
     GROUP BY payment_method, payment_type
     ORDER BY payment_method, payment_type
@@ -173,18 +174,24 @@ const getPaymentsHistory = async (entityType, from, to) => {
   const params = [];
   
   if (entityType && entityType !== 'all') {
-    params.push(entityType);
-    sql += ` AND p.entity_type = $${params.length}`;
+    if (entityType === 'consultorio') {
+      sql += ` AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))`;
+    } else if (entityType === 'gym') {
+      sql += ` AND (p.entity_type = 'gym' AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup'))`;
+    } else {
+      params.push(entityType);
+      sql += ` AND p.entity_type = $${params.length}`;
+    }
   }
   
   if (from) {
     params.push(from);
-    sql += ` AND p.paid_at::date >= $${params.length}::date`;
+    sql += ` AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date >= $${params.length}::date`;
   }
   
   if (to) {
     params.push(to);
-    sql += ` AND p.paid_at::date <= $${params.length}::date`;
+    sql += ` AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date <= $${params.length}::date`;
   }
   
   sql += ` ORDER BY p.paid_at DESC`;
