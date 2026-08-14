@@ -167,9 +167,15 @@ export function PatientDetailsContent({ patient, evaluations = [], isLoadingEval
                     <span className="font-semibold text-[var(--color-text)]">
                       {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\b\w/g, (c) => c.toUpperCase())}
                     </span>
-                    <span className="text-xs px-2 py-1 rounded bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)]">
-                      Regular
-                    </span>
+                    {evaluation.is_paid ? (
+                      <span className="text-xs px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        Consulta Pagada
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        Consulta no pagada
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-sm text-[var(--color-text-muted)]">
                     <div><span className="font-medium">Peso:</span> {evaluation.weight_kg || '—'} kg</div>

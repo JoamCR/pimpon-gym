@@ -121,6 +121,39 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE nutrition_records ADD COLUMN diet_adherence INTEGER CHECK (diet_adherence >= 1 AND diet_adherence <= 10);
       END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'nutrition_records' AND column_name = 'is_paid'
+      ) THEN
+        ALTER TABLE nutrition_records ADD COLUMN is_paid BOOLEAN DEFAULT FALSE;
+      END IF;
+
+      WITH ranked_evals AS (
+        SELECT 
+          id, 
+          COALESCE(patient_id, client_id) as target_id,
+          ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(patient_id, client_id) 
+            ORDER BY evaluation_date ASC, created_at ASC
+          ) as eval_rank
+        FROM nutrition_records
+      ),
+      payment_counts AS (
+        SELECT 
+          COALESCE(patient_id, client_id) as target_id, 
+          COUNT(*) as paid_count
+        FROM payments
+        WHERE payment_type IN ('nutrition_consult', 'nutrition_followup')
+          AND (is_voided IS NULL OR is_voided = false)
+        GROUP BY COALESCE(patient_id, client_id)
+      )
+      UPDATE nutrition_records nr
+      SET is_paid = (re.eval_rank <= COALESCE(pc.paid_count, 0))
+      FROM ranked_evals re
+      LEFT JOIN payment_counts pc ON re.target_id = pc.target_id
+      WHERE nr.id = re.id;
     END $$;
     `,
     `

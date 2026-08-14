@@ -2,14 +2,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { usePatients, useCreatePayment, useEnrollPatientToGym } from '../hooks/usePatients';
 import { useClients, usePlans } from '../hooks/useClients';
-import { useEvaluationHistory, useCreateEvaluation, useCreateExercisePlan, useExercisePlans } from '../hooks/useNutrition';
+import { useEvaluationHistory, useCreateEvaluation, useUpdateEvaluation, useCreateExercisePlan, useExercisePlans } from '../hooks/useNutrition';
 import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { PageHeader } from '../components/ui/PageHeader';
 import { ConsultForm } from '../components/ui/ConsultModal/ConsultModal';
 import { ConsultationViewer } from '../components/ui/ConsultModal/ConsultationViewer';
-import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder, IconEdit, IconDumbbell } from '@tabler/icons-react';
+import { IconArrowLeft, IconStethoscope, IconCoin, IconCalendar, IconFolder, IconEdit, IconDumbbell, IconCheck } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
@@ -91,7 +91,7 @@ export default function PatientDetails() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   // Forms state
-  const [paymentForm, setPaymentForm] = useState({ amount: '', payment_method: 'cash', notes: '' });
+  const [paymentForm, setPaymentForm] = useState({ amount: '', payment_method: 'cash', notes: '', evaluation_id: null });
   const [initialFormState, setInitialFormState] = useState({
     event_type: 'cita',
     title: '',
@@ -112,6 +112,7 @@ export default function PatientDetails() {
 
   // Mutations
   const createEvaluationMutation = useCreateEvaluation();
+  const updateEvaluationMutation = useUpdateEvaluation();
   const createExercisePlanMutation = useCreateExercisePlan();
   const createPaymentMutation = useCreatePayment();
   const createAgendaMutation = useCreateAgenda();
@@ -171,6 +172,7 @@ export default function PatientDetails() {
       ...payload,
       entity_type: isClientUser ? 'gym' : 'consultorio',
       [isClientUser ? 'client_id' : 'patient_id']: patient.id,
+      is_paid: Boolean(paymentData && Number(paymentData.amount) > 0),
     };
     delete cleanedPayload.paymentData;
 
@@ -240,7 +242,7 @@ export default function PatientDetails() {
     }
   };
 
-  const handleSavePayment = () => {
+  const handleSavePayment = async () => {
     const isClientUser = Boolean(
       patient?.userType === 'client' || 
       patient?.user_type === 'client' || 
@@ -261,15 +263,20 @@ export default function PatientDetails() {
       return;
     }
 
-    createPaymentMutation.mutate(payload, {
-      onSuccess: () => {
-        toast.success(`Pago de consulta ($${payload.amount} MXN) registrado exitosamente`);
-        setActiveTab('details');
-      },
-      onError: (error) => {
-        toast.error(error.message || 'Error al registrar el pago');
+    try {
+      await createPaymentMutation.mutateAsync(payload);
+      if (paymentForm.evaluation_id) {
+        await updateEvaluationMutation.mutateAsync({
+          recordId: paymentForm.evaluation_id,
+          data: { is_paid: true }
+        });
       }
-    });
+      toast.success(`Pago de consulta ($${payload.amount} MXN) registrado exitosamente`);
+      setPaymentForm({ amount: '', payment_method: 'cash', notes: '', evaluation_id: null });
+      setActiveTab('history');
+    } catch (error) {
+      toast.error(error.message || 'Error al registrar el pago');
+    }
   };
 
   const handleSaveSchedule = async (form) => {
@@ -475,17 +482,6 @@ export default function PatientDetails() {
                 <h2 className="text-2xl font-bold text-[var(--color-gold)]">
                   Historial Médico y Nutricional
                 </h2>
-                <GymButton 
-                  variant="gold" 
-                  size="sm" 
-                  icon={<IconCoin size={16} />} 
-                  onClick={() => {
-                    setPaymentForm({ amount: '500', payment_method: 'cash', notes: `Cobro de consulta` });
-                    setActiveTab('payment');
-                  }}
-                >
-                  Cobrar Consulta
-                </GymButton>
               </div>
               {isLoadingEvaluations ? (
                 <p className="text-[var(--color-text-muted)] text-center py-8">Cargando historial...</p>
@@ -493,6 +489,7 @@ export default function PatientDetails() {
                 <div className="space-y-4">
                   {evaluations.map((evaluation) => {
                     const isSelected = selectedEvaluationId === evaluation.id;
+                    const isPaid = Boolean(evaluation.is_paid);
 
                     return (
                       <div key={evaluation.id} className="p-5 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-shadow">
@@ -501,9 +498,15 @@ export default function PatientDetails() {
                             <IconStethoscope className="text-[var(--color-success)]" />
                             Consulta del {new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).replace(/,/g, '').replace(/\b\w/g, (c) => c.toUpperCase())}
                           </h3>
-                          <span className="text-xs px-3 py-1 rounded-full font-bold bg-[rgba(15,62,96,0.2)] text-[var(--color-secondary)]">
-                            Consulta Regular
-                          </span>
+                          {isPaid ? (
+                            <span className="text-xs px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <IconCheck size={14} /> Consulta Pagada
+                            </span>
+                          ) : (
+                            <span className="text-xs px-3 py-1 rounded-full font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                              Consulta no pagada
+                            </span>
+                          )}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-sm text-[var(--color-text)]">
                           <div className="bg-[var(--color-card-alt)] p-3 rounded-lg border border-[var(--color-border)] text-center">
@@ -532,23 +535,30 @@ export default function PatientDetails() {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex justify-end gap-3">
-                          <GymButton
-                            variant="gold"
-                            size="sm"
-                            icon={<IconCoin size={16} />}
-                            onClick={() => {
-                              const dateStr = new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-                              setPaymentForm({
-                                amount: '500',
-                                payment_method: 'cash',
-                                notes: `Cobro de consulta del ${dateStr}`
-                              });
-                              setActiveTab('payment');
-                            }}
-                          >
-                            Cobrar esta consulta
-                          </GymButton>
+                        <div className="mt-4 flex justify-end gap-3 items-center">
+                          {!isPaid ? (
+                            <GymButton
+                              variant="gold"
+                              size="sm"
+                              icon={<IconCoin size={16} />}
+                              onClick={() => {
+                                const dateStr = new Date(evaluation.evaluation_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+                                setPaymentForm({
+                                  amount: '500',
+                                  payment_method: 'cash',
+                                  notes: `Cobro de consulta del ${dateStr}`,
+                                  evaluation_id: evaluation.id
+                                });
+                                setActiveTab('payment');
+                              }}
+                            >
+                              Cobrar esta consulta
+                            </GymButton>
+                          ) : (
+                            <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 rounded-md border border-emerald-500/20">
+                              <IconCheck size={14} /> Cobrado
+                            </span>
+                          )}
                           <GymButton
                             variant={isSelected ? 'primary' : 'secondary'}
                             onClick={() => setSelectedEvaluationId(isSelected ? null : evaluation.id)}

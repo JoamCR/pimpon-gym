@@ -96,9 +96,14 @@ const normalizePlanForm = (plan) => {
   return planObj;
 };
 
-const HealthSlider = ({ label, value, onChange }) => {
+const HealthSlider = ({ label, value, onChange, invertColors = false }) => {
   const getSegmentColor = (index, val) => {
     if (index > val) return 'bg-[var(--color-border)]';
+    if (invertColors) {
+      if (val <= 4) return 'bg-green-500';
+      if (val <= 7) return 'bg-yellow-500';
+      return 'bg-red-500';
+    }
     if (val <= 4) return 'bg-red-500';
     if (val <= 7) return 'bg-yellow-500';
     return 'bg-green-500';
@@ -123,9 +128,10 @@ const HealthSlider = ({ label, value, onChange }) => {
   );
 };
 
-const ScaleSlider5 = ({ label, value, onChange }) => {
+const ScaleSlider5 = ({ label, value, onChange, allGreen = true }) => {
   const getSegmentColor = (index, val) => {
     if (index > val) return 'bg-[var(--color-border)]';
+    if (allGreen) return 'bg-green-500';
     const colors = [
       'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500'
     ];
@@ -684,7 +690,7 @@ export function ConsultForm({
               <HealthSlider label="Seguimiento de Rutina" value={evaluationForm.routine_adherence} onChange={(v) => setEvaluationForm({ ...evaluationForm, routine_adherence: v })} />
               <HealthSlider label="Nivel de Energía" value={evaluationForm.energy_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, energy_level: v })} />
               <ScaleSlider5 label="Evacuaciones (al día)" value={evaluationForm.bowel_movements} onChange={(v) => setEvaluationForm({ ...evaluationForm, bowel_movements: v })} />
-              <HealthSlider label="Nivel de Hambre" value={evaluationForm.hunger_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, hunger_level: v })} />
+              <HealthSlider label="Nivel de Hambre" value={evaluationForm.hunger_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, hunger_level: v })} invertColors />
               <HealthSlider label="Calidad de Sueño" value={evaluationForm.sleep_quality} onChange={(v) => setEvaluationForm({ ...evaluationForm, sleep_quality: v })} />
               <HealthSlider label="Concentración" value={evaluationForm.concentration_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, concentration_level: v })} />
               <HealthSlider label="Estado de Ánimo" value={evaluationForm.mood_level} onChange={(v) => setEvaluationForm({ ...evaluationForm, mood_level: v })} />

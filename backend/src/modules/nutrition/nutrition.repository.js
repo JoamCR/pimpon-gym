@@ -80,7 +80,7 @@ const createRecord = async (data, nutritionistId, dbClient) => {
       body_fat_pct, visceral_fat_pct, muscle_mass_kg, waist_cm,
       target_weight_kg, target_waist_cm, target_body_fat_pct, target_muscle_mass_kg, target_visceral_fat_pct,
       family_history, pathological_history, personal_history,
-      body_composition_notes, is_free_consult,
+      body_composition_notes, is_free_consult, is_paid,
       smokes, smokes_description, drinks_alcohol, drinks_alcohol_description, uses_drugs, drugs_description,
       drinks_soda, drinks_soda_description, eats_junk_food, junk_food_description,
       energy_level, bowel_movements, hunger_level, sleep_quality,
@@ -91,7 +91,7 @@ const createRecord = async (data, nutritionistId, dbClient) => {
       gen_random_uuid(), $1, $2, $3, CURRENT_DATE, $4, $5, $6, $7,
       $8, $9, $10, $11, $12, $13, $14,
       $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-      $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, NOW()
+      $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, NOW()
     ) RETURNING *
   `;
 
@@ -115,6 +115,7 @@ const createRecord = async (data, nutritionistId, dbClient) => {
     data.personal_history || null,
     data.body_composition_notes || null,
     data.is_free_consult || false,
+    data.is_paid || false,
     data.smokes || false,
     data.smokes_description || null,
     data.drinks_alcohol || false,
@@ -162,6 +163,10 @@ const updateRecord = async (recordId, data, dbClient) => {
   let paramIndex = 1;
   
   // Construir dinámicamente el UPDATE
+  if (data.is_paid !== undefined) {
+    updates.push(`is_paid = $${paramIndex++}`);
+    values.push(data.is_paid);
+  }
   if (data.weight_kg !== undefined) {
     updates.push(`weight_kg = $${paramIndex++}`);
     values.push(data.weight_kg);

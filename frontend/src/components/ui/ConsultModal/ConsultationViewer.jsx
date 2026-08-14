@@ -80,9 +80,14 @@ const normalizePlanForm = (plan) => {
   return plan;
 };
 
-const HealthSlider = ({ label, value, readOnly }) => {
+const HealthSlider = ({ label, value, readOnly, invertColors = false }) => {
   const getSegmentColor = (index, val) => {
     if (index > val) return 'bg-[var(--color-border)]';
+    if (invertColors) {
+      if (val <= 4) return 'bg-green-500';
+      if (val <= 7) return 'bg-yellow-500';
+      return 'bg-red-500';
+    }
     if (val <= 4) return 'bg-red-500';
     if (val <= 7) return 'bg-yellow-500';
     return 'bg-green-500';
@@ -107,9 +112,10 @@ const HealthSlider = ({ label, value, readOnly }) => {
   );
 };
 
-const ScaleSlider5 = ({ label, value, readOnly }) => {
+const ScaleSlider5 = ({ label, value, readOnly, allGreen = true }) => {
   const getSegmentColor = (index, val) => {
     if (index > val) return 'bg-[var(--color-border)]';
+    if (allGreen) return 'bg-green-500';
     const colors = [
       'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500'
     ];
@@ -427,7 +433,7 @@ export function ConsultationViewer({
               <HealthSlider label="Seguimiento de Rutina" value={evaluationForm.routine_adherence} readOnly />
               <HealthSlider label="Nivel de Energía" value={evaluationForm.energy_level} readOnly />
               <ScaleSlider5 label="Evacuaciones (al día)" value={evaluationForm.bowel_movements} readOnly />
-              <HealthSlider label="Nivel de Hambre" value={evaluationForm.hunger_level} readOnly />
+              <HealthSlider label="Nivel de Hambre" value={evaluationForm.hunger_level} readOnly invertColors />
               <HealthSlider label="Calidad de Sueño" value={evaluationForm.sleep_quality} readOnly />
               <HealthSlider label="Concentración" value={evaluationForm.concentration_level} readOnly />
               <HealthSlider label="Estado de Ánimo" value={evaluationForm.mood_level} readOnly />

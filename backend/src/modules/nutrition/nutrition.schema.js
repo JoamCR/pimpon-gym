@@ -71,6 +71,7 @@ const createEvaluationSchema = z.object({
   diet_adherence: coerceNum,
   sp_notes: coerceStr,
   is_free_consult: z.boolean().default(false),
+  is_paid: coerceBool,
   diet_plan: coerceStr,
   caloric_target: coerceNum,
   protein_target_g: coerceNum,
