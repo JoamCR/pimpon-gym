@@ -1,7 +1,11 @@
 const service = require('./attendance.service');
 const schema = require('./attendance.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 async function attendanceRoutes(fastify, options) {
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
+
   fastify.get('/', async (request, reply) => {
     const attendance = await service.getAll();
     return { data: attendance };

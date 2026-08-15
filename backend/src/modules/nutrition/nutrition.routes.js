@@ -9,14 +9,13 @@ const { requireRole } = require('../../middleware/role.guard');
  * Rutas del módulo de Nutriología
  * REGLA: Nunca incluir lógica de negocio aquí.
  * REGLA: Validar con Zod antes de llamar al service.
- * 
- * TODO: Agregar guardias de rol:
- *       - Solo 'nutritionist' y 'owner' acceden a nutrición
  */
 async function nutritionRoutes(fastify, options) {
 
-  // Middleware aplicado a todas las rutas de este módulo
-  // fastify.addHook('preHandler', requireRole(['nutritionist', 'owner']));
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
+  // SEGURIDAD: Solo nutriólogo y owner acceden a nutrición
+  fastify.addHook('preHandler', requireRole('nutritionist', 'owner'));
 
   /**
    * GET /api/nutrition/queue

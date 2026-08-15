@@ -1,5 +1,6 @@
 const service = require('./auth.service');
 const schema = require('./auth.schema');
+const { rateLimiter } = require('../../middleware/rateLimiter');
 
 /**
  * Rutas para Autenticación y Configuración Inicial
@@ -15,7 +16,8 @@ async function authRoutes(fastify, options) {
 
   // POST /api/auth/setup
   // Crea la primera cuenta de Administrador.
-  fastify.post('/setup', async (request, reply) => {
+  // SEGURIDAD: Rate limiter para evitar ataques de fuerza bruta
+  fastify.post('/setup', { preHandler: [rateLimiter] }, async (request, reply) => {
     const validation = schema.setupSchema.safeParse(request.body);
     if (!validation.success) {
       return reply.status(400).send({
@@ -24,7 +26,11 @@ async function authRoutes(fastify, options) {
       });
     }
     const user = await service.setupAdmin(validation.data.password);
-    const token = fastify.jwt.sign({ id: user.id, role: user.role });
+    // SEGURIDAD: Token con expiración de 17 horas (jornada laboral completa)
+    const token = fastify.jwt.sign(
+      { id: user.id, role: user.role },
+      { expiresIn: '17h' }
+    );
     return reply.status(201).send({ 
       message: 'Administrador creado exitosamente', 
       user, 
@@ -34,7 +40,8 @@ async function authRoutes(fastify, options) {
 
   // POST /api/auth/login
   // Inicia sesión para un usuario existente.
-  fastify.post('/login', async (request, reply) => {
+  // SEGURIDAD: Rate limiter — 5 intentos por IP cada 15 minutos
+  fastify.post('/login', { preHandler: [rateLimiter] }, async (request, reply) => {
     const validation = schema.loginSchema.safeParse(request.body);
     if (!validation.success) {
       return reply.status(400).send({
@@ -44,7 +51,11 @@ async function authRoutes(fastify, options) {
     }
     const { username, password } = validation.data;
     const user = await service.login(username, password);
-    const token = fastify.jwt.sign({ id: user.id, role: user.role });
+    // SEGURIDAD: Token con expiración de 17 horas (jornada laboral completa)
+    const token = fastify.jwt.sign(
+      { id: user.id, role: user.role },
+      { expiresIn: '17h' }
+    );
     return { 
       message: 'Inicio de sesión exitoso', 
       user, 

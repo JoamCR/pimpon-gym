@@ -1,13 +1,16 @@
 const service = require('./statistics.service');
 const schema = require('./statistics.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.guard');
 
 /**
  * Rutas del módulo de Estadísticas
  */
 async function statisticsRoutes(fastify, options) {
-  // TODO: Deshabilitar autenticación en desarrollo local. Habilitar en producción.
-  // fastify.addHook('preHandler', requireRole(['owner', 'admin']));
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
+  // SEGURIDAD: Solo owner y admin pueden acceder a estadísticas
+  fastify.addHook('preHandler', requireRole(['owner', 'admin']));
 
   fastify.get('/dashboard', async (request, reply) => {
     const validation = schema.monthYearSchema.safeParse(request.query);

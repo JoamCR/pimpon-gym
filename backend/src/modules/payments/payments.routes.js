@@ -1,10 +1,13 @@
 const service = require('./payments.service');
 const schema = require('./payments.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 /**
  * Rutas del módulo de Pagos
  */
 async function paymentRoutes(fastify, options) {
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
 
   // POST /api/payments -> Registrar un nuevo pago
   fastify.post('/', async (request, reply) => {

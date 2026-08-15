@@ -1,5 +1,6 @@
 const service = require('./subscriptions.service');
 const schema = require('./subscriptions.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 /**
  * Rutas del módulo de Suscripciones
@@ -8,9 +9,8 @@ const schema = require('./subscriptions.schema');
  */
 async function subscriptionRoutes(fastify, options) {
   
-  // TODO: Agregar hooks de autenticación y autorización aquí.
-  // Ejemplo futuro: fastify.addHook('onRequest', fastify.authenticate)
-  //                 fastify.addHook('preHandler', roleGuard(['receptionist', 'admin', 'owner']))
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
 
   /**
    * GET /api/dashboard

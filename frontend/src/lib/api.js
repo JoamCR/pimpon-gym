@@ -14,4 +14,22 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error));
+  (error) => Promise.reject(error)
+);
+
+// SEGURIDAD: Interceptor de respuestas — Auto-logout en token expirado (401)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expirado o inválido: limpiar sesión y redirigir al login
+      const authStore = useAuthStore.getState();
+      // Solo hacer logout si había una sesión activa (evitar bucle en login)
+      if (authStore.isAuthenticated) {
+        authStore.logout();
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);

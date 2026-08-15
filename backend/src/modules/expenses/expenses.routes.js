@@ -1,10 +1,13 @@
 const service = require('./expenses.service');
 const schema = require('./expenses.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 /**
  * Rutas del módulo de Egresos
  */
 async function expenseRoutes(fastify, options) {
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
 
   // POST /api/expenses -> Crear un nuevo egreso
   fastify.post('/', async (request, reply) => {

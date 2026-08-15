@@ -1,8 +1,11 @@
 const { createError } = require('../../lib/appError');
+const { requireAuth } = require('../../middleware/auth.middleware');
 const svc = require('./agenda.service');
 const { createSchema } = require('./agenda.schema');
 
 module.exports = async function (fastify, opts) {
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  fastify.addHook('onRequest', requireAuth);
   fastify.get('/', async (request, reply) => {
     const { start_at, end_at, patient_id, search } = request.query;
     const filters = {};
