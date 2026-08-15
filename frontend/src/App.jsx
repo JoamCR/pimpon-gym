@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { useAuthStore } from './stores/authStore';
 import { Login } from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
@@ -16,6 +17,19 @@ import Agenda from './pages/Agenda';
 import AgendaToday from './pages/AgendaToday';
 import WhatsAppAutomation from './pages/WhatsAppAutomation';
 import Layout from './components/ui/Layout';
+
+// Componente Guardián de Rutas Privadas
+function ProtectedRoute({ children }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+
+  if (!isAuthenticated || !token || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 function App() {
   return (
@@ -33,12 +47,19 @@ function App() {
       />      
       {/* Sistema de Rutas con Layout Principal */}
       <Routes>
-        {/* Rutas públicas (sin layout) */}
+        {/* Ruta pública (Login) */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rutas privadas (con layout) */}
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/login" replace />} />
+        {/* Rutas privadas protegidas (Layout) */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="clients" element={<Clients />} />
           <Route path="patients" element={<Patients />} />

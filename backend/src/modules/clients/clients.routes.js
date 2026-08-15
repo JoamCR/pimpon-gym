@@ -1,5 +1,6 @@
 const service = require('./clients.service');
 const schema = require('./clients.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 /**
  * Rutas del módulo de Clientes
@@ -8,9 +9,8 @@ const schema = require('./clients.schema');
  */
 async function clientRoutes(fastify, options) {
   
-  // TODO: Agregar hooks de autenticación y autorización aquí.
-  // Ejemplo futuro: fastify.addHook('onRequest', fastify.authenticate)
-  //                 fastify.addHook('preHandler', roleGuard(['receptionist', 'admin', 'owner']))
+  // Hook de autenticación JWT estricto para todas las rutas de clientes
+  fastify.addHook('onRequest', requireAuth);
 
   // GET /api/clients
   fastify.get('/', async (request, reply) => {
@@ -58,7 +58,6 @@ async function clientRoutes(fastify, options) {
 
   // POST /api/clients
   fastify.post('/', async (request, reply) => {
-    // 1. Validación estricta con Zod antes de procesar
     const validation = schema.createClientSchema.safeParse(request.body);
     if (!validation.success) {
       return reply.status(400).send({
@@ -67,10 +66,7 @@ async function clientRoutes(fastify, options) {
       });
     }
     
-    // TODO: En el futuro esto vendrá del token de auth: request.user.id
-    // Por ahora usamos null u obviamos hasta tener auth completo
     const registeredBy = request.user?.id || null;
-
     const result = await service.create(validation.data, registeredBy);
     return reply.status(201).send({ data: result });
   });
@@ -79,7 +75,6 @@ async function clientRoutes(fastify, options) {
   fastify.put('/:id', async (request, reply) => {
     const { id } = request.params;
     
-    // 1. Validación parcial con Zod
     const validation = schema.updateClientSchema.safeParse(request.body);
     if (!validation.success) {
       return reply.status(400).send({
@@ -99,10 +94,7 @@ async function clientRoutes(fastify, options) {
     return { success: true, message: 'Cliente eliminado correctamente' };
   });
 
-  // GET /api/dashboard/expiring
-  // NOTA: Si este archivo se registra con prefix '/api/clients', 
-  // la ruta final será '/api/clients/dashboard/expiring'.
-  // Si se busca estrictamente '/api/dashboard/expiring', se puede registrar en otro controlador.
+  // GET /api/clients/dashboard/expiring
   fastify.get('/dashboard/expiring', async (request, reply) => {
     const data = await service.getExpiringClients();
     return { data };
@@ -110,4 +102,3 @@ async function clientRoutes(fastify, options) {
 }
 
 module.exports = clientRoutes;
-

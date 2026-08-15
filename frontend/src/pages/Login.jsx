@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { IconUser, IconLock, IconBolt, IconEye, IconEyeOff, IconAlertTriangle, IconSun, IconMoon, IconShieldLock, IconUserPlus, IconCheck } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { GymButton } from '../components/ui/GymButton';

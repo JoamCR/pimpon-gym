@@ -1,10 +1,14 @@
 const service = require('./patients.service');
 const schema = require('./patients.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 /**
  * Rutas del módulo de Pacientes (consultorio)
  */
 async function patientRoutes(fastify, options) {
+  // Hook de autenticación JWT estricto
+  fastify.addHook('onRequest', requireAuth);
+
   fastify.get('/', async (request, reply) => {
     const filters = {
       status: request.query.status,
@@ -81,4 +85,3 @@ async function patientRoutes(fastify, options) {
 }
 
 module.exports = patientRoutes;
-

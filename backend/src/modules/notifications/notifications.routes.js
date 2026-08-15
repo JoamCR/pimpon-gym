@@ -1,11 +1,15 @@
 const service = require('./notifications.service');
 const schema = require('./notifications.schema');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 /**
  * Rutas del módulo de Notificaciones de WhatsApp
- * REGLA: Nunca incluir lógica de negocio aquí.
+ * REGLA: Autenticación requerida para todas las rutas.
  */
 async function notificationRoutes(fastify, options) {
+
+  // Hook de autenticación JWT estricto para todas las rutas de notificaciones
+  fastify.addHook('onRequest', requireAuth);
 
   /**
    * POST /api/notifications/send

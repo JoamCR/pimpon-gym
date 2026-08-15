@@ -1,8 +1,12 @@
 const service = require('./config.service');
 const schema = require('./config.schema');
 const { runAutomationTasks } = require('../../cron/automationCron');
+const { requireAuth } = require('../../middleware/auth.middleware');
 
 async function configRoutes(fastify, options) {
+  // Proteger todas las rutas de configuración con JWT
+  fastify.addHook('onRequest', requireAuth);
+
   fastify.get('/', async (request, reply) => {
     const config = await service.getConfig();
     return { data: config };

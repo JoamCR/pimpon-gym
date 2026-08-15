@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import {
   IconLayoutDashboard,
@@ -60,6 +60,13 @@ export default function Layout() {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // SEGURIDAD: Expulsar inmediatamente al Login si no hay token o usuario activo
+  if (!isAuthenticated || !token || !user) {
+    return <Navigate to="/login" replace />;
+  }
 
   // Calcular las páginas permitidas según el usuario
   const allowedPages = useMemo(() => {
