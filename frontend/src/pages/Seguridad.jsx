@@ -18,7 +18,8 @@ import {
   IconChartBar,
   IconCash,
   IconSettings,
-  IconAlertTriangle
+  IconAlertTriangle,
+  IconBrandWhatsapp
 } from '@tabler/icons-react';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -35,6 +36,7 @@ const SYSTEM_PAGES = [
   { path: '/attendance', label: 'Asistencia', icon: <IconCheckbox size={18} /> },
   { path: '/statistics', label: 'Estadísticas', icon: <IconChartBar size={18} /> },
   { path: '/finanzas', label: 'Finanzas', icon: <IconCash size={18} /> },
+  { path: '/whatsapp', label: 'WhatsApp', icon: <IconBrandWhatsapp size={18} /> },
   { path: '/config', label: 'Configuración', icon: <IconSettings size={18} /> },
   { path: '/seguridad', label: 'Seguridad', icon: <IconShieldLock size={18} /> },
 ];

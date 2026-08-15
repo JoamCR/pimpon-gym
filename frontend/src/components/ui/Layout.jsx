@@ -21,7 +21,8 @@ import {
   IconChevronRight,
   IconMenu2,
   IconX,
-  IconUser
+  IconUser,
+  IconBrandWhatsapp
 } from '@tabler/icons-react';
 
 const ROLES_MAP = {
@@ -49,6 +50,7 @@ const navItems = [
   // { path: '/nutrition', label: 'Nutrición', icon: <IconApple size={20} /> },
   { path: '/statistics', label: 'Estadísticas', icon: <IconChartBar size={20} /> },
   { path: '/finanzas', label: 'Finanzas', icon: <IconCash size={20} /> },
+  { path: '/whatsapp', label: 'WhatsApp', icon: <IconBrandWhatsapp size={20} /> },
   { path: '/config', label: 'Configuración', icon: <IconSettings size={20} /> },
   { path: '/seguridad', label: 'Seguridad', icon: <IconShieldLock size={20} /> },
 ];

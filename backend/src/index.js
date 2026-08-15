@@ -91,6 +91,10 @@ const start = async () => {
     await fastify.register(require('./modules/expenses/expenses.routes'), { prefix: '/api/expenses' });
     await fastify.register(require('./modules/users/users.routes'), { prefix: '/api/users' });
 
+    // Registrar motor de crons de automatización de WhatsApp
+    const { initCron } = require('./cron/automationCron');
+    initCron();
+
     // Iniciar servidor en el puerto indicado
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });

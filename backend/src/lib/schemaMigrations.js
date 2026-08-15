@@ -252,6 +252,39 @@ const runSchemaMigrations = async () => {
       created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
     `,
+    // Migración: Ampliar tabla de notificaciones para WhatsApp y Consultorio
+    `
+    DO $$
+    BEGIN
+      ALTER TABLE notifications ALTER COLUMN client_id DROP NOT NULL;
+      ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
+      ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_channel_check;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'patient_id'
+      ) THEN
+        ALTER TABLE notifications ADD COLUMN patient_id UUID REFERENCES patients(id) ON DELETE SET NULL;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'phone'
+      ) THEN
+        ALTER TABLE notifications ADD COLUMN phone VARCHAR(20);
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'entity_type'
+      ) THEN
+        ALTER TABLE notifications ADD COLUMN entity_type VARCHAR(50) DEFAULT 'gym';
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'metadata'
+      ) THEN
+        ALTER TABLE notifications ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
+      END IF;
+    END $$;
+    `,
   ];
 
   for (const statement of statements) {

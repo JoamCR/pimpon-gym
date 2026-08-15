@@ -16,7 +16,34 @@ const DEFAULT_CONFIG = {
   statistics: {
     incentiveMonths: 7
   },
-  plans: {}
+  plans: {},
+  whatsapp: {
+    enabled: true,
+    mode: 'test_mode',
+    sendScheduleTime: '08:30',
+    metaConfig: {
+      accessToken: '',
+      phoneNumberId: '',
+      wabaId: ''
+    },
+    rules: {
+      CLIENT_EXPIRING_3D_MONTHLY: { enabled: true, name: 'Recordatorio 3 días antes de vencer mensualidad' },
+      CLIENT_EXPIRING_3D_ANNUAL: { enabled: true, name: 'Recordatorio 3 días antes de vencer anualidad' },
+      CLIENT_EXPIRED_TODAY_MONTHLY: { enabled: true, name: 'Aviso de vencimiento de mensualidad el mismo día' },
+      CLIENT_EXPIRED_TODAY_ANNUAL: { enabled: true, name: 'Aviso de vencimiento de anualidad el mismo día' },
+      CLIENT_RENEWAL_PROMO: { enabled: true, name: 'Promoción de reenganche para membresías vencidas' },
+      CLIENT_STREAK_6M: { enabled: true, name: 'Incentivo por 6 meses consecutivos ininterrumpidos' },
+      CLIENT_INACTIVITY_15D: { enabled: true, name: 'Seguimiento por inactividad (>15 días sin asistencias)' },
+      CLIENT_BIRTHDAY: { enabled: true, name: 'Felicitación de cumpleaños a clientes del gimnasio' },
+      CLIENT_PROMO_EVENT: { enabled: true, name: 'Difusión de promociones y eventos generales' },
+      PATIENT_APPOINTMENT_1D: { enabled: true, name: 'Recordatorio de cita de nutrición 1 día antes' },
+      PATIENT_APPOINTMENT_TODAY: { enabled: true, name: 'Recordatorio de cita de nutrición el mismo día' },
+      PATIENT_NUTRITION_PLAN_JPG: { enabled: true, name: 'Envío de plan nutricional en JPG descargable' },
+      PATIENT_EXERCISE_PLAN_JPG: { enabled: true, name: 'Envío de plan de ejercicios en JPG descargable' },
+      PATIENT_BIRTHDAY: { enabled: true, name: 'Felicitación de cumpleaños a pacientes del consultorio' },
+      PATIENT_PROMO_EVENT: { enabled: true, name: 'Avisos de promociones y eventos para pacientes' }
+    }
+  }
 };
 
 // Asegura que exista la tabla app_config

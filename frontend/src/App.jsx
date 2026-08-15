@@ -14,6 +14,7 @@ import Config from './pages/Config';
 import Seguridad from './pages/Seguridad';
 import Agenda from './pages/Agenda';
 import AgendaToday from './pages/AgendaToday';
+import WhatsAppAutomation from './pages/WhatsAppAutomation';
 import Layout from './components/ui/Layout';
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
           <Route path="agenda" element={<Agenda />} />
           <Route path="agenda/dia" element={<AgendaToday />} />
           <Route path="finanzas" element={<Finanzas />} />
+          <Route path="whatsapp" element={<WhatsAppAutomation />} />
           <Route path="config" element={<Config />} />
           <Route path="seguridad" element={<Seguridad />} />
         </Route>
