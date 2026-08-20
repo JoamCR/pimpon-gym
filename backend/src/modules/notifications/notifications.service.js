@@ -517,9 +517,22 @@ const getPendingTargets = async () => {
 /**
  * Prueba de conexión a la API de WhatsApp
  */
-const sendTest = async (phone) => {
+const sendTest = async (options) => {
+  const phone = typeof options === 'string' ? options : options?.phone;
+  const useTemplate = typeof options === 'object' ? options?.useTemplate : false;
+  const templateName = typeof options === 'object' ? options?.templateName : null;
+
   if (!phone) {
     throw createError(400, 'Ingresa un número de teléfono para la prueba');
+  }
+
+  if (useTemplate || templateName) {
+    const tName = templateName || 'hello_world';
+    return await whatsappService.sendMessage({
+      to: phone,
+      templateName: tName,
+      templateLanguage: tName === 'hello_world' ? 'en_US' : 'es_MX',
+    });
   }
 
   const testMessage = '🏋️ *Pimpon Gym*: Esta es una mensaje de prueba del sistema automatizado de notificaciones de WhatsApp. ¡Conexión exitosa!';

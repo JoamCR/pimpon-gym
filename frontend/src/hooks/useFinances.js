@@ -1,14 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-const getHeaders = (hasBody = true) => {
-  const token = useAuthStore.getState().token;
-  return {
-    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 export const usePaymentsHistory = (entityType, from, to) => {
   return useQuery({
@@ -20,7 +11,7 @@ export const usePaymentsHistory = (entityType, from, to) => {
       if (from) params.append('from', from);
       if (to) params.append('to', to);
       
-      const res = await fetch(`${url}${params.toString()}`, { headers: getHeaders(false) });
+      const res = await authFetch(`${url}${params.toString()}`);
       if (!res.ok) throw new Error('Error al obtener el historial de pagos');
       return res.json();
     }
@@ -32,9 +23,8 @@ export const useUpdatePayment = () => {
 
   return useMutation({
     mutationFn: async ({ id, amount, payment_method, notes }) => {
-      const res = await fetch(`${API_URL}/payments/${id}`, {
+      const res = await authFetch(`${API_URL}/payments/${id}`, {
         method: 'PUT',
-        headers: getHeaders(true),
         body: JSON.stringify({ amount, payment_method, notes }),
       });
 
@@ -55,9 +45,8 @@ export const useDeletePayment = () => {
 
   return useMutation({
     mutationFn: async (id) => {
-      const res = await fetch(`${API_URL}/payments/${id}`, {
+      const res = await authFetch(`${API_URL}/payments/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(false),
       });
 
       const data = await res.json();
@@ -82,7 +71,7 @@ export const useExpenses = (from, to) => {
       if (from) params.append('from', from);
       if (to) params.append('to', to);
 
-      const res = await fetch(`${API_URL}/expenses?${params.toString()}`, { headers: getHeaders(false) });
+      const res = await authFetch(`${API_URL}/expenses?${params.toString()}`);
       if (!res.ok) throw new Error('Error al obtener los egresos');
       return res.json();
     }
@@ -94,9 +83,8 @@ export const useCreateExpense = () => {
 
   return useMutation({
     mutationFn: async (data) => {
-      const res = await fetch(`${API_URL}/expenses`, {
+      const res = await authFetch(`${API_URL}/expenses`, {
         method: 'POST',
-        headers: getHeaders(true),
         body: JSON.stringify(data),
       });
 
@@ -117,9 +105,8 @@ export const useUpdateExpense = () => {
 
   return useMutation({
     mutationFn: async ({ id, ...data }) => {
-      const res = await fetch(`${API_URL}/expenses/${id}`, {
+      const res = await authFetch(`${API_URL}/expenses/${id}`, {
         method: 'PUT',
-        headers: getHeaders(true),
         body: JSON.stringify(data),
       });
 
@@ -140,9 +127,8 @@ export const useDeleteExpense = () => {
 
   return useMutation({
     mutationFn: async (id) => {
-      const res = await fetch(`${API_URL}/expenses/${id}`, {
+      const res = await authFetch(`${API_URL}/expenses/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(false),
       });
 
       const result = await res.json();
@@ -156,4 +142,5 @@ export const useDeleteExpense = () => {
     },
   });
 };
+
 

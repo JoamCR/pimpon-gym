@@ -1,20 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-const getHeaders = () => {
-  const token = useAuthStore.getState().token;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 export const useTodayAttendance = () => {
   return useQuery({
     queryKey: ['attendance', 'today'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/attendance/today`, { headers: getHeaders() });
+      const res = await authFetch(`${API_URL}/attendance/today`);
       if (!res.ok) throw new Error('Error al obtener asistencias de hoy');
       return res.json();
     }
@@ -25,7 +16,7 @@ export const useAttendanceByClient = (clientId) => {
   return useQuery({
     queryKey: ['attendance', clientId],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/attendance/client/${clientId}`, { headers: getHeaders() });
+      const res = await authFetch(`${API_URL}/attendance/client/${clientId}`);
       if (!res.ok) throw new Error('Error al obtener historial de asistencia');
       return res.json();
     },
@@ -37,8 +28,8 @@ export const useCreateCheckin = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch(`${API_URL}/attendance/checkin`, {
-        method: 'POST', headers: getHeaders(), body: JSON.stringify(payload)
+      const res = await authFetch(`${API_URL}/attendance/checkin`, {
+        method: 'POST', body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al registrar checkin');
@@ -52,8 +43,8 @@ export const useCheckout = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, checked_out_at }) => {
-      const res = await fetch(`${API_URL}/attendance/${id}/checkout`, {
-        method: 'PUT', headers: getHeaders(), body: JSON.stringify({ checked_out_at })
+      const res = await authFetch(`${API_URL}/attendance/${id}/checkout`, {
+        method: 'PUT', body: JSON.stringify({ checked_out_at })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al hacer checkout');
@@ -64,3 +55,4 @@ export const useCheckout = () => {
 };
 
 export default useTodayAttendance;
+

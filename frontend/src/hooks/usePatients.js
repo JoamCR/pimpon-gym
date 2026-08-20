@@ -1,15 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-const getHeaders = (hasBody = true) => {
-  const token = useAuthStore.getState().token;
-  return {
-    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 export const usePatients = (filters = {}) => {
   return useQuery({
@@ -18,7 +8,7 @@ export const usePatients = (filters = {}) => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
       const url = `${API_URL}/patients${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url, { headers: getHeaders() });
+      const res = await authFetch(url);
       if (!res.ok) throw new Error('Error al obtener pacientes');
       return res.json();
     }
@@ -29,9 +19,8 @@ export const useCreatePatient = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch(`${API_URL}/patients`, {
+      const res = await authFetch(`${API_URL}/patients`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -53,9 +42,8 @@ export const useUpdatePatient = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...payload }) => {
-      const res = await fetch(`${API_URL}/patients/${id}`, {
+      const res = await authFetch(`${API_URL}/patients/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -80,7 +68,7 @@ export const usePatient = (id) => {
   return useQuery({
     queryKey: ['patient', id],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/patients/${id}`, { headers: getHeaders() });
+      const res = await authFetch(`${API_URL}/patients/${id}`);
       if (!res.ok) throw new Error('Error al obtener paciente');
       return res.json();
     },
@@ -92,9 +80,8 @@ export const useCreatePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch(`${API_URL}/payments`, {
+      const res = await authFetch(`${API_URL}/payments`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -112,7 +99,7 @@ export const useCreatePayment = () => {
 export const validatePatientField = async (field, value) => {
   if (!value) return true;
   const url = `${API_URL}/patients/validate?${field}=${encodeURIComponent(value)}`;
-  const response = await fetch(url, { headers: getHeaders() });
+  const response = await authFetch(url);
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.error || 'Dato ya registrado');
@@ -124,9 +111,8 @@ export const useEnrollPatientToGym = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ patientId, ...payload }) => {
-      const res = await fetch(`${API_URL}/patients/${patientId}/enroll-gym`, {
+      const res = await authFetch(`${API_URL}/patients/${patientId}/enroll-gym`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -147,9 +133,8 @@ export const useDeletePatient = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id) => {
-      const res = await fetch(`${API_URL}/patients/${id}`, {
+      const res = await authFetch(`${API_URL}/patients/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(false),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -165,4 +150,5 @@ export const useDeletePatient = () => {
 };
 
 export default usePatients;
+
 

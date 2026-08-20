@@ -1,21 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-const getHeaders = (hasBody = true) => {
-  const token = useAuthStore.getState().token;
-  return {
-    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 export const usePlans = () => {
   return useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/plans`, { headers: getHeaders() });
+      const response = await authFetch(`${API_URL}/plans`);
       if (!response.ok) {
         throw new Error('Error al obtener la lista de planes');
       }
@@ -35,7 +25,7 @@ export const useClients = (filters = {}) => {
       const queryString = params.toString();
       const url = `${API_URL}/clients${queryString ? `?${queryString}` : ''}`;
       
-      const response = await fetch(url, { headers: getHeaders() });
+      const response = await authFetch(url);
       if (!response.ok) {
         throw new Error('Error al obtener la lista de clientes');
       }
@@ -48,7 +38,7 @@ export const useClient = (id) => {
   return useQuery({
     queryKey: ['client', id],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/clients/${id}`, { headers: getHeaders() });
+      const response = await authFetch(`${API_URL}/clients/${id}`);
       if (!response.ok) {
         throw new Error('Error al obtener los detalles del cliente');
       }
@@ -62,7 +52,7 @@ export const useClientHistory = (id) => {
   return useQuery({
     queryKey: ['client-history', id],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/clients/${id}/history`, { headers: getHeaders() });
+      const response = await authFetch(`${API_URL}/clients/${id}/history`);
       if (!response.ok) {
         throw new Error('Error al obtener el historial del cliente');
       }
@@ -77,9 +67,8 @@ export const useCreateClient = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (clientData) => {
-      const response = await fetch(`${API_URL}/clients`, {
+      const response = await authFetch(`${API_URL}/clients`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(clientData),
       });
       
@@ -105,9 +94,8 @@ export const useUpdateClient = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...clientData }) => {
-      const response = await fetch(`${API_URL}/clients/${id}`, {
+      const response = await authFetch(`${API_URL}/clients/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
         body: JSON.stringify(clientData),
       });
       
@@ -136,7 +124,7 @@ export const validateClientField = async (field, value, excludeId = null) => {
   if (excludeId) {
     url += `&excludeId=${encodeURIComponent(excludeId)}`;
   }
-  const response = await fetch(url, { headers: getHeaders() });
+  const response = await authFetch(url);
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.error || 'Dato ya registrado');
@@ -148,9 +136,8 @@ export const useDeleteClient = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id) => {
-      const response = await fetch(`${API_URL}/clients/${id}`, {
+      const response = await authFetch(`${API_URL}/clients/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(false),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -164,4 +151,5 @@ export const useDeleteClient = () => {
     },
   });
 };
+
 

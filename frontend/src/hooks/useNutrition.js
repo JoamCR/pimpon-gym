@@ -1,15 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-const getHeaders = () => {
-  const token = useAuthStore.getState().token;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 /**
  * Hook para obtener la cola de pacientes listos para evaluación
@@ -18,9 +8,7 @@ export const useNutritionQueue = () => {
   return useQuery({
     queryKey: ['nutrition-queue'],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/nutrition/queue`, {
-        headers: getHeaders(),
-      });
+      const response = await authFetch(`${API_URL}/nutrition/queue`);
       if (!response.ok) {
         throw new Error('Error al obtener la cola de pacientes');
       }
@@ -36,9 +24,7 @@ export const useEvaluationHistory = (clientId) => {
   return useQuery({
     queryKey: ['evaluations', clientId],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/nutrition/evaluations/${clientId}`, {
-        headers: getHeaders(),
-      });
+      const response = await authFetch(`${API_URL}/nutrition/evaluations/${clientId}`);
       if (!response.ok) {
         throw new Error('Error al obtener evaluaciones');
       }
@@ -56,9 +42,8 @@ export const useCreateEvaluation = () => {
   
   return useMutation({
     mutationFn: async (evaluationData) => {
-      const response = await fetch(`${API_URL}/nutrition/evaluations`, {
+      const response = await authFetch(`${API_URL}/nutrition/evaluations`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(evaluationData),
       });
       if (!response.ok) {
@@ -84,9 +69,8 @@ export const useUpdateEvaluation = () => {
   
   return useMutation({
     mutationFn: async ({ recordId, data }) => {
-      const response = await fetch(`${API_URL}/nutrition/evaluations/${recordId}`, {
+      const response = await authFetch(`${API_URL}/nutrition/evaluations/${recordId}`, {
         method: 'PUT',
-        headers: getHeaders(),
         body: JSON.stringify(data),
       });
       if (!response.ok) {
@@ -108,9 +92,7 @@ export const useExercisePlans = (clientId) => {
   return useQuery({
     queryKey: ['exercise-plans', clientId],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/nutrition/plans/${clientId}`, {
-        headers: getHeaders(),
-      });
+      const response = await authFetch(`${API_URL}/nutrition/plans/${clientId}`);
       if (!response.ok) {
         throw new Error('Error al obtener planes de ejercicio');
       }
@@ -128,9 +110,8 @@ export const useCreateExercisePlan = () => {
   
   return useMutation({
     mutationFn: async (planData) => {
-      const response = await fetch(`${API_URL}/nutrition/plans`, {
+      const response = await authFetch(`${API_URL}/nutrition/plans`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(planData),
       });
       if (!response.ok) {
@@ -155,9 +136,8 @@ export const useUpdateExercisePlan = () => {
   
   return useMutation({
     mutationFn: async ({ planId, data }) => {
-      const response = await fetch(`${API_URL}/nutrition/plans/${planId}`, {
+      const response = await authFetch(`${API_URL}/nutrition/plans/${planId}`, {
         method: 'PUT',
-        headers: getHeaders(),
         body: JSON.stringify(data),
       });
       if (!response.ok) {
@@ -175,3 +155,4 @@ export const useUpdateExercisePlan = () => {
 };
 
 export default useNutritionQueue;
+

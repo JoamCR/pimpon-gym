@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
+import { api } from '../lib/api';
 import { PageHeader } from '../components/ui/PageHeader';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
@@ -26,16 +27,6 @@ import {
   IconUsers,
   IconMessage
 } from '@tabler/icons-react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-const getHeaders = () => {
-  const token = useAuthStore.getState().token;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
 
 const renderGroupIcon = (iconKey) => {
   const props = { className: "text-white shrink-0", size: 20 };
@@ -213,19 +204,18 @@ export default function WhatsAppAutomation() {
   const fetchConfig = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/config/whatsapp`, { headers: getHeaders() });
-      const json = await res.json();
-      if (json.data) {
+      const res = await api.get('/config/whatsapp');
+      if (res.data?.data) {
         setConfig((prev) => ({
           ...prev,
-          ...json.data,
+          ...res.data.data,
           metaConfig: {
             ...prev.metaConfig,
-            ...(json.data.metaConfig || {})
+            ...(res.data.data.metaConfig || {})
           },
           rules: {
             ...prev.rules,
-            ...(json.data.rules || {})
+            ...(res.data.data.rules || {})
           }
         }));
       }
@@ -239,10 +229,9 @@ export default function WhatsAppAutomation() {
   const fetchHistory = async () => {
     try {
       setLoadingHistory(true);
-      const res = await fetch(`${API_BASE}/notifications/history?limit=50`, { headers: getHeaders() });
-      const json = await res.json();
-      if (json.data) {
-        setHistory(json.data);
+      const res = await api.get('/notifications/history?limit=50');
+      if (res.data?.data) {
+        setHistory(res.data.data);
       }
     } catch (err) {
       console.error('Error al cargar historial:', err);
@@ -254,10 +243,9 @@ export default function WhatsAppAutomation() {
   const fetchPendingTargets = async () => {
     try {
       setLoadingPending(true);
-      const res = await fetch(`${API_BASE}/notifications/pending`, { headers: getHeaders() });
-      const json = await res.json();
+      const res = await api.get('/notifications/pending');
       
-      const serverGroups = json.data?.groups || [];
+      const serverGroups = res.data?.data?.groups || [];
       const serverGroupMap = {};
       serverGroups.forEach(g => { serverGroupMap[g.id] = g; });
 
@@ -304,21 +292,17 @@ export default function WhatsAppAutomation() {
   const handleSaveConfig = async (newConfig = config) => {
     try {
       setSaving(true);
-      const res = await fetch(`${API_BASE}/config/whatsapp`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(newConfig)
-      });
-      const json = await res.json();
-      if (res.ok) {
+      const res = await api.put('/config/whatsapp', newConfig);
+      if (res.status === 200 || res.data?.data) {
         toast.success('Configuración guardada correctamente');
-        setConfig((prev) => ({ ...prev, ...json.data }));
-      } else {
-        toast.error(json.error || 'Error al guardar la configuración');
+        if (res.data?.data) {
+          setConfig((prev) => ({ ...prev, ...res.data.data }));
+        }
       }
     } catch (err) {
       console.error('Error al guardar:', err);
-      toast.error('Fallo en la conexión al guardar');
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Error al guardar la configuración';
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -337,27 +321,24 @@ export default function WhatsAppAutomation() {
     handleSaveConfig(updatedConfig);
   };
 
-  const handleSendTest = async () => {
+  const handleSendTest = async (useTemplate = false) => {
     if (!testingPhone) {
       toast.error('Ingresa un número celular para la prueba');
       return;
     }
     try {
       setTestSending(true);
-      const res = await fetch(`${API_BASE}/notifications/test`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ phone: testingPhone })
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        toast.success('¡Mensaje de prueba enviado con éxito!');
+      const res = await api.post('/notifications/test', { phone: testingPhone, useTemplate });
+      if (res.data?.success) {
+        toast.success(useTemplate ? '¡Plantilla hello_world enviada con éxito!' : '¡Mensaje de prueba enviado con éxito!');
         fetchHistory();
       } else {
-        toast.error(json.error || 'Error enviando mensaje de prueba');
+        toast.error(res.data?.error || 'Error enviando mensaje de prueba');
       }
     } catch (err) {
-      toast.error('Error al enviar prueba');
+      console.error('Error enviando prueba:', err);
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Error al enviar prueba';
+      toast.error(errorMsg);
     } finally {
       setTestSending(false);
     }
@@ -366,22 +347,20 @@ export default function WhatsAppAutomation() {
   const handleTriggerManualCron = async () => {
     try {
       setManualTriggering(true);
-      const res = await fetch(`${API_BASE}/config/whatsapp/trigger-cron`, {
-        method: 'POST',
-        headers: getHeaders()
-      });
-      const json = await res.json();
-      if (res.ok) {
+      const res = await api.post('/config/whatsapp/trigger-cron');
+      if (res.data?.success) {
         toast.success('Automatizaciones ejecutadas manualmente. Revisa el historial.');
         setTimeout(() => {
           fetchHistory();
           fetchPendingTargets();
         }, 1500);
       } else {
-        toast.error(json.error || 'Error al ejecutar automatizaciones');
+        toast.error(res.data?.error || 'Error al ejecutar automatizaciones');
       }
     } catch (err) {
-      toast.error('Fallo de conexión');
+      console.error('Error al ejecutar cron manual:', err);
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Fallo de conexión';
+      toast.error(errorMsg);
     } finally {
       setManualTriggering(false);
     }
@@ -427,26 +406,22 @@ export default function WhatsAppAutomation() {
 
     try {
       setSendingGroupMap(prev => ({ ...prev, [group.id]: true }));
-      const res = await fetch(`${API_BASE}/notifications/send-bulk`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          items: itemsToSend,
-          custom_message: customMsgMap[group.id] || group.default_template || null,
-        })
+      const res = await api.post('/notifications/send-bulk', {
+        items: itemsToSend,
+        custom_message: customMsgMap[group.id] || group.default_template || null,
       });
 
-      const json = await res.json();
-      if (res.ok && json.data) {
-        toast.success(`¡Enviados ${json.data.success_count} de ${json.data.total} mensajes correctamente!`);
+      if (res.data?.data) {
+        toast.success(`¡Enviados ${res.data.data.success_count} de ${res.data.data.total} mensajes correctamente!`);
         fetchHistory();
         fetchPendingTargets();
       } else {
-        toast.error(json.error || 'Error al realizar el envío masivo');
+        toast.error('Error al realizar el envío masivo');
       }
     } catch (err) {
       console.error('Error al enviar masivo:', err);
-      toast.error('Fallo de conexión en envío masivo');
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Fallo de conexión en envío masivo';
+      toast.error(errorMsg);
     } finally {
       setSendingGroupMap(prev => ({ ...prev, [group.id]: false }));
     }
@@ -930,15 +905,26 @@ export default function WhatsAppAutomation() {
                   />
                 </div>
 
-                <GymButton
-                  variant="success"
-                  className="w-full"
-                  loading={testSending}
-                  icon={<IconSend size={16} />}
-                  onClick={handleSendTest}
-                >
-                  Enviar WhatsApp de Prueba
-                </GymButton>
+                <div className="space-y-2">
+                  <GymButton
+                    variant="success"
+                    className="w-full text-xs"
+                    loading={testSending}
+                    icon={<IconSend size={16} />}
+                    onClick={() => handleSendTest(false)}
+                  >
+                    Enviar Mensaje de Prueba
+                  </GymButton>
+
+                  <button
+                    type="button"
+                    disabled={testSending}
+                    onClick={() => handleSendTest(true)}
+                    className="w-full py-2 px-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] text-[var(--color-text)] text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>📑 Probar Plantilla Meta (hello_world)</span>
+                  </button>
+                </div>
               </div>
             </GymCard>
           </div>

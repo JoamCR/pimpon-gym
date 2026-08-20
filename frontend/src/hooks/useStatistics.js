@@ -1,20 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
+import { authFetch, API_URL } from '../lib/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-// Helper for fetch with auth - sin validación obligatoria en desarrollo
+// Helper for fetch with auth
 const fetchWithAuth = async (endpoint, options = {}) => {
-  const token = useAuthStore.getState().token || localStorage.getItem('gym_token');
-  
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...(options.headers || {})
-    }
-  });
+  const res = await authFetch(`${API_URL}${endpoint}`, options);
   
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `Error ${res.status}` }));
@@ -22,6 +11,7 @@ const fetchWithAuth = async (endpoint, options = {}) => {
   }
   return res.json();
 };
+
 
 export function useDashboardStats(year, month) {
   return useQuery({

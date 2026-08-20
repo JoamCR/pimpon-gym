@@ -45,8 +45,8 @@ async function notificationRoutes(fastify, options) {
    * Envía un mensaje de prueba de WhatsApp
    */
   fastify.post('/test', async (request, reply) => {
-    const { phone } = request.body || {};
-    const result = await service.sendTest(phone);
+    const { phone, useTemplate, templateName } = request.body || {};
+    const result = await service.sendTest({ phone, useTemplate, templateName });
     return reply.send({ success: true, result });
   });
 

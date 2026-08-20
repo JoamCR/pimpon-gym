@@ -1,15 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-const getHeaders = () => {
-  const token = useAuthStore.getState().token;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 export const useAgenda = (filters = {}) => {
   return useQuery({
@@ -18,7 +8,7 @@ export const useAgenda = (filters = {}) => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
       const url = `${API_URL}/agenda${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url, { headers: getHeaders() });
+      const res = await authFetch(url);
       if (!res.ok) throw new Error('Error al obtener agenda');
       return res.json();
     }
@@ -29,9 +19,8 @@ export const useCreateAgenda = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch(`${API_URL}/agenda`, {
+      const res = await authFetch(`${API_URL}/agenda`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -50,9 +39,8 @@ export const useUpdateAgenda = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, payload }) => {
-      const res = await fetch(`${API_URL}/agenda/${id}`, {
+      const res = await authFetch(`${API_URL}/agenda/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -64,3 +52,4 @@ export const useUpdateAgenda = () => {
 };
 
 export default useAgenda;
+

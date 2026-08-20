@@ -24,7 +24,7 @@ const formatPhoneNumber = (phone) => {
 /**
  * Envía un mensaje a través de Meta Cloud API o Simulación en modo Test
  */
-const sendMessage = async ({ to, message, templateName, templateParams = [], mediaUrl, mediaType = 'image', caption }) => {
+const sendMessage = async ({ to, message, templateName, templateLanguage, templateParams = [], mediaUrl, mediaType = 'image', caption }) => {
   const formattedPhone = formatPhoneNumber(to);
   if (!formattedPhone) {
     throw new Error('El número de teléfono no es válido.');
@@ -64,10 +64,11 @@ const sendMessage = async ({ to, message, templateName, templateParams = [], med
 
   if (templateName) {
     // Envío por Plantilla de Meta (Utility/Marketing)
+    const langCode = templateLanguage || (templateName === 'hello_world' ? 'en_US' : 'es_MX');
     payload.type = 'template';
     payload.template = {
       name: templateName,
-      language: { code: 'es_MX' },
+      language: { code: langCode },
       components: templateParams.length > 0 ? [
         {
           type: 'body',

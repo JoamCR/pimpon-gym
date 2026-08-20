@@ -1,15 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
-const getHeaders = () => {
-  const token = useAuthStore.getState().token;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+import { authFetch, API_URL } from '../lib/api';
 
 /**
  * Hook personalizado para obtener datos del dashboard
@@ -19,9 +9,7 @@ export const useDashboard = () => {
   return useQuery({
     queryKey: ['dashboard'],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/dashboard`, {
-        headers: getHeaders(),
-      });
+      const response = await authFetch(`${API_URL}/dashboard`);
       if (!response.ok) {
         throw new Error('Error al obtener datos del dashboard');
       }
@@ -39,9 +27,8 @@ export const useDashboard = () => {
 export const useSendNotification = () => {
   return useMutation({
     mutationFn: async (clientId) => {
-      const response = await fetch(`${API_URL}/notifications/send`, {
+      const response = await authFetch(`${API_URL}/notifications/send`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({
           client_id: clientId,
           type: '3day_warning',
@@ -61,9 +48,8 @@ export const useSendNotification = () => {
 export const useRenewSubscription = () => {
   return useMutation({
     mutationFn: async (data) => {
-      const response = await fetch(`${API_URL}/payments`, {
+      const response = await authFetch(`${API_URL}/payments`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({
           client_id: data.client_id,
           plan_id: data.plan_id || undefined,
@@ -83,3 +69,4 @@ export const useRenewSubscription = () => {
 };
 
 export default useDashboard;
+
