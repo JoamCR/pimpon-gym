@@ -1083,13 +1083,49 @@ const getVisitStats = async (year, month) => {
 
 /**
  * 37. getNutritionAppointmentStats(year, month): citas del día, mes y año
+ * Unifica las consultas registradas en pagos (Finanzas), expedientes (nutrition_records) y agenda.
  */
 const getNutritionAppointmentStats = async (year, month) => {
   const sql = `
+    WITH daily_counts AS (
+      SELECT 
+        day,
+        GREATEST(payments_count, records_count, agenda_count) as day_total
+      FROM (
+        SELECT 
+          d.day,
+          COALESCE((
+            SELECT COUNT(*)::int FROM payments p 
+            WHERE p.is_voided = false 
+              AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+              AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date = d.day
+          ), 0) as payments_count,
+          COALESCE((
+            SELECT COUNT(*)::int FROM nutrition_records nr 
+            WHERE nr.evaluation_date::date = d.day 
+               OR (nr.created_at AT TIME ZONE 'America/Mexico_City')::date = d.day
+          ), 0) as records_count,
+          COALESCE((
+            SELECT COUNT(*)::int FROM agenda a 
+            WHERE (a.event_type = 'cita' OR a.patient_id IS NOT NULL)
+              AND a.status NOT IN ('cancelada')
+              AND (a.start_at AT TIME ZONE 'America/Mexico_City')::date = d.day
+          ), 0) as agenda_count
+        FROM (
+          SELECT (paid_at AT TIME ZONE 'America/Mexico_City')::date as day FROM payments WHERE is_voided = false AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
+          UNION
+          SELECT evaluation_date::date as day FROM nutrition_records
+          UNION
+          SELECT (created_at AT TIME ZONE 'America/Mexico_City')::date as day FROM nutrition_records
+          UNION
+          SELECT (start_at AT TIME ZONE 'America/Mexico_City')::date as day FROM agenda WHERE (event_type = 'cita' OR patient_id IS NOT NULL) AND status NOT IN ('cancelada')
+        ) d
+      ) sub
+    )
     SELECT 
-      (SELECT COUNT(*)::int FROM nutrition_records WHERE evaluation_date::date = CURRENT_DATE) as today,
-      (SELECT COUNT(*)::int FROM nutrition_records WHERE EXTRACT(YEAR FROM evaluation_date) = $1 AND EXTRACT(MONTH FROM evaluation_date) = $2) as month,
-      (SELECT COUNT(*)::int FROM nutrition_records WHERE EXTRACT(YEAR FROM evaluation_date) = $1) as year
+      COALESCE((SELECT day_total FROM daily_counts WHERE day = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date), 0)::int as today,
+      COALESCE((SELECT SUM(day_total) FROM daily_counts WHERE EXTRACT(YEAR FROM day) = $1 AND EXTRACT(MONTH FROM day) = $2), 0)::int as month,
+      COALESCE((SELECT SUM(day_total) FROM daily_counts WHERE EXTRACT(YEAR FROM day) = $1), 0)::int as year
   `;
   try {
     const result = await pool.query(sql, [year, month]);
