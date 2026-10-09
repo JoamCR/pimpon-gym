@@ -389,18 +389,22 @@ const getNutritionPatientsToClientsConversion = async () => {
   }
 };
 
-const getNutritionRetentionByThreeMonths = async () => {
+const getNutritionRetentionByThreeMonths = async (year, month) => {
   try {
-    return await repository.getNutritionRetentionByThreeMonths();
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionRetentionByThreeMonths(y, m);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener retención de pacientes (3+)');
   }
 };
 
-const getNutritionConsultationDurations = async () => {
+const getNutritionConsultationDurations = async (year, month) => {
   try {
-    return await repository.getNutritionConsultationDurations();
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionConsultationDurations(y, m);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener duraciones de consultas');

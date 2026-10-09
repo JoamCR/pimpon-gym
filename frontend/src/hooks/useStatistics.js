@@ -188,18 +188,24 @@ export function useNutritionPatientsToClients() {
   });
 }
 
-export function useNutritionRetention3Months() {
+export function useNutritionRetention3Months(year, month) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-retention-3months'],
-    queryFn: () => fetchWithAuth('/statistics/nutrition-retention-3months').then(res => res.data),
+    queryKey: ['statistics', 'nutrition-retention-3months', year, month],
+    queryFn: () => {
+      const query = year && month ? `?year=${year}&month=${month}` : '';
+      return fetchWithAuth(`/statistics/nutrition-retention-3months${query}`).then(res => res.data);
+    },
     staleTime: 5 * 60 * 1000
   });
 }
 
-export function useNutritionConsultationDurations() {
+export function useNutritionConsultationDurations(year, month) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-consultation-durations'],
-    queryFn: () => fetchWithAuth('/statistics/nutrition-consultation-durations').then(res => res.data),
+    queryKey: ['statistics', 'nutrition-consultation-durations', year, month],
+    queryFn: () => {
+      const query = year && month ? `?year=${year}&month=${month}` : '';
+      return fetchWithAuth(`/statistics/nutrition-consultation-durations${query}`).then(res => res.data);
+    },
     staleTime: 5 * 60 * 1000
   });
 }

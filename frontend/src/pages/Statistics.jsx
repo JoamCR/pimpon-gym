@@ -104,8 +104,8 @@ export default function Statistics() {
   const { data: alertClients } = useAlertClients();
   const { data: expiredClients } = useExpiredClients();
   const { data: patientsToClients } = useNutritionPatientsToClients();
-  const { data: retention3Months } = useNutritionRetention3Months();
-  const { data: consultationDurations } = useNutritionConsultationDurations();
+  const { data: retention3Months } = useNutritionRetention3Months(year, month);
+  const { data: consultationDurations } = useNutritionConsultationDurations(year, month);
   const { data: nutritionIncomeReal } = useNutritionIncomeReal(year, month);
   const { data: monthlyIncomeDetails } = useMonthlyIncomeDetails(year, month);
   const { data: nutritionPaidConsults } = useNutritionPaidConsults(year, month);

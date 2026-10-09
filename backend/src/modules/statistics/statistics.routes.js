@@ -230,12 +230,22 @@ async function statisticsRoutes(fastify, options) {
   });
 
   fastify.get('/nutrition-retention-3months', async (request, reply) => {
-    const data = await service.getNutritionRetentionByThreeMonths();
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionRetentionByThreeMonths(year, month);
     return { data };
   });
 
   fastify.get('/nutrition-consultation-durations', async (request, reply) => {
-    const data = await service.getNutritionConsultationDurations();
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionConsultationDurations(year, month);
     return { data };
   });
 
