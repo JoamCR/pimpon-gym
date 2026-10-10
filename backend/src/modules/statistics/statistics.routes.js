@@ -303,6 +303,26 @@ async function statisticsRoutes(fastify, options) {
     const data = await service.getNutritionEvaluationsList(year, month);
     return { data };
   });
+
+  fastify.get('/visits-details', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getVisitsDetailsList(year, month);
+    return { data };
+  });
+
+  fastify.get('/nutrition-appointments-details', async (request, reply) => {
+    const validation = schema.monthYearSchema.safeParse(request.query);
+    if (!validation.success) {
+      return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
+    }
+    const { year, month } = validation.data;
+    const data = await service.getNutritionAppointmentsDetailsList(year, month);
+    return { data };
+  });
 }
 
 module.exports = statisticsRoutes;

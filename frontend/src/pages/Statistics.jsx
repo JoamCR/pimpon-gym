@@ -41,7 +41,9 @@ import {
   useGymOnlyClients,
   useNutritionOnlyPatients,
   useGymToNutritionPatients,
-  useNutritionEvaluationsList
+  useNutritionEvaluationsList,
+  useVisitsDetails,
+  useNutritionAppointmentsDetails
 } from '../hooks/useStatistics';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
@@ -92,6 +94,9 @@ export default function Statistics() {
   // Selección de tarjetas interactiva para Tablas Cebra
   const [selectedGymCard, setSelectedGymCard] = useState('gymOnly');
   const [selectedNutritionCard, setSelectedNutritionCard] = useState('nutritionOnly');
+  // Selección de sub-tarjetas de visitas/citas ('today' | 'month' | 'year')
+  const [selectedGymVisitPeriod, setSelectedGymVisitPeriod] = useState(null);
+  const [selectedNutritionApptPeriod, setSelectedNutritionApptPeriod] = useState(null);
 
   const now = new Date();
   const year = now.getFullYear();
@@ -119,6 +124,8 @@ export default function Statistics() {
   const { data: nutritionOnlyPatients } = useNutritionOnlyPatients();
   const { data: gymToNutritionPatients } = useGymToNutritionPatients();
   const { data: nutritionEvaluationsList } = useNutritionEvaluationsList(year, month);
+  const { data: visitsDetails } = useVisitsDetails(year, month);
+  const { data: nutritionApptDetails } = useNutritionAppointmentsDetails(year, month);
 
   if (error) {
     return (
@@ -415,6 +422,32 @@ export default function Statistics() {
 
   // Helper para generar los datos de la Tabla Cebra del Gimnasio (Clientes)
   const getGymTableData = () => {
+    // Tarjetas de Visitas (Día / Mes / Año)
+    if (selectedGymCard === 'visitToday') {
+      const rows = (visitsDetails?.today || []).map(v => ({
+        name: `${v.first_name} ${v.last_name || ''}`.trim() || 'Sin nombre',
+        phone: `${v.phone || 'Sin tel.'} • ${v.plan_name || 'Visita'}`,
+        detail: new Date(v.visit_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+      }));
+      return { title: 'Visitas del Día', headers: ['Cliente', 'Plan', 'Hora'], rows };
+    }
+    if (selectedGymCard === 'visitMonth') {
+      const rows = (visitsDetails?.month || []).map(v => ({
+        name: `${v.first_name} ${v.last_name || ''}`.trim() || 'Sin nombre',
+        phone: `${v.phone || 'Sin tel.'} • ${v.plan_name || 'Visita'}`,
+        detail: new Date(v.visit_time).toLocaleDateString('es-MX')
+      }));
+      return { title: 'Visitas del Mes', headers: ['Cliente', 'Plan', 'Fecha'], rows };
+    }
+    if (selectedGymCard === 'visitYear') {
+      const rows = (visitsDetails?.year || []).map(v => ({
+        name: `${v.first_name} ${v.last_name || ''}`.trim() || 'Sin nombre',
+        phone: `${v.phone || 'Sin tel.'} • ${v.plan_name || 'Visita'}`,
+        detail: new Date(v.visit_time).toLocaleDateString('es-MX')
+      }));
+      return { title: 'Visitas del Año', headers: ['Cliente', 'Plan', 'Fecha'], rows };
+    }
+
     switch (selectedGymCard) {
       case 'gymOnly':
         return {
@@ -446,18 +479,18 @@ export default function Statistics() {
             detail: `${r.consecutive_months || 0} meses seguidos`
           }))
         };
-      case 'monthlyIncome':
+      case 'monthlyIncome': {
         const breakdownRows = (monthlyIncomeData?.payment_breakdown || []).map(b => ({
           name: b.payment_method === 'cash' ? 'Efectivo' : b.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
           phone: `${b.transaction_count || 0} transacción(es)`,
           detail: `$${parseFloat(b.total || 0).toLocaleString('es-MX')}`
         }));
-
         return {
           title: 'Ingresos Efectivos del Mes (Gimnasio)',
           headers: ['Método de Pago', 'Transacciones', 'Monto Total'],
           rows: breakdownRows
         };
+      }
       case 'absentClients':
         return {
           title: 'Clientes Ausentes',
@@ -515,6 +548,32 @@ export default function Statistics() {
 
   // Helper para generar los datos de la Tabla Cebra de Nutriología (Pacientes)
   const getNutritionTableData = () => {
+    // Tarjetas de Citas (Día / Mes / Año)
+    if (selectedNutritionCard === 'apptToday') {
+      const rows = (nutritionApptDetails?.today || []).map(a => ({
+        name: `${a.first_name} ${a.last_name || ''}`.trim() || 'Sin nombre',
+        phone: `${a.phone || 'Sin tel.'} • ${a.source || 'Agenda'}`,
+        detail: new Date(a.appointment_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+      }));
+      return { title: 'Citas del Día', headers: ['Paciente', 'Fuente', 'Hora'], rows };
+    }
+    if (selectedNutritionCard === 'apptMonth') {
+      const rows = (nutritionApptDetails?.month || []).map(a => ({
+        name: `${a.first_name} ${a.last_name || ''}`.trim() || 'Sin nombre',
+        phone: `${a.phone || 'Sin tel.'} • ${a.source || 'Agenda'}`,
+        detail: new Date(a.appointment_time).toLocaleDateString('es-MX')
+      }));
+      return { title: 'Citas del Mes', headers: ['Paciente', 'Fuente', 'Fecha'], rows };
+    }
+    if (selectedNutritionCard === 'apptYear') {
+      const rows = (nutritionApptDetails?.year || []).map(a => ({
+        name: `${a.first_name} ${a.last_name || ''}`.trim() || 'Sin nombre',
+        phone: `${a.phone || 'Sin tel.'} • ${a.source || 'Agenda'}`,
+        detail: new Date(a.appointment_time).toLocaleDateString('es-MX')
+      }));
+      return { title: 'Citas del Año', headers: ['Paciente', 'Fuente', 'Fecha'], rows };
+    }
+
     switch (selectedNutritionCard) {
       case 'nutritionOnly':
         return {
@@ -546,20 +605,19 @@ export default function Statistics() {
             detail: `${r.total_consults || 0} consulta(s)`
           }))
         };
-      case 'nutritionIncome':
+      case 'nutritionIncome': {
         const rawByMethod = Array.isArray(nutritionIncomeReal?.by_method) ? nutritionIncomeReal.by_method : [];
-
         const nutBreakdownRows = rawByMethod.map(i => ({
           name: i.payment_method === 'cash' ? 'Efectivo' : i.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
           phone: `${i.transaction_count || 1} transacción(es)`,
           detail: `$${parseFloat(i.total || 0).toLocaleString('es-MX')}`
         }));
-
         return {
           title: 'Ingresos Efectivos del Mes (Nutrición)',
           headers: ['Método de Pago', 'Transacciones', 'Monto Total'],
           rows: nutBreakdownRows
         };
+      }
       case 'absentPatients':
         return {
           title: 'Pacientes Ausentes (30+ días)',
@@ -570,11 +628,10 @@ export default function Statistics() {
             detail: a.status_text || 'Sin consulta reciente'
           }))
         };
-      case 'nutritionEvaluations':
+      case 'nutritionEvaluations': {
         const rawEvals = Array.isArray(nutritionEvaluationsList) 
           ? nutritionEvaluationsList 
           : (nutritionEvaluationsList?.data || []);
-
         return {
           title: 'Evaluaciones Realizadas en el Mes',
           headers: ['Paciente', 'Teléfono / Detalle', 'Fecha de Evaluación'],
@@ -584,6 +641,7 @@ export default function Statistics() {
             detail: e.evaluation_date ? new Date(e.evaluation_date).toLocaleDateString('es-MX') : 'Sin fecha'
           }))
         };
+      }
       case 'nutritionConsultations':
         return {
           title: 'Seguimiento de Pacientes por Tiempo',
@@ -802,23 +860,24 @@ export default function Statistics() {
           <div className="flex items-center gap-2">
             <IconCalendarEvent size={20} className="text-[var(--color-success)]" />
             <h3 className="text-lg font-bold text-[var(--color-text)]">Control de Visitas del Gimnasio</h3>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1">(clic para ver listado)</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
-            <motion.div whileHover={{ scale: 1.02 }}>
+            <motion.div whileHover={{ scale: 1.02 }} onClick={() => setSelectedGymCard('visitToday')} className={`cursor-pointer transition-all ${selectedGymCard === 'visitToday' ? 'ring-2 ring-[var(--color-success)] rounded-xl shadow-md' : ''}`}>
               <GymCard title="Visitas del Día" subtitle="Asistencias registradas hoy" variant="success" noPad>
                 <div className="p-5">
                   <p className="text-3xl font-bold text-[var(--color-text)]">{kpis.visitStats?.today || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }}>
+            <motion.div whileHover={{ scale: 1.02 }} onClick={() => setSelectedGymCard('visitMonth')} className={`cursor-pointer transition-all ${selectedGymCard === 'visitMonth' ? 'ring-2 ring-[var(--color-success)] rounded-xl shadow-md' : ''}`}>
               <GymCard title="Visitas del Mes" subtitle="Asistencias acumuladas del mes" variant="success" noPad>
                 <div className="p-5">
                   <p className="text-3xl font-bold text-[var(--color-text)]">{kpis.visitStats?.month || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }}>
+            <motion.div whileHover={{ scale: 1.02 }} onClick={() => setSelectedGymCard('visitYear')} className={`cursor-pointer transition-all ${selectedGymCard === 'visitYear' ? 'ring-2 ring-[var(--color-success)] rounded-xl shadow-md' : ''}`}>
               <GymCard title="Visitas del Año" subtitle="Asistencias acumuladas del año" variant="success" noPad>
                 <div className="p-5">
                   <p className="text-3xl font-bold text-[var(--color-text)]">{kpis.visitStats?.year || 0}</p>
@@ -993,23 +1052,24 @@ export default function Statistics() {
           <div className="flex items-center gap-2">
             <IconStethoscope size={20} className="text-[var(--color-secondary)]" />
             <h3 className="text-lg font-bold text-[var(--color-text)]">Control de Citas / Agendas de Nutriología</h3>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1">(clic para ver listado)</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
-            <motion.div whileHover={{ scale: 1.02 }}>
+            <motion.div whileHover={{ scale: 1.02 }} onClick={() => setSelectedNutritionCard('apptToday')} className={`cursor-pointer transition-all ${selectedNutritionCard === 'apptToday' ? 'ring-2 ring-[var(--color-secondary)] rounded-xl shadow-md' : ''}`}>
               <GymCard title="Citas del Día" subtitle="Consultas agendadas hoy" variant="default" noPad>
                 <div className="p-5">
                   <p className="text-3xl font-bold text-[var(--color-secondary)]">{appointmentStats?.today || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }}>
+            <motion.div whileHover={{ scale: 1.02 }} onClick={() => setSelectedNutritionCard('apptMonth')} className={`cursor-pointer transition-all ${selectedNutritionCard === 'apptMonth' ? 'ring-2 ring-[var(--color-secondary)] rounded-xl shadow-md' : ''}`}>
               <GymCard title="Citas del Mes" subtitle="Consultas acumuladas del mes" variant="default" noPad>
                 <div className="p-5">
                   <p className="text-3xl font-bold text-[var(--color-secondary)]">{appointmentStats?.month || 0}</p>
                 </div>
               </GymCard>
             </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }}>
+            <motion.div whileHover={{ scale: 1.02 }} onClick={() => setSelectedNutritionCard('apptYear')} className={`cursor-pointer transition-all ${selectedNutritionCard === 'apptYear' ? 'ring-2 ring-[var(--color-secondary)] rounded-xl shadow-md' : ''}`}>
               <GymCard title="Citas del Año" subtitle="Consultas acumuladas del año" variant="default" noPad>
                 <div className="p-5">
                   <p className="text-3xl font-bold text-[var(--color-secondary)]">{appointmentStats?.year || 0}</p>

@@ -489,6 +489,28 @@ const getNutritionEvaluationsList = async (year, month) => {
   }
 };
 
+const getVisitsDetailsList = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getVisitsDetailsList(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener listado detallado de visitas');
+  }
+};
+
+const getNutritionAppointmentsDetailsList = async (year, month) => {
+  try {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    return await repository.getNutritionAppointmentsDetailsList(y, m);
+  } catch (error) {
+    if (error.isOperational) throw error;
+    throw createError(500, 'Error al obtener listado detallado de citas de nutrición');
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getExpiredClients,
@@ -527,5 +549,8 @@ module.exports = {
   getGymOnlyClientsList,
   getNutritionOnlyPatientsList,
   getGymToNutritionList,
-  getNutritionEvaluationsList
+  getNutritionEvaluationsList,
+  getVisitsDetailsList,
+  getNutritionAppointmentsDetailsList
 };
+

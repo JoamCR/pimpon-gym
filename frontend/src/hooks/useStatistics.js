@@ -310,3 +310,22 @@ export function useNutritionEvaluationsList(year, month) {
     enabled: !!year && !!month
   });
 }
+
+export function useVisitsDetails(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'visits-details', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/visits-details?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}
+
+export function useNutritionAppointmentsDetails(year, month) {
+  return useQuery({
+    queryKey: ['statistics', 'nutrition-appointments-details', year, month],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-appointments-details?year=${year}&month=${month}`).then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!year && !!month
+  });
+}
+

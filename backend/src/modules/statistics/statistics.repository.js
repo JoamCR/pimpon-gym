@@ -1108,33 +1108,81 @@ const getAcquisitionOriginStats = async () => {
 };
 
 /**
- * 36. getVisitStats(year, month): visitas del día, mes y año
+ * 36. getVisitsDetailsList(year, month): listado detallado de visitas de hoy, mes y año
  */
-const getVisitStats = async (year, month) => {
+const getVisitsDetailsList = async (year, month) => {
+  const y = year || new Date().getFullYear();
+  const m = month || (new Date().getMonth() + 1);
+
   const sql = `
     WITH all_visits AS (
-      SELECT checked_in_at::date as v_date, checked_in_at as v_time FROM attendance
+      SELECT 
+        a.id::text as id,
+        a.client_id::text as client_id,
+        COALESCE(c.first_name, 'Cliente') as first_name,
+        COALESCE(c.last_name, '') as last_name,
+        c.phone,
+        COALESCE(pl.name, 'Visita') as plan_name,
+        a.checked_in_at as visit_time,
+        (a.checked_in_at AT TIME ZONE 'America/Mexico_City')::date as visit_date,
+        'Asistencia' as visit_type
+      FROM attendance a
+      LEFT JOIN clients c ON a.client_id = c.id
+      LEFT JOIN plans pl ON c.plan_id = pl.id
+      
       UNION ALL
-      SELECT paid_at::date as v_date, paid_at as v_time FROM payments p 
-      WHERE p.payment_type = 'visit' 
+      
+      SELECT 
+        p.id::text as id,
+        p.client_id::text as client_id,
+        COALESCE(c.first_name, 'Visita Individual') as first_name,
+        COALESCE(c.last_name, '') as last_name,
+        c.phone,
+        'Visita Única' as plan_name,
+        p.paid_at as visit_time,
+        (p.paid_at AT TIME ZONE 'America/Mexico_City')::date as visit_date,
+        'Pago de Visita' as visit_type
+      FROM payments p
+      LEFT JOIN clients c ON p.client_id = c.id
+      WHERE p.payment_type = 'visit'
         AND NOT EXISTS (
           SELECT 1 FROM attendance a 
           WHERE a.client_id = p.client_id 
-            AND a.checked_in_at::date = p.paid_at::date
+            AND (a.checked_in_at AT TIME ZONE 'America/Mexico_City')::date = (p.paid_at AT TIME ZONE 'America/Mexico_City')::date
         )
     )
-    SELECT 
-      (SELECT COUNT(*)::int FROM all_visits WHERE v_date = CURRENT_DATE) as today,
-      (SELECT COUNT(*)::int FROM all_visits WHERE EXTRACT(YEAR FROM v_time) = $1 AND EXTRACT(MONTH FROM v_time) = $2) as month,
-      (SELECT COUNT(*)::int FROM all_visits WHERE EXTRACT(YEAR FROM v_time) = $1) as year
+    SELECT *,
+      (visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
+      (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $2) as is_month,
+      (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year
+    FROM all_visits
+    WHERE EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1
+    ORDER BY visit_time DESC;
   `;
   try {
-    const result = await pool.query(sql, [year, month]);
-    const row = result.rows[0] || {};
+    const result = await pool.query(sql, [y, m]);
+    const rows = result.rows || [];
     return {
-      today: row.today || 0,
-      month: row.month || 0,
-      year: row.year || 0
+      today: rows.filter(r => r.is_today),
+      month: rows.filter(r => r.is_month),
+      year: rows.filter(r => r.is_year)
+    };
+  } catch (err) {
+    console.error('Error obteniendo listado detallado de visitas:', err);
+    throw createError(500, 'Error obteniendo listado detallado de visitas');
+  }
+};
+
+/**
+ * getVisitStats(year, month): visitas del día, mes y año
+ */
+const getVisitStats = async (year, month) => {
+  try {
+    const details = await getVisitsDetailsList(year, month);
+    return {
+      today: details.today.length,
+      month: details.month.length,
+      year: details.year.length
     };
   } catch (err) {
     console.error('Error obteniendo estadísticas de visitas:', err);
@@ -1143,58 +1191,114 @@ const getVisitStats = async (year, month) => {
 };
 
 /**
- * 37. getNutritionAppointmentStats(year, month): citas del día, mes y año
- * Unifica las consultas registradas en pagos (Finanzas), expedientes (nutrition_records) y agenda.
+ * 37. getNutritionAppointmentsDetailsList(year, month): listado detallado de citas de hoy, mes y año
+ * Unifica las consultas registradas en agenda, expedientes (nutrition_records) y pagos.
  */
-const getNutritionAppointmentStats = async (year, month) => {
+const getNutritionAppointmentsDetailsList = async (year, month) => {
   const y = year || new Date().getFullYear();
   const m = month || (new Date().getMonth() + 1);
 
   const sql = `
-    WITH daily_counts AS (
+    WITH unified_citas AS (
+      -- 1. Citas de la agenda
       SELECT 
-        day,
-        GREATEST(payments_count, records_count, agenda_count) as day_total
-      FROM (
-        SELECT 
-          d.day,
-          COALESCE((
-            SELECT COUNT(*)::int FROM payments p 
-            WHERE p.is_voided = false 
-              AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
-              AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date = d.day
-          ), 0) as payments_count,
-          COALESCE((
-            SELECT COUNT(*)::int FROM nutrition_records nr 
-            WHERE COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) = d.day
-          ), 0) as records_count,
-          COALESCE((
-            SELECT COUNT(*)::int FROM agenda a 
-            WHERE (a.event_type = 'cita' OR a.patient_id IS NOT NULL)
-              AND a.status NOT IN ('cancelada')
-              AND (a.start_at AT TIME ZONE 'America/Mexico_City')::date = d.day
-          ), 0) as agenda_count
-        FROM (
-          SELECT (paid_at AT TIME ZONE 'America/Mexico_City')::date as day FROM payments WHERE is_voided = false AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
-          UNION
-          SELECT COALESCE(evaluation_date::date, (created_at AT TIME ZONE 'America/Mexico_City')::date) as day FROM nutrition_records
-          UNION
-          SELECT (start_at AT TIME ZONE 'America/Mexico_City')::date as day FROM agenda WHERE (event_type = 'cita' OR patient_id IS NOT NULL) AND status NOT IN ('cancelada')
-        ) d
-      ) sub
+        a.id::text as id,
+        COALESCE(p.first_name, c.first_name, a.title, 'Sin nombre') as first_name,
+        COALESCE(p.last_name, c.last_name, '') as last_name,
+        COALESCE(p.phone, c.phone, a.phone, 'Sin teléfono') as phone,
+        a.start_at as appointment_time,
+        (a.start_at AT TIME ZONE 'America/Mexico_City')::date as appointment_date,
+        COALESCE(a.status, 'programada') as status,
+        COALESCE(a.title, 'Consulta Nutrición') as service_title,
+        'Agenda' as source
+      FROM agenda a
+      LEFT JOIN patients p ON a.patient_id = p.id
+      LEFT JOIN clients c ON a.client_id = c.id
+      WHERE (a.event_type = 'cita' OR a.patient_id IS NOT NULL)
+        AND a.status NOT IN ('cancelada')
+
+      UNION ALL
+
+      -- 2. Consultas en expedientes clínicos que no estén ya en la agenda
+      SELECT 
+        nr.id::text as id,
+        COALESCE(p.first_name, 'Sin nombre') as first_name,
+        COALESCE(p.last_name, '') as last_name,
+        COALESCE(p.phone, 'Sin teléfono') as phone,
+        COALESCE(nr.evaluation_date, nr.created_at) as appointment_time,
+        COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) as appointment_date,
+        'realizada' as status,
+        'Evaluación Clínica' as service_title,
+        'Expediente' as source
+      FROM nutrition_records nr
+      LEFT JOIN patients p ON nr.patient_id = p.id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM agenda a 
+        WHERE (a.patient_id = nr.patient_id OR (a.client_id IS NOT NULL AND a.client_id = nr.client_id))
+          AND (a.start_at AT TIME ZONE 'America/Mexico_City')::date = COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date)
+      )
+
+      UNION ALL
+
+      -- 3. Pagos de consultas que no estén ya en agenda ni en expedientes
+      SELECT 
+        pay.id::text as id,
+        COALESCE(p.first_name, c.first_name, 'Sin nombre') as first_name,
+        COALESCE(p.last_name, c.last_name, '') as last_name,
+        COALESCE(p.phone, c.phone, 'Sin teléfono') as phone,
+        pay.paid_at as appointment_time,
+        (pay.paid_at AT TIME ZONE 'America/Mexico_City')::date as appointment_date,
+        'pagada' as status,
+        'Consulta Pagada' as service_title,
+        'Pago' as source
+      FROM payments pay
+      LEFT JOIN patients p ON pay.patient_id = p.id
+      LEFT JOIN clients c ON pay.client_id = c.id
+      WHERE pay.is_voided = false 
+        AND (pay.entity_type = 'consultorio' OR pay.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+        AND NOT EXISTS (
+          SELECT 1 FROM agenda a 
+          WHERE (a.patient_id = pay.patient_id OR (a.client_id IS NOT NULL AND a.client_id = pay.client_id))
+            AND (a.start_at AT TIME ZONE 'America/Mexico_City')::date = (pay.paid_at AT TIME ZONE 'America/Mexico_City')::date
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM nutrition_records nr 
+          WHERE (nr.patient_id = pay.patient_id OR (nr.client_id IS NOT NULL AND nr.client_id = pay.client_id))
+            AND COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) = (pay.paid_at AT TIME ZONE 'America/Mexico_City')::date
+        )
     )
-    SELECT 
-      COALESCE((SELECT day_total FROM daily_counts WHERE day = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date), 0)::int as today,
-      COALESCE((SELECT SUM(day_total) FROM daily_counts WHERE EXTRACT(YEAR FROM day) = $1 AND EXTRACT(MONTH FROM day) = $2), 0)::int as month,
-      COALESCE((SELECT SUM(day_total) FROM daily_counts WHERE EXTRACT(YEAR FROM day) = $1), 0)::int as year
+    SELECT *,
+      (appointment_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
+      (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $2) as is_month,
+      (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year
+    FROM unified_citas
+    WHERE EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1
+    ORDER BY appointment_time DESC;
   `;
   try {
     const result = await pool.query(sql, [y, m]);
-    const row = result.rows[0] || {};
+    const rows = result.rows || [];
     return {
-      today: row.today || 0,
-      month: row.month || 0,
-      year: row.year || 0
+      today: rows.filter(r => r.is_today),
+      month: rows.filter(r => r.is_month),
+      year: rows.filter(r => r.is_year)
+    };
+  } catch (err) {
+    console.error('Error obteniendo listado detallado de citas:', err);
+    throw createError(500, 'Error obteniendo listado detallado de citas');
+  }
+};
+
+/**
+ * getNutritionAppointmentStats(year, month): citas del día, mes y año
+ */
+const getNutritionAppointmentStats = async (year, month) => {
+  try {
+    const details = await getNutritionAppointmentsDetailsList(year, month);
+    return {
+      today: details.today.length,
+      month: details.month.length,
+      year: details.year.length
     };
   } catch (err) {
     console.error('Error obteniendo estadísticas de citas de nutrición:', err);
@@ -1329,10 +1433,13 @@ module.exports = {
   getNutritionIncomeReal,
   getAcquisitionOriginStats,
   getVisitStats,
+  getVisitsDetailsList,
   getNutritionAppointmentStats,
+  getNutritionAppointmentsDetailsList,
   getAbsentPatients,
   getGymOnlyClientsList,
   getNutritionOnlyPatientsList,
   getGymToNutritionList,
   getNutritionEvaluationsList
 };
+
