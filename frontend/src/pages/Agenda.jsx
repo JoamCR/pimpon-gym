@@ -152,7 +152,7 @@ export default function Agenda() {
         if (newStatus === 'en_curso') {
           const patientId = ev.patient_id || (selectedEvent?.id === ev.id ? selectedEvent.patient_id : null);
           if (patientId) {
-            navigate(`/patients/${patientId}?tab=consult`);
+            navigate(`/patients/${patientId}?tab=consult&eventId=${ev.id}`, { state: { eventId: ev.id } });
           }
         }
       }

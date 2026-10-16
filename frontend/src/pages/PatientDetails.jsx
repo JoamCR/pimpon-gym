@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import { usePatients, useCreatePayment, useEnrollPatientToGym } from '../hooks/usePatients';
 import { useClients, usePlans } from '../hooks/useClients';
 import { useEvaluationHistory, useCreateEvaluation, useUpdateEvaluation, useCreateExercisePlan, useExercisePlans } from '../hooks/useNutrition';
-import { useCreateAgenda, useAgenda } from '../hooks/useAgenda';
+import { useCreateAgenda, useAgenda, useUpdateAgenda } from '../hooks/useAgenda';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { AgendaCalendar } from '../components/ui/AgendaCalendar';
 import { ScheduleAppointmentModal } from '../components/ui/ScheduleAppointmentModal';
 import { PatientDetailsContent, PatientDetailsModal } from '../components/ui/ConsultModal/PatientDetailsModal';
+import { findEnCursoEventToComplete } from '../lib/agendaStatus';
 
 export default function PatientDetails() {
   const { slug } = useParams();
@@ -36,6 +37,7 @@ export default function PatientDetails() {
 
   const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
   const [consultKey, setConsultKey] = useState(0);
+  const eventIdFromQuery = searchParams.get('eventId') || location.state?.eventId;
 
   // Find patient by slug (first_name or id)
   const { data: patientsData, isLoading: isLoadingPatients } = usePatients();
@@ -116,6 +118,7 @@ export default function PatientDetails() {
   const createExercisePlanMutation = useCreateExercisePlan();
   const createPaymentMutation = useCreatePayment();
   const createAgendaMutation = useCreateAgenda();
+  const updateAgendaMutation = useUpdateAgenda();
 
   // Gym Enrollment state
   const { data: plansData } = usePlans();
@@ -232,6 +235,24 @@ export default function PatientDetails() {
         toast.success(`Consulta guardada y pago registrado exitosamente ($${paymentPayload.amount} MXN)`);
       } else {
         toast.success(hasPlanContent ? 'Consulta y plan guardados exitosamente' : 'Expediente registrado exitosamente');
+      }
+
+      const agendaEventToComplete = findEnCursoEventToComplete({
+        events,
+        patientId: patient?.id,
+        eventId: eventIdFromQuery,
+      });
+
+      if (agendaEventToComplete) {
+        try {
+          await updateAgendaMutation.mutateAsync({
+            id: agendaEventToComplete.id,
+            payload: { status: 'realizada' },
+          });
+          toast.success('Cita marcada como concretada en la agenda');
+        } catch (agendaError) {
+          console.warn('No se pudo cerrar la cita en curso:', agendaError);
+        }
       }
 
       setConsultKey((prev) => prev + 1);
