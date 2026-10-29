@@ -550,10 +550,125 @@ const getHistory = async (limit = 100, offset = 0, type = null) => {
   return await repository.findAll(limit, offset, type);
 };
 
+/**
+ * Obtener listado de chats / conversaciones activas
+ */
+const getChats = async () => {
+  return await repository.getChatConversations();
+};
+
+/**
+ * Obtener el historial de mensajes de un chat específico
+ */
+const getChatMessages = async (phone) => {
+  if (!phone) return [];
+  const messages = await repository.getChatMessagesByPhone(phone);
+  await repository.markChatAsRead(phone);
+  return messages;
+};
+
+/**
+ * Enviar un mensaje de chat interactivo por WhatsApp Meta API y registrar en BD
+ */
+const sendChatMessage = async ({ phone, message, media_url = null, template_name = null, entity_type = null, client_id = null, patient_id = null }, sentBy = null) => {
+  if (!phone || !message?.trim()) {
+    throw createError(400, 'Número de teléfono y mensaje son requeridos.');
+  }
+
+  let resolvedClientId = client_id || null;
+  let resolvedPatientId = patient_id || null;
+  let resolvedEntityType = entity_type || null;
+
+  if (!resolvedClientId && !resolvedPatientId) {
+    const clientCheck = await pool.query('SELECT id FROM clients WHERE phone = $1 LIMIT 1', [phone]);
+    if (clientCheck.rows.length > 0) {
+      resolvedClientId = clientCheck.rows[0].id;
+      if (!resolvedEntityType) resolvedEntityType = 'gym';
+    } else {
+      const patientCheck = await pool.query('SELECT id FROM patients WHERE phone = $1 LIMIT 1', [phone]);
+      if (patientCheck.rows.length > 0) {
+        resolvedPatientId = patientCheck.rows[0].id;
+        if (!resolvedEntityType) resolvedEntityType = 'consultorio';
+      }
+    }
+  }
+
+  let waResult = null;
+  let status = 'sent';
+  try {
+    waResult = await whatsappService.sendMessage({
+      to: phone,
+      message: message.trim(),
+      mediaUrl: media_url,
+      templateName: template_name,
+    });
+  } catch (err) {
+    status = 'failed';
+    console.error('Error enviando WhatsApp chat:', err.message);
+  }
+
+  const chatMsg = await repository.createChatMessage({
+    phone,
+    client_id: resolvedClientId,
+    patient_id: resolvedPatientId,
+    entity_type: resolvedEntityType || 'gym',
+    direction: 'outbound',
+    message_type: media_url ? 'image' : (template_name ? 'template' : 'text'),
+    message: message.trim(),
+    media_url,
+    status,
+    wa_message_id: waResult?.message_id || null,
+    metadata: { wa_result: waResult, sent_by: sentBy },
+  });
+
+  return chatMsg;
+};
+
+/**
+ * Simulación de respuesta entrante del cliente / paciente para pruebas de interacción
+ */
+const simulateIncomingReply = async ({ phone, message }) => {
+  if (!phone || !message?.trim()) {
+    throw createError(400, 'Teléfono y mensaje son obligatorios.');
+  }
+
+  let clientId = null;
+  let patientId = null;
+  let entityType = 'gym';
+
+  const clientCheck = await pool.query('SELECT id FROM clients WHERE phone = $1 LIMIT 1', [phone]);
+  if (clientCheck.rows.length > 0) {
+    clientId = clientCheck.rows[0].id;
+    entityType = 'gym';
+  } else {
+    const patientCheck = await pool.query('SELECT id FROM patients WHERE phone = $1 LIMIT 1', [phone]);
+    if (patientCheck.rows.length > 0) {
+      patientId = patientCheck.rows[0].id;
+      entityType = 'consultorio';
+    }
+  }
+
+  return await repository.createChatMessage({
+    phone,
+    client_id: clientId,
+    patient_id: patientId,
+    entity_type: entityType,
+    direction: 'inbound',
+    message_type: 'text',
+    message: message.trim(),
+    status: 'received',
+  });
+};
+
 module.exports = {
   send,
   sendBulk,
   getPendingTargets,
   sendTest,
   getHistory,
+  getChats,
+  getChatMessages,
+  sendChatMessage,
+  simulateIncomingReply,
 };
+

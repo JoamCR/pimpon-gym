@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { PageHeader } from '../components/ui/PageHeader';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
+import { WhatsAppWebChat } from '../components/modules/WhatsAppWebChat';
 import {
   IconBrandWhatsapp,
   IconCheck,
@@ -466,6 +467,13 @@ export default function WhatsAppAutomation() {
       {/* PESTAÑAS DE NAVEGACIÓN */}
       <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2 overflow-x-auto no-scrollbar">
         <button
+          onClick={() => setActiveTab('chats')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-md)] text-xs font-bold transition-all cursor-pointer ${activeTab === 'chats' ? 'bg-[var(--color-gold)] text-white shadow-sm font-extrabold' : 'bg-[var(--color-card-alt)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:text-[var(--color-text)]'}`}
+        >
+          <IconMessage size={18} />
+          <span>Chats</span>
+        </button>
+        <button
           onClick={() => setActiveTab('pending_queues')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-md)] text-xs font-bold transition-all cursor-pointer ${activeTab === 'pending_queues' ? 'bg-[var(--color-gold)] text-white shadow-sm font-extrabold' : 'bg-[var(--color-card-alt)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:text-[var(--color-text)]'}`}
         >
@@ -505,6 +513,13 @@ export default function WhatsAppAutomation() {
           <span>Historial de Envíos</span>
         </button>
       </div>
+
+      {/* PESTAÑA: CHATS INTERACTIVOS DE WHATSAPP WEB */}
+      {activeTab === 'chats' && (
+        <div className="space-y-4">
+          <WhatsAppWebChat config={config} />
+        </div>
+      )}
 
       {/* PESTAÑA: ENVÍOS MASIVOS Y LISTAS CON TARJETAS FIJADAS Y PLANTILLA DE MENSAJE EDITABLE */}
       {activeTab === 'pending_queues' && (

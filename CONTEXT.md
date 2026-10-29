@@ -493,34 +493,38 @@ N8N_WEBHOOK_BASE=http://localhost:5678/webhook
 ---
 
 ## ESTADO ACTUAL DEL PROYECTO
-- Estructura de carpetas:    CREADA
-- BD tablas (versión v1):    CREADAS (requieren migración para v2.0)
-- Componentes UI:            LISTOS (GymCard, GymModal, GymButton en prototipo)
-- Backend:                   PENDIENTE
-- Frontend:                  PENDIENTE
-
-## MIGRACIÓN PENDIENTE EN BD
-Las siguientes tablas requieren ALTER TABLE para v2.0:
-1. clients: agregar columnas RFC + quick_assessment (quick_weight_kg, etc.)
-2. patients: NUEVA TABLA (crearla completa)
-3. payments: agregar columnas patient_id + entity_type
-4. nutrition_records: agregar patient_id + entity_type + columnas de dieta
-5. exercise_plans: agregar patient_id + entity_type
-6. notifications: agregar patient_id + promotion_id
-7. promotions: NUEVA TABLA (crearla + insertar fechas precargadas)
+- Estructura de carpetas:    COMPLETA (Backend en Fastify + Frontend en React 19 / Vite)
+- Base de datos PostgreSQL: MIGRADA (soporta clients, patients, payments con entity_type, nutrition_records, exercise_plans, agenda, expenses, notifications y whatsapp_messages)
+- Componentes UI:           LISTOS (GymCard, GymModal, GymButton, HybridDateInput, PageHeader, etc.)
+- Autenticación & Usuarios: LISTO (JWT estricto, roles, permisos de páginas en app_users)
+- Clientes & Pacientes:     LISTO (Flujos separados gimnasio/consultorio, RFC, datos médicos)
+- Finanzas & Egresos:       LISTO (Control de transferencias, desglose efectivo/transferencia, cortes, egresos)
+- Nutrición & Agenda:       LISTO (Evaluaciones antropométricas, bioimpedancia, metas corporales, citas)
+- Automatizaciones WhatsApp: LISTO (Recordatorios masivos por tarjeta, Meta Cloud API, simulación)
+- Chats de WhatsApp Web:    LISTO (Interfaz WhatsApp Web con lista de contactos, buscador, filtros Gimnasio/Consultorio, flujo bidireccional, simulación de respuestas y webhooks de Meta)
 
 ---
 
-## ORDEN DE DESARROLLO ACTUALIZADO
-Semana 1: Backend base (index.js + auth) + migración BD v2.0
-Semana 2: Módulo clients (gym) + patients (consultorio) — backend + frontend
-Semana 3: Módulo payments con entity_type + control de transferencias
-Semana 4: Dashboard de vencimientos + WhatsApp + n8n
-Semana 5: Asistencia (QR + manual)
-Semana 6: Nutriología (gym + consultorio, evaluación rápida vs consulta formal)
-Semana 7: PDF sobre plantilla + envío por WhatsApp
-Semana 8: Estadísticas GYM separadas de CONSULTORIO
-Semana 9: Módulo de Promociones/Campañas + Configuración + responsive tablet
+## MÓDULO DE WHATSAPP Y CHATS INTERACTIVOS (NUEVO)
+1. **Canal Oficial Meta WhatsApp Cloud API**:
+   - Envío de mensajes de texto directo (ventana de 24h) y plantillas oficiales (`hello_world`, recordatorios de citas, vencimientos).
+   - Modo de ejecución: `meta_cloud_api` (oficial) o `test_mode` (simulación local).
+2. **Interfaz Tipo WhatsApp Web**:
+   - Columna izquierda con listado de conversaciones, buscador por nombre/teléfono/mensaje, filtros por categoría (`Todos`, `🏋️ Gimnasio`, `🩺 Consultorio`, `No leídos`) y botón `Nuevo Chat` para contactar a cualquier cliente o paciente.
+   - Columna derecha con encabezado del contacto, estado de conexión Meta, historial de mensajes con burbujas de entrada/salida, badges de plantillas, marcas de envío (`✓` / `✓✓`), selector de plantillas rápidas y botón de simulación de respuestas del cliente para pruebas interactivas.
+3. **Persistencia en Base de Datos**:
+   - Tabla `whatsapp_messages` registra mensajes bidireccionales (`direction: 'inbound' | 'outbound'`), número de teléfono, cliente/paciente vinculado, tipo de mensaje, estatus (`sent`, `delivered`, `read`, `received`, `failed`) y metadata.
+   - Endpoints `/api/notifications/chats` y `/api/notifications/chats/:phone/messages` para sincronización continua.
+   - Webhook `/api/notifications/webhook` para recepción en tiempo real de eventos y mensajes de Meta WhatsApp Cloud API.
+
+---
+
+## REGLAS DE DISEÑO DE TABLAS Y FILTROS (ESTÁNDAR ZEBRA)
+- Para mantener la coherencia visual tipo 'Zebra' establecida en Finanzas y Clientes:
+  - Filas alternadas con fondos `var(--color-card)` y `var(--color-card-alt)`.
+  - Bordes sutiles con `var(--color-border)` y hover reactivo `hover:bg-white/[0.04]`.
+  - Encabezados de tabla en mayúsculas pequeñas, texto `var(--color-text-muted)` con alineación clara y ordenamiento.
+  - Filtros superiores agrupados en barra horizontal con inputs limpios y dropdowns de selección rápida.
 
 ---
 
@@ -528,14 +532,9 @@ Semana 9: Módulo de Promociones/Campañas + Configuración + responsive tablet
 - NO cambiar el stack (no Express, no Prisma, no Python para PDF)
 - NO crear componentes base de UI nuevos (existen GymCard/GymModal/GymButton)
 - NO mezclar estadísticas de gym con consultorio — siempre separadas por entity_type
-- NO hacer fetch directo en componentes React — usar custom hooks con TanStack Query
+- NO hacer fetch directo en componentes React — usar custom hooks con TanStack Query o cliente `api` centralizado
 - NO mezclar lógica de negocio en routes.js — va en service.js
 - NO omitir validación RFC en alta de clientes o pacientes
 - NO calcular fidelidad con meses intercalados — solo consecutivos, si hay gap = reset a 0
 - NO mezclar ingresos de inscripción con ingresos de mensualidad en reportes
-- NO omitir el campo entity_type en payments, nutrition_records, exercise_plans
-
-
-
-Para mejorar las tablas como finanzas y clientes
-Quiero la tabla y los filtros con el diseño estándar tipo 'Zebra' que hicimos en Finanzas y Clientes
+- NO omitir el campo entity_type en payments, nutrition_records, exercise_plans, notifications y whatsapp_messages

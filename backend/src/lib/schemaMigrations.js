@@ -283,7 +283,32 @@ const runSchemaMigrations = async () => {
       ) THEN
         ALTER TABLE notifications ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
       END IF;
+
+      ALTER TABLE notifications ALTER COLUMN sent_at SET DEFAULT CURRENT_TIMESTAMP;
+      UPDATE notifications SET sent_at = CURRENT_TIMESTAMP WHERE sent_at IS NULL;
     END $$;
+    `,
+    // Migración: Tabla de mensajes interactivos de WhatsApp (Chats bidireccionales)
+    `
+    CREATE TABLE IF NOT EXISTS whatsapp_messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      phone VARCHAR(30) NOT NULL,
+      client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+      patient_id UUID REFERENCES patients(id) ON DELETE SET NULL,
+      entity_type VARCHAR(50) DEFAULT 'gym',
+      direction VARCHAR(20) NOT NULL DEFAULT 'outbound',
+      message_type VARCHAR(50) DEFAULT 'text',
+      message TEXT NOT NULL,
+      media_url TEXT,
+      caption TEXT,
+      status VARCHAR(50) DEFAULT 'sent',
+      wa_message_id VARCHAR(255),
+      metadata JSONB DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      read_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_phone ON whatsapp_messages(phone);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_created_at ON whatsapp_messages(created_at DESC);
     `,
   ];
 
