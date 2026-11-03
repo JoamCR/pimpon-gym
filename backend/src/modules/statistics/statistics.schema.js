@@ -8,6 +8,10 @@ const dateRangeSchema = z.object({
 const monthYearSchema = z.object({
   month: z.preprocess((val) => (val ? parseInt(val, 10) : undefined), z.number().min(1).max(12).optional()),
   year: z.preprocess((val) => (val ? parseInt(val, 10) : undefined), z.number().min(2000).optional()),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 const minMonthsSchema = z.object({

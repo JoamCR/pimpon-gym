@@ -49,22 +49,54 @@ const getActiveClientsReal = async () => {
 /**
  * 3. getClientsByPlan(): distribución de clientes por plan, con conteo
  */
-const getClientsByPlan = async () => {
-  const sql = `
-    SELECT 
-      p.id, 
-      p.name, 
-      COUNT(DISTINCT c.id) as client_count
-    FROM plans p
-    LEFT JOIN clients c ON c.plan_id = p.id 
-    LEFT JOIN subscriptions s ON c.id = s.client_id 
-      AND s.status = 'active' 
-      AND s.end_date >= CURRENT_DATE
-    GROUP BY p.id, p.name
-    ORDER BY client_count DESC
-  `;
+const getClientsByPlan = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  if (from && to) {
+    sql = `
+      SELECT 
+        p.id, 
+        p.name, 
+        COUNT(DISTINCT s.client_id) as client_count
+      FROM plans p
+      JOIN subscriptions s ON s.plan_id = p.id
+        AND s.start_date <= $2::date
+        AND s.end_date >= $1::date
+      GROUP BY p.id, p.name
+      ORDER BY client_count DESC
+    `;
+    params = [from, to];
+  } else if (year && month) {
+    sql = `
+      SELECT 
+        p.id, 
+        p.name, 
+        COUNT(DISTINCT s.client_id) as client_count
+      FROM plans p
+      JOIN subscriptions s ON s.plan_id = p.id
+        AND s.start_date <= (make_date($1::int, $2::int, 1) + interval '1 month - 1 day')::date
+        AND s.end_date >= make_date($1::int, $2::int, 1)
+      GROUP BY p.id, p.name
+      ORDER BY client_count DESC
+    `;
+    params = [year, month];
+  } else {
+    sql = `
+      SELECT 
+        p.id, 
+        p.name, 
+        COUNT(DISTINCT c.id) as client_count
+      FROM plans p
+      LEFT JOIN clients c ON c.plan_id = p.id 
+      LEFT JOIN subscriptions s ON c.id = s.client_id 
+        AND s.status = 'active' 
+        AND s.end_date >= CURRENT_DATE
+      GROUP BY p.id, p.name
+      ORDER BY client_count DESC
+    `;
+  }
   try {
-    const result = await pool.query(sql);
+    const result = await pool.query(sql, params);
     return result.rows;
   } catch (err) {
     throw createError(500, 'Error obteniendo clientes por plan');
@@ -154,11 +186,13 @@ const getExpiredClients = async () => {
       GROUP BY client_id
     )
     SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, ls.last_end_date
+      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
+      ls.last_end_date, ls.last_end_date as end_date, c.created_at
     FROM clients c
     JOIN plans p ON c.plan_id = p.id
     JOIN LastSubs ls ON c.id = ls.client_id
     WHERE ls.last_end_date < CURRENT_DATE
+    ORDER BY ls.last_end_date DESC
   `;
   try {
     const result = await pool.query(sql);
@@ -317,20 +351,40 @@ const getAttendanceHeatmap = async (year, month) => {
 /**
  * 11. getDailyAttendance(year, month): asistencias por día (visitantes)
  */
-const getDailyAttendance = async (year, month) => {
-  const sql = `
-    SELECT 
-      checked_in_at::date as date,
-      COUNT(*) as daily_count,
-      COUNT(DISTINCT client_id) as unique_clients
-    FROM attendance
-    WHERE EXTRACT(YEAR FROM checked_in_at) = $1
-      AND EXTRACT(MONTH FROM checked_in_at) = $2
-    GROUP BY date
-    ORDER BY date ASC
-  `;
+const getDailyAttendance = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  if (from && to) {
+    sql = `
+      SELECT 
+        (checked_in_at AT TIME ZONE 'America/Mexico_City')::date as date,
+        COUNT(*) as daily_count,
+        COUNT(DISTINCT client_id) as unique_clients
+      FROM attendance
+      WHERE (checked_in_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+        AND (checked_in_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+      GROUP BY (checked_in_at AT TIME ZONE 'America/Mexico_City')::date
+      ORDER BY date ASC
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      SELECT 
+        (checked_in_at AT TIME ZONE 'America/Mexico_City')::date as date,
+        COUNT(*) as daily_count,
+        COUNT(DISTINCT client_id) as unique_clients
+      FROM attendance
+      WHERE EXTRACT(YEAR FROM (checked_in_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (checked_in_at AT TIME ZONE 'America/Mexico_City')) = $2
+      GROUP BY (checked_in_at AT TIME ZONE 'America/Mexico_City')::date
+      ORDER BY date ASC
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [year, month]);
+    const result = await pool.query(sql, params);
     return result.rows;
   } catch (err) {
     throw createError(500, 'Error obteniendo asistencia diaria');
@@ -340,22 +394,44 @@ const getDailyAttendance = async (year, month) => {
 /**
  * 13. getPaymentMethodsDistribution(year, month): % efectivo vs transferencia
  */
-const getPaymentMethodsDistribution = async (year, month) => {
-  const sql = `
-    SELECT 
-      payment_method,
-      SUM(amount) as total,
-      COUNT(*) as transaction_count,
-      ROUND(100.0 * SUM(amount) / NULLIF(SUM(SUM(amount)) OVER (), 0), 2) as percentage
-    FROM payments
-    WHERE EXTRACT(YEAR FROM paid_at) = $1
-      AND EXTRACT(MONTH FROM paid_at) = $2
-      AND is_voided = false
-    GROUP BY payment_method
-    ORDER BY total DESC
-  `;
+const getPaymentMethodsDistribution = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  if (from && to) {
+    sql = `
+      SELECT 
+        payment_method,
+        SUM(amount) as total,
+        COUNT(*) as transaction_count,
+        ROUND(100.0 * SUM(amount) / NULLIF(SUM(SUM(amount)) OVER (), 0), 2) as percentage
+      FROM payments
+      WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+        AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+        AND is_voided = false
+      GROUP BY payment_method
+      ORDER BY total DESC
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      SELECT 
+        payment_method,
+        SUM(amount) as total,
+        COUNT(*) as transaction_count,
+        ROUND(100.0 * SUM(amount) / NULLIF(SUM(SUM(amount)) OVER (), 0), 2) as percentage
+      FROM payments
+      WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
+        AND is_voided = false
+      GROUP BY payment_method
+      ORDER BY total DESC
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [year, month]);
+    const result = await pool.query(sql, params);
     return result.rows;
   } catch (err) {
     throw createError(500, 'Error obteniendo distribución de métodos de pago');
@@ -497,40 +573,74 @@ const getSixMonthEligible = async () => {
 /**
  * 19. getNutritionStats(): estadísticas del consultorio de nutriología
  */
-const getNutritionStats = async (year, month) => {
-  const y = year || new Date().getFullYear();
-  const m = month || (new Date().getMonth() + 1);
-
-  const sql = `
-    WITH total_evals AS (
-      SELECT COUNT(*) as total_evaluations
-      FROM nutrition_records nr
-      WHERE EXTRACT(YEAR FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $1
-        AND EXTRACT(MONTH FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $2
-    ),
-    paid_consults AS (
-      SELECT COUNT(*) as total_paid_consults
-      FROM payments p
-      WHERE (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
-        AND p.is_voided = false
-        AND EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
-        AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
-    ),
-    active_patients AS (
-      SELECT COUNT(*) as total_patients
-      FROM patients
-      WHERE is_active = true
-    )
-    SELECT
-      ap.total_patients,
-      0 as free_consults,
-      COALESCE((SELECT total_evaluations FROM total_evals), 0) as total_evaluations,
-      COALESCE((SELECT total_paid_consults FROM paid_consults), 0) as paid_consults,
-      0 as free_to_paid_conversion
-    FROM active_patients ap
-  `;
+const getNutritionStats = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  if (from && to) {
+    sql = `
+      WITH total_evals AS (
+        SELECT COUNT(*) as total_evaluations
+        FROM nutrition_records nr
+        WHERE COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) >= $1::date
+          AND COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) <= $2::date
+      ),
+      paid_consults AS (
+        SELECT COUNT(*) as total_paid_consults
+        FROM payments p
+        WHERE (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+          AND p.is_voided = false
+          AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+          AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+      ),
+      active_patients AS (
+        SELECT COUNT(*) as total_patients
+        FROM patients
+        WHERE is_active = true
+      )
+      SELECT
+        ap.total_patients,
+        0 as free_consults,
+        COALESCE((SELECT total_evaluations FROM total_evals), 0) as total_evaluations,
+        COALESCE((SELECT total_paid_consults FROM paid_consults), 0) as paid_consults,
+        0 as free_to_paid_conversion
+      FROM active_patients ap
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      WITH total_evals AS (
+        SELECT COUNT(*) as total_evaluations
+        FROM nutrition_records nr
+        WHERE EXTRACT(YEAR FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $1
+          AND EXTRACT(MONTH FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $2
+      ),
+      paid_consults AS (
+        SELECT COUNT(*) as total_paid_consults
+        FROM payments p
+        WHERE (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+          AND p.is_voided = false
+          AND EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+          AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
+      ),
+      active_patients AS (
+        SELECT COUNT(*) as total_patients
+        FROM patients
+        WHERE is_active = true
+      )
+      SELECT
+        ap.total_patients,
+        0 as free_consults,
+        COALESCE((SELECT total_evaluations FROM total_evals), 0) as total_evaluations,
+        COALESCE((SELECT total_paid_consults FROM paid_consults), 0) as paid_consults,
+        0 as free_to_paid_conversion
+      FROM active_patients ap
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [y, m]);
+    const result = await pool.query(sql, params);
     return result.rows[0];
   } catch (err) {
     throw createError(500, 'Error obteniendo estadísticas de nutriología');
@@ -628,22 +738,44 @@ const getNutritionRetention = async () => {
 /**
  * 20. getMonthlyIncomeByMethod(year, month): ingresos totales del mes desglosado por método de pago
  */
-const getMonthlyIncomeByMethod = async (year, month) => {
-  const sql = `
-    SELECT 
-      payment_method,
-      SUM(amount) as total,
-      COUNT(*) as transaction_count
-    FROM payments
-    WHERE EXTRACT(YEAR FROM paid_at) = $1
-      AND EXTRACT(MONTH FROM paid_at) = $2
-      AND is_voided = false
-      AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
-    GROUP BY payment_method
-    ORDER BY total DESC
-  `;
+const getMonthlyIncomeByMethod = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  if (from && to) {
+    sql = `
+      SELECT 
+        payment_method,
+        SUM(amount) as total,
+        COUNT(*) as transaction_count
+      FROM payments
+      WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+        AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+        AND is_voided = false
+        AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+      GROUP BY payment_method
+      ORDER BY total DESC
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      SELECT 
+        payment_method,
+        SUM(amount) as total,
+        COUNT(*) as transaction_count
+      FROM payments
+      WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
+        AND is_voided = false
+        AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+      GROUP BY payment_method
+      ORDER BY total DESC
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [year, month]);
+    const result = await pool.query(sql, params);
     return {
       payment_breakdown: result.rows,
       total: result.rows.reduce((sum, row) => sum + parseFloat(row.total || 0), 0)
@@ -664,7 +796,8 @@ const getRetainedClients = async () => {
       c.last_name,
       c.phone,
       p.name as plan_name,
-      c.consecutive_months
+      c.consecutive_months,
+      c.created_at
     FROM clients c
     JOIN plans p ON c.plan_id = p.id
     WHERE c.is_active = true
@@ -682,8 +815,10 @@ const getRetainedClients = async () => {
 /**
  * 22. getMonthlyIncomeDetails(year, month): pagos del gimnasio por cliente
  */
-const getMonthlyIncomeDetails = async (year, month) => {
-  const sql = `
+const getMonthlyIncomeDetails = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  const baseSelect = `
     SELECT
       p.id,
       p.client_id,
@@ -693,17 +828,37 @@ const getMonthlyIncomeDetails = async (year, month) => {
       p.amount,
       p.payment_method,
       p.payment_type,
-      p.paid_at
+      p.paid_at,
+      p.paid_at as payment_date,
+      p.paid_at as created_at
     FROM payments p
     LEFT JOIN clients c ON p.client_id = c.id
-    WHERE EXTRACT(YEAR FROM p.paid_at) = $1
-      AND EXTRACT(MONTH FROM p.paid_at) = $2
-      AND p.is_voided = false
-      AND (p.entity_type = 'gym' OR (p.entity_type IS NULL AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
-    ORDER BY p.paid_at DESC
   `;
+  if (from && to) {
+    sql = `
+      ${baseSelect}
+      WHERE (p.paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+        AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+        AND p.is_voided = false
+        AND (p.entity_type = 'gym' OR (p.entity_type IS NULL AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+      ORDER BY p.paid_at DESC
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      ${baseSelect}
+      WHERE EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
+        AND p.is_voided = false
+        AND (p.entity_type = 'gym' OR (p.entity_type IS NULL AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+      ORDER BY p.paid_at DESC
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [year, month]);
+    const result = await pool.query(sql, params);
     return result.rows;
   } catch (err) {
     throw createError(500, 'Error obteniendo detalles de ingresos');
@@ -756,8 +911,9 @@ const getNutritionConversionPaid = async () => {
 const getAlertClients = async () => {
   const sql = `
     SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
+      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at,
       (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance,
+      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance_date,
       EXTRACT(DAY FROM (NOW() - (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id)))::INT as days_without_attendance
     FROM clients c
     JOIN plans p ON c.plan_id = p.id
@@ -781,8 +937,9 @@ const getAlertClients = async () => {
 const getAbsentClients = async () => {
   const sql = `
     SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
+      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at,
       (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance,
+      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance_date,
       EXTRACT(DAY FROM (NOW() - (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id)))::INT as days_without_attendance
     FROM clients c
     JOIN plans p ON c.plan_id = p.id
@@ -815,13 +972,15 @@ const getNutritionPatientsToClientsConversion = async () => {
     SELECT 
       p.id, p.first_name, p.last_name, p.phone,
       c.id as client_id,
+      c.created_at,
+      c.created_at as conversion_date,
       COUNT(nr.id) as total_consultations
     FROM patients p
     LEFT JOIN clients c ON LOWER(CONCAT(p.first_name, ' ', p.last_name)) = LOWER(CONCAT(c.first_name, ' ', c.last_name)) 
       OR p.phone = c.phone
     LEFT JOIN nutrition_records nr ON p.id = nr.patient_id
     WHERE c.id IS NOT NULL
-    GROUP BY p.id, p.first_name, p.last_name, p.phone, c.id
+    GROUP BY p.id, p.first_name, p.last_name, p.phone, c.id, c.created_at
   `;
   try {
     const result = await pool.query(sql);
@@ -834,10 +993,42 @@ const getNutritionPatientsToClientsConversion = async () => {
 /**
  * 26. getNutritionRetentionByThreeMonths(): pacientes con 3+ consultas (retención)
  */
-const getNutritionRetentionByThreeMonths = async (year, month) => {
+const getNutritionRetentionByThreeMonths = async (year, month, from, to) => {
   let sql;
   let params = [];
-  if (year && month) {
+  if (from && to) {
+    sql = `
+      WITH consult_months AS (
+        SELECT patient_id, DATE_TRUNC('month', (paid_at AT TIME ZONE 'America/Mexico_City'))::date AS month
+        FROM payments
+        WHERE (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
+          AND is_voided = false AND patient_id IS NOT NULL
+        UNION
+        SELECT patient_id, DATE_TRUNC('month', COALESCE(evaluation_date::timestamp, (created_at AT TIME ZONE 'America/Mexico_City')))::date AS month
+        FROM nutrition_records
+        WHERE patient_id IS NOT NULL
+      ),
+      active_in_month AS (
+        SELECT DISTINCT patient_id
+        FROM consult_months
+        WHERE month >= $1::date AND month <= $2::date
+      ),
+      patient_counts AS (
+        SELECT cm.patient_id, COUNT(DISTINCT cm.month) as total_consults
+        FROM consult_months cm
+        JOIN active_in_month a ON cm.patient_id = a.patient_id
+        WHERE cm.month <= $2::date
+        GROUP BY cm.patient_id
+      )
+      SELECT
+        p.id, p.first_name, p.last_name, p.phone, p.created_at, pc.total_consults::int
+      FROM patient_counts pc
+      JOIN patients p ON p.id = pc.patient_id
+      WHERE pc.total_consults >= 3
+      ORDER BY pc.total_consults DESC, p.first_name ASC
+    `;
+    params = [from, to];
+  } else if (year && month) {
     sql = `
       WITH consult_months AS (
         SELECT patient_id, DATE_TRUNC('month', (paid_at AT TIME ZONE 'America/Mexico_City'))::date AS month
@@ -862,7 +1053,7 @@ const getNutritionRetentionByThreeMonths = async (year, month) => {
         GROUP BY cm.patient_id
       )
       SELECT
-        p.id, p.first_name, p.last_name, p.phone, pc.total_consults::int
+        p.id, p.first_name, p.last_name, p.phone, p.created_at, pc.total_consults::int
       FROM patient_counts pc
       JOIN patients p ON p.id = pc.patient_id
       WHERE pc.total_consults >= 3
@@ -882,6 +1073,7 @@ const getNutritionRetentionByThreeMonths = async (year, month) => {
         p.first_name,
         p.last_name,
         p.phone,
+        p.created_at,
         pc.total_consults::int
       FROM patient_counts pc
       JOIN patients p ON p.id = pc.patient_id
@@ -900,51 +1092,95 @@ const getNutritionRetentionByThreeMonths = async (year, month) => {
 /**
  * 27. getNutritionConsultationDurations(): conteo de pacientes por duración de consultas (1, 2, 3+ meses)
  */
-const getNutritionConsultationDurations = async (year, month) => {
-  const y = year || new Date().getFullYear();
-  const m = month || (new Date().getMonth() + 1);
-
-  const sql = `
-    WITH consult_months AS (
-      SELECT 
-        patient_id, 
-        DATE_TRUNC('month', (paid_at AT TIME ZONE 'America/Mexico_City'))::date as month
-      FROM payments
-      WHERE (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
-        AND is_voided = false
-        AND patient_id IS NOT NULL
-      UNION
-      SELECT 
-        patient_id, 
-        DATE_TRUNC('month', COALESCE(evaluation_date::timestamp, (created_at AT TIME ZONE 'America/Mexico_City')))::date as month
-      FROM nutrition_records
-      WHERE patient_id IS NOT NULL
-    ),
-    active_in_target_month AS (
-      SELECT DISTINCT patient_id
-      FROM consult_months
-      WHERE EXTRACT(YEAR FROM month) = $1
-        AND EXTRACT(MONTH FROM month) = $2
-    ),
-    patient_months_up_to_target AS (
-      SELECT 
-        cm.patient_id, 
-        COUNT(DISTINCT cm.month) as months_consulting
-      FROM consult_months cm
-      JOIN active_in_target_month a ON cm.patient_id = a.patient_id
-      WHERE cm.month <= (make_date($1::int, $2::int, 1) + interval '1 month - 1 day')::date
-      GROUP BY cm.patient_id
-    )
-    SELECT
-      COUNT(*) FILTER (WHERE months_consulting >= 1) as consulted_patients,
-      COUNT(*) FILTER (WHERE months_consulting = 1) as one_month_exact,
-      COUNT(*) FILTER (WHERE months_consulting = 2) as two_months_exact,
-      COUNT(*) FILTER (WHERE months_consulting >= 3) as three_months_plus,
-      (SELECT COUNT(*) FROM patients WHERE is_active = true) as total_patients
-    FROM patient_months_up_to_target
-  `;
+const getNutritionConsultationDurations = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  if (from && to) {
+    sql = `
+      WITH consult_months AS (
+        SELECT 
+          patient_id, 
+          DATE_TRUNC('month', (paid_at AT TIME ZONE 'America/Mexico_City'))::date as month
+        FROM payments
+        WHERE (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
+          AND is_voided = false
+          AND patient_id IS NOT NULL
+        UNION
+        SELECT 
+          patient_id, 
+          DATE_TRUNC('month', COALESCE(evaluation_date::timestamp, (created_at AT TIME ZONE 'America/Mexico_City')))::date as month
+        FROM nutrition_records
+        WHERE patient_id IS NOT NULL
+      ),
+      active_in_target_month AS (
+        SELECT DISTINCT patient_id
+        FROM consult_months
+        WHERE month >= $1::date AND month <= $2::date
+      ),
+      patient_months_up_to_target AS (
+        SELECT 
+          cm.patient_id, 
+          COUNT(DISTINCT cm.month) as months_consulting
+        FROM consult_months cm
+        JOIN active_in_target_month a ON cm.patient_id = a.patient_id
+        WHERE cm.month <= $2::date
+        GROUP BY cm.patient_id
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE months_consulting >= 1) as consulted_patients,
+        COUNT(*) FILTER (WHERE months_consulting = 1) as one_month_exact,
+        COUNT(*) FILTER (WHERE months_consulting = 2) as two_months_exact,
+        COUNT(*) FILTER (WHERE months_consulting >= 3) as three_months_plus,
+        (SELECT COUNT(*) FROM patients WHERE is_active = true) as total_patients
+      FROM patient_months_up_to_target
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      WITH consult_months AS (
+        SELECT 
+          patient_id, 
+          DATE_TRUNC('month', (paid_at AT TIME ZONE 'America/Mexico_City'))::date as month
+        FROM payments
+        WHERE (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
+          AND is_voided = false
+          AND patient_id IS NOT NULL
+        UNION
+        SELECT 
+          patient_id, 
+          DATE_TRUNC('month', COALESCE(evaluation_date::timestamp, (created_at AT TIME ZONE 'America/Mexico_City')))::date as month
+        FROM nutrition_records
+        WHERE patient_id IS NOT NULL
+      ),
+      active_in_target_month AS (
+        SELECT DISTINCT patient_id
+        FROM consult_months
+        WHERE EXTRACT(YEAR FROM month) = $1
+          AND EXTRACT(MONTH FROM month) = $2
+      ),
+      patient_months_up_to_target AS (
+        SELECT 
+          cm.patient_id, 
+          COUNT(DISTINCT cm.month) as months_consulting
+        FROM consult_months cm
+        JOIN active_in_target_month a ON cm.patient_id = a.patient_id
+        WHERE cm.month <= (make_date($1::int, $2::int, 1) + interval '1 month - 1 day')::date
+        GROUP BY cm.patient_id
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE months_consulting >= 1) as consulted_patients,
+        COUNT(*) FILTER (WHERE months_consulting = 1) as one_month_exact,
+        COUNT(*) FILTER (WHERE months_consulting = 2) as two_months_exact,
+        COUNT(*) FILTER (WHERE months_consulting >= 3) as three_months_plus,
+        (SELECT COUNT(*) FROM patients WHERE is_active = true) as total_patients
+      FROM patient_months_up_to_target
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [y, m]);
+    const result = await pool.query(sql, params);
     const row = result.rows[0] || {};
     return {
       consulted_patients: parseInt(row.consulted_patients, 10) || 0,
@@ -961,49 +1197,93 @@ const getNutritionConsultationDurations = async (year, month) => {
 /**
  * 28. getNutritionIncomeReal(year, month): ingresos reales de las consultas del consultorio
  */
-const getNutritionIncomeReal = async (year, month) => {
-  const y = year || new Date().getFullYear();
-  const m = month || (new Date().getMonth() + 1);
-
-  const sqlByMethod = `
-    SELECT 
-      payment_method,
-      SUM(amount) as total,
-      COUNT(*) as transaction_count,
-      ROUND(100.0 * SUM(amount) / NULLIF(SUM(SUM(amount)) OVER (), 0), 2) as percentage
-    FROM payments
-    WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
-      AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
-      AND is_voided = false
-      AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
-    GROUP BY payment_method
-    ORDER BY total DESC
-  `;
-
-  const sqlDetails = `
-    SELECT 
-      p.id,
-      COALESCE(p.patient_id, p.client_id) as patient_id,
-      COALESCE(pat.first_name, c.first_name, 'Paciente') as first_name,
-      COALESCE(pat.last_name, c.last_name, '') as last_name,
-      COALESCE(pat.phone, c.phone, 'Sin teléfono') as phone,
-      p.amount,
-      p.payment_method,
-      p.payment_type,
-      p.paid_at
-    FROM payments p
-    LEFT JOIN patients pat ON p.patient_id = pat.id
-    LEFT JOIN clients c ON p.client_id = c.id
-    WHERE EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
-      AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
-      AND p.is_voided = false
-      AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
-    ORDER BY p.paid_at DESC
-  `;
+const getNutritionIncomeReal = async (year, month, from, to) => {
+  let sqlByMethod;
+  let sqlDetails;
+  let params = [];
+  if (from && to) {
+    sqlByMethod = `
+      SELECT 
+        payment_method,
+        SUM(amount) as total,
+        COUNT(*) as transaction_count,
+        ROUND(100.0 * SUM(amount) / NULLIF(SUM(SUM(amount)) OVER (), 0), 2) as percentage
+      FROM payments
+      WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+        AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+        AND is_voided = false
+        AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
+      GROUP BY payment_method
+      ORDER BY total DESC
+    `;
+    sqlDetails = `
+      SELECT 
+        p.id,
+        COALESCE(p.patient_id, p.client_id) as patient_id,
+        COALESCE(pat.first_name, c.first_name, 'Paciente') as first_name,
+        COALESCE(pat.last_name, c.last_name, '') as last_name,
+        COALESCE(pat.phone, c.phone, 'Sin teléfono') as phone,
+        p.amount,
+        p.payment_method,
+        p.payment_type,
+        p.paid_at,
+        p.paid_at as payment_date,
+        p.paid_at as created_at
+      FROM payments p
+      LEFT JOIN patients pat ON p.patient_id = pat.id
+      LEFT JOIN clients c ON p.client_id = c.id
+      WHERE (p.paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+        AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
+        AND p.is_voided = false
+        AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+      ORDER BY p.paid_at DESC
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sqlByMethod = `
+      SELECT 
+        payment_method,
+        SUM(amount) as total,
+        COUNT(*) as transaction_count,
+        ROUND(100.0 * SUM(amount) / NULLIF(SUM(SUM(amount)) OVER (), 0), 2) as percentage
+      FROM payments
+      WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
+        AND is_voided = false
+        AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))
+      GROUP BY payment_method
+      ORDER BY total DESC
+    `;
+    sqlDetails = `
+      SELECT 
+        p.id,
+        COALESCE(p.patient_id, p.client_id) as patient_id,
+        COALESCE(pat.first_name, c.first_name, 'Paciente') as first_name,
+        COALESCE(pat.last_name, c.last_name, '') as last_name,
+        COALESCE(pat.phone, c.phone, 'Sin teléfono') as phone,
+        p.amount,
+        p.payment_method,
+        p.payment_type,
+        p.paid_at,
+        p.paid_at as payment_date,
+        p.paid_at as created_at
+      FROM payments p
+      LEFT JOIN patients pat ON p.patient_id = pat.id
+      LEFT JOIN clients c ON p.client_id = c.id
+      WHERE EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
+        AND p.is_voided = false
+        AND (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
+      ORDER BY p.paid_at DESC
+    `;
+    params = [y, m];
+  }
 
   try {
-    const resByMethod = await pool.query(sqlByMethod, [y, m]);
-    const resDetails = await pool.query(sqlDetails, [y, m]);
+    const resByMethod = await pool.query(sqlByMethod, params);
+    const resDetails = await pool.query(sqlDetails, params);
     const total = resByMethod.rows.reduce((sum, row) => sum + parseFloat(row.total || 0), 0);
     return {
       by_method: resByMethod.rows,
@@ -1019,11 +1299,10 @@ const getNutritionIncomeReal = async (year, month) => {
 /**
  * 28. getNutritionEvaluationsList(year, month): listado de evaluaciones realizadas en el mes
  */
-const getNutritionEvaluationsList = async (year, month) => {
-  const y = year || new Date().getFullYear();
-  const m = month || (new Date().getMonth() + 1);
-
-  const sql = `
+const getNutritionEvaluationsList = async (year, month, from, to) => {
+  let sql;
+  let params = [];
+  const baseSelect = `
     SELECT 
       nr.id,
       COALESCE(p.id, c.id) as patient_id,
@@ -1031,18 +1310,35 @@ const getNutritionEvaluationsList = async (year, month) => {
       COALESCE(p.last_name, c.last_name, '') as last_name,
       COALESCE(p.phone, c.phone, 'Sin teléfono') as phone,
       COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) as evaluation_date,
+      nr.created_at,
       nr.weight_kg,
       nr.body_fat_pct,
       ROUND((nr.weight_kg / NULLIF((nr.height_cm / 100.0) ^ 2, 0))::numeric, 1) as bmi
     FROM nutrition_records nr
     LEFT JOIN patients p ON nr.patient_id = p.id
     LEFT JOIN clients c ON nr.client_id = c.id
-    WHERE EXTRACT(YEAR FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $1
-      AND EXTRACT(MONTH FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $2
-    ORDER BY COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) DESC
   `;
+  if (from && to) {
+    sql = `
+      ${baseSelect}
+      WHERE COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) >= $1::date
+        AND COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) <= $2::date
+      ORDER BY COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) DESC
+    `;
+    params = [from, to];
+  } else {
+    const y = year || new Date().getFullYear();
+    const m = month || (new Date().getMonth() + 1);
+    sql = `
+      ${baseSelect}
+      WHERE EXTRACT(YEAR FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $1
+        AND EXTRACT(MONTH FROM COALESCE(nr.evaluation_date::timestamp, (nr.created_at AT TIME ZONE 'America/Mexico_City'))) = $2
+      ORDER BY COALESCE(nr.evaluation_date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) DESC
+    `;
+    params = [y, m];
+  }
   try {
-    const result = await pool.query(sql, [y, m]);
+    const result = await pool.query(sql, params);
     return result.rows;
   } catch (err) {
     console.error('Error obteniendo listado de evaluaciones:', err);
@@ -1110,9 +1406,17 @@ const getAcquisitionOriginStats = async () => {
 /**
  * 36. getVisitsDetailsList(year, month): listado detallado de visitas de hoy, mes y año
  */
-const getVisitsDetailsList = async (year, month) => {
-  const y = year || new Date().getFullYear();
-  const m = month || (new Date().getMonth() + 1);
+const getVisitsDetailsList = async (year, month, from, to) => {
+  let y = year;
+  let m = month;
+  if (!y && from) y = parseInt(from.slice(0, 4), 10);
+  if (!m && from) m = parseInt(from.slice(5, 7), 10);
+  y = y || new Date().getFullYear();
+  m = m || (new Date().getMonth() + 1);
+
+  const rangeCondition = (from && to)
+    ? `(visit_date >= '${from}'::date AND visit_date <= '${to}'::date) as is_range`
+    : `(EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = ${y} AND EXTRACT(MONTH FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = ${m}) as is_range`;
 
   const sql = `
     WITH all_visits AS (
@@ -1154,9 +1458,11 @@ const getVisitsDetailsList = async (year, month) => {
     SELECT *,
       (visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
       (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $2) as is_month,
-      (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year
+      (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year,
+      ${rangeCondition}
     FROM all_visits
     WHERE EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1
+       OR visit_date >= CURRENT_DATE - INTERVAL '365 days'
     ORDER BY visit_time DESC;
   `;
   try {
@@ -1164,8 +1470,9 @@ const getVisitsDetailsList = async (year, month) => {
     const rows = result.rows || [];
     return {
       today: rows.filter(r => r.is_today),
-      month: rows.filter(r => r.is_month),
-      year: rows.filter(r => r.is_year)
+      month: (from && to) ? rows.filter(r => r.is_range) : rows.filter(r => r.is_month),
+      year: rows.filter(r => r.is_year),
+      range: rows.filter(r => r.is_range)
     };
   } catch (err) {
     console.error('Error obteniendo listado detallado de visitas:', err);
@@ -1176,9 +1483,9 @@ const getVisitsDetailsList = async (year, month) => {
 /**
  * getVisitStats(year, month): visitas del día, mes y año
  */
-const getVisitStats = async (year, month) => {
+const getVisitStats = async (year, month, from, to) => {
   try {
-    const details = await getVisitsDetailsList(year, month);
+    const details = await getVisitsDetailsList(year, month, from, to);
     return {
       today: details.today.length,
       month: details.month.length,
@@ -1194,9 +1501,17 @@ const getVisitStats = async (year, month) => {
  * 37. getNutritionAppointmentsDetailsList(year, month): listado detallado de citas de hoy, mes y año
  * Unifica las consultas registradas en agenda, expedientes (nutrition_records) y pagos.
  */
-const getNutritionAppointmentsDetailsList = async (year, month) => {
-  const y = year || new Date().getFullYear();
-  const m = month || (new Date().getMonth() + 1);
+const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
+  let y = year;
+  let m = month;
+  if (!y && from) y = parseInt(from.slice(0, 4), 10);
+  if (!m && from) m = parseInt(from.slice(5, 7), 10);
+  y = y || new Date().getFullYear();
+  m = m || (new Date().getMonth() + 1);
+
+  const rangeCondition = (from && to)
+    ? `(appointment_date >= '${from}'::date AND appointment_date <= '${to}'::date) as is_range`
+    : `(EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = ${y} AND EXTRACT(MONTH FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = ${m}) as is_range`;
 
   const sql = `
     WITH unified_citas AS (
@@ -1270,9 +1585,11 @@ const getNutritionAppointmentsDetailsList = async (year, month) => {
     SELECT *,
       (appointment_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
       (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $2) as is_month,
-      (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year
+      (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year,
+      ${rangeCondition}
     FROM unified_citas
     WHERE EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1
+       OR appointment_date >= CURRENT_DATE - INTERVAL '365 days'
     ORDER BY appointment_time DESC;
   `;
   try {
@@ -1280,8 +1597,9 @@ const getNutritionAppointmentsDetailsList = async (year, month) => {
     const rows = result.rows || [];
     return {
       today: rows.filter(r => r.is_today),
-      month: rows.filter(r => r.is_month),
-      year: rows.filter(r => r.is_year)
+      month: (from && to) ? rows.filter(r => r.is_range) : rows.filter(r => r.is_month),
+      year: rows.filter(r => r.is_year),
+      range: rows.filter(r => r.is_range)
     };
   } catch (err) {
     console.error('Error obteniendo listado detallado de citas:', err);
@@ -1292,9 +1610,9 @@ const getNutritionAppointmentsDetailsList = async (year, month) => {
 /**
  * getNutritionAppointmentStats(year, month): citas del día, mes y año
  */
-const getNutritionAppointmentStats = async (year, month) => {
+const getNutritionAppointmentStats = async (year, month, from, to) => {
   try {
-    const details = await getNutritionAppointmentsDetailsList(year, month);
+    const details = await getNutritionAppointmentsDetailsList(year, month, from, to);
     return {
       today: details.today.length,
       month: details.month.length,
@@ -1315,7 +1633,8 @@ const getAbsentPatients = async () => {
       p.id, 
       p.first_name, 
       p.last_name, 
-      p.phone, 
+      p.phone,
+      p.created_at,
       MAX(nr.evaluation_date) as last_consultation_date,
       CASE 
         WHEN MAX(nr.evaluation_date) IS NULL THEN 'Sin consultas'
@@ -1325,7 +1644,7 @@ const getAbsentPatients = async () => {
     FROM patients p
     LEFT JOIN nutrition_records nr ON nr.patient_id = p.id
     WHERE p.is_active = true
-    GROUP BY p.id, p.first_name, p.last_name, p.phone
+    GROUP BY p.id, p.first_name, p.last_name, p.phone, p.created_at
     HAVING MAX(nr.evaluation_date) IS NULL OR (CURRENT_DATE - MAX(nr.evaluation_date)::date) >= 30
     ORDER BY days_without_consult DESC
   `;
@@ -1343,7 +1662,16 @@ const getAbsentPatients = async () => {
  */
 const getGymOnlyClientsList = async () => {
   const sql = `
-    SELECT c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at
+    SELECT 
+      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at,
+      c.gender,
+      CASE 
+        WHEN LOWER(c.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
+        WHEN LOWER(c.gender) IN ('female','f','mujer','f','femenino') THEN 'Femenino'
+        ELSE 'Sin dato'
+      END as sex,
+      c.age,
+      c.birth_date
     FROM clients c
     LEFT JOIN plans p ON c.plan_id = p.id
     WHERE c.patient_id IS NULL AND (c.current_flow = 'gimnasio' OR c.current_flow IS NULL)
@@ -1363,7 +1691,16 @@ const getGymOnlyClientsList = async () => {
  */
 const getNutritionOnlyPatientsList = async () => {
   const sql = `
-    SELECT p.id, p.first_name, p.last_name, p.phone, p.created_at
+    SELECT 
+      p.id, p.first_name, p.last_name, p.phone, p.created_at,
+      p.gender,
+      CASE 
+        WHEN LOWER(p.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
+        WHEN LOWER(p.gender) IN ('female','f','mujer','f','femenino') THEN 'Femenino'
+        ELSE 'Sin dato'
+      END as sex,
+      p.age,
+      p.birth_date
     FROM patients p
     WHERE p.client_id IS NULL AND (p.current_flow = 'nutricion' OR p.current_flow IS NULL)
     ORDER BY p.created_at DESC
@@ -1382,7 +1719,16 @@ const getNutritionOnlyPatientsList = async () => {
  */
 const getGymToNutritionList = async () => {
   const sql = `
-    SELECT p.id, p.first_name, p.last_name, p.phone, p.created_at
+    SELECT 
+      p.id, p.first_name, p.last_name, p.phone, p.created_at,
+      p.gender,
+      CASE 
+        WHEN LOWER(p.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
+        WHEN LOWER(p.gender) IN ('female','f','mujer','f','femenino') THEN 'Femenino'
+        ELSE 'Sin dato'
+      END as sex,
+      p.age,
+      p.birth_date
     FROM patients p
     WHERE p.client_id IS NOT NULL OR p.current_flow = 'nutricion_y_gimnasio'
     ORDER BY p.created_at DESC

@@ -12,11 +12,20 @@ const fetchWithAuth = async (endpoint, options = {}) => {
   return res.json();
 };
 
+const buildQuery = (year, month, from, to) => {
+  const params = new URLSearchParams();
+  if (year) params.append('year', year);
+  if (month) params.append('month', month);
+  if (from) params.append('from', from);
+  if (to) params.append('to', to);
+  const q = params.toString();
+  return q ? `?${q}` : '';
+};
 
-export function useDashboardStats(year, month) {
+export function useDashboardStats(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'dashboard', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/dashboard?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'dashboard', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/dashboard${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
 }
@@ -53,7 +62,7 @@ export function useCashCutoff(from, to) {
 
 export function useSendIncentiveWA() {
   return useMutation({
-    mutationFn: (clientId) => fetchWithAuth(`/notifications/send-incentive/${clientId}`, { method: 'POST' }), // Assuming this endpoint exists or will exist in notifications
+    mutationFn: (clientId) => fetchWithAuth(`/notifications/send-incentive/${clientId}`, { method: 'POST' }),
     onSuccess: () => {
       // toast success
     }
@@ -68,17 +77,17 @@ export function useRetentionRate() {
   });
 }
 
-export function useAttendanceHeatmap(year, month) {
+export function useAttendanceHeatmap(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'attendance-heatmap', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/attendance-heatmap?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'attendance-heatmap', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/attendance-heatmap${buildQuery(year, month, from, to)}`).then(res => res.data),
   });
 }
 
-export function useDailyAttendance(year, month) {
+export function useDailyAttendance(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'daily-attendance', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/daily-attendance?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'daily-attendance', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/daily-attendance${buildQuery(year, month, from, to)}`).then(res => res.data),
   });
 }
 
@@ -89,24 +98,24 @@ export function useGhostClients() {
   });
 }
 
-export function usePaymentMethods(year, month) {
+export function usePaymentMethods(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'payment-methods', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/payment-methods?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'payment-methods', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/payment-methods${buildQuery(year, month, from, to)}`).then(res => res.data),
   });
 }
 
-export function useAverageTicket(year, month) {
+export function useAverageTicket(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'average-ticket', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/average-ticket?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'average-ticket', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/average-ticket${buildQuery(year, month, from, to)}`).then(res => res.data),
   });
 }
 
-export function useIncomeAnalysis(year, month) {
+export function useIncomeAnalysis(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'income-analysis', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/income-analysis?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'income-analysis', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/income-analysis${buildQuery(year, month, from, to)}`).then(res => res.data),
   });
 }
 
@@ -131,27 +140,27 @@ export function useSixMonthEligible() {
   });
 }
 
-export function useNutritionStats(year, month) {
+export function useNutritionStats(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-stats', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-stats?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-stats', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-stats${buildQuery(year, month, from, to)}`).then(res => res.data),
   });
 }
 
-export function useComprehensiveStats(year, month) {
+export function useComprehensiveStats(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'comprehensive', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/comprehensive?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'comprehensive', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/comprehensive${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000
   });
 }
 
-// === Nuevos hooks ===
+// === Hooks con soporte de fecha y rangos ===
 
-export function useMonthlyIncomeByMethod(year, month) {
+export function useMonthlyIncomeByMethod(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'income-by-method', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/monthly-income-by-method?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'income-by-method', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/monthly-income-by-method${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000
   });
 }
@@ -188,42 +197,36 @@ export function useNutritionPatientsToClients() {
   });
 }
 
-export function useNutritionRetention3Months(year, month) {
+export function useNutritionRetention3Months(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-retention-3months', year, month],
-    queryFn: () => {
-      const query = year && month ? `?year=${year}&month=${month}` : '';
-      return fetchWithAuth(`/statistics/nutrition-retention-3months${query}`).then(res => res.data);
-    },
+    queryKey: ['statistics', 'nutrition-retention-3months', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-retention-3months${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000
   });
 }
 
-export function useNutritionConsultationDurations(year, month) {
+export function useNutritionConsultationDurations(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-consultation-durations', year, month],
-    queryFn: () => {
-      const query = year && month ? `?year=${year}&month=${month}` : '';
-      return fetchWithAuth(`/statistics/nutrition-consultation-durations${query}`).then(res => res.data);
-    },
+    queryKey: ['statistics', 'nutrition-consultation-durations', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-consultation-durations${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000
   });
 }
 
-export function useNutritionIncomeReal(year, month) {
+export function useNutritionIncomeReal(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-income-real', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-income-real?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-income-real', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-income-real${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000
   });
 }
 
-export function useMonthlyIncomeDetails(year, month) {
+export function useMonthlyIncomeDetails(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'monthly-income-details', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/monthly-income-details?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'monthly-income-details', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/monthly-income-details${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
 
@@ -235,21 +238,21 @@ export function useRetainedClients() {
   });
 }
 
-export function useNutritionFreeConsults(year, month) {
+export function useNutritionFreeConsults(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-free-consults', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-free-consults?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-free-consults', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-free-consults${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
 
-export function useNutritionPaidConsults(year, month) {
+export function useNutritionPaidConsults(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-paid-consults', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-paid-consults?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-paid-consults', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-paid-consults${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
 
@@ -261,12 +264,12 @@ export function useAcquisitionOriginStats() {
   });
 }
 
-export function useNutritionAppointmentStats(year, month) {
+export function useNutritionAppointmentStats(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-appointment-stats', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-appointment-stats?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-appointment-stats', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-appointment-stats${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
 
@@ -302,30 +305,29 @@ export function useGymToNutritionPatients() {
   });
 }
 
-export function useNutritionEvaluationsList(year, month) {
+export function useNutritionEvaluationsList(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-evaluations-list', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-evaluations-list?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-evaluations-list', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-evaluations-list${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
 
-export function useVisitsDetails(year, month) {
+export function useVisitsDetails(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'visits-details', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/visits-details?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'visits-details', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/visits-details${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
 
-export function useNutritionAppointmentsDetails(year, month) {
+export function useNutritionAppointmentsDetails(year, month, from, to) {
   return useQuery({
-    queryKey: ['statistics', 'nutrition-appointments-details', year, month],
-    queryFn: () => fetchWithAuth(`/statistics/nutrition-appointments-details?year=${year}&month=${month}`).then(res => res.data),
+    queryKey: ['statistics', 'nutrition-appointments-details', year, month, from, to],
+    queryFn: () => fetchWithAuth(`/statistics/nutrition-appointments-details${buildQuery(year, month, from, to)}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month
+    enabled: (!!year && !!month) || (!!from && !!to)
   });
 }
-

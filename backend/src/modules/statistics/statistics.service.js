@@ -121,11 +121,11 @@ const getAttendanceHeatmap = async (year, month) => {
   }
 };
 
-const getDailyAttendance = async (year, month) => {
+const getDailyAttendance = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getDailyAttendance(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getDailyAttendance(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener asistencia diaria');
@@ -141,11 +141,11 @@ const getGhostClients = async () => {
   }
 };
 
-const getPaymentMethodsDistribution = async (year, month) => {
+const getPaymentMethodsDistribution = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getPaymentMethodsDistribution(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getPaymentMethodsDistribution(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener distribución de pagos');
@@ -202,21 +202,21 @@ const getSixMonthEligible = async () => {
   }
 };
 
-const getNutritionStats = async (year, month) => {
+const getNutritionStats = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionStats(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionStats(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener estadísticas de nutriología');
   }
 };
 
-const getComprehensiveStats = async (year, month) => {
+const getComprehensiveStats = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
 
     const [
       retentionData,
@@ -239,23 +239,23 @@ const getComprehensiveStats = async (year, month) => {
       visitStats
     ] = await Promise.all([
       repository.getRetentionRate(),
-      repository.getPaymentMethodsDistribution(y, m),
+      repository.getPaymentMethodsDistribution(y, m, from, to),
       repository.getAverageTicketPerClient(y, m),
       repository.getRecurringVsNewIncome(y, m),
       repository.getNutritionConversionRate(),
       repository.getSixMonthEligible(),
-      repository.getNutritionStats(y, m),
+      repository.getNutritionStats(y, m, from, to),
       repository.getAgeDistributionFor('clients'),
       repository.getSexDistributionFor('clients'),
       repository.getAgeDistributionFor('patients'),
       repository.getSexDistributionFor('patients'),
       repository.getNutritionRetention(),
-      repository.getDailyAttendance(y, m),
-      repository.getClientsByPlan(),
+      repository.getDailyAttendance(y, m, from, to),
+      repository.getClientsByPlan(y, m, from, to),
       repository.getActiveClientsReal(),
       repository.getMonthlyIncome(y),
       repository.getAcquisitionOriginStats(),
-      repository.getVisitStats(y, m)
+      repository.getVisitStats(y, m, from, to)
     ]);
 
     return {
@@ -291,11 +291,11 @@ const getComprehensiveStats = async (year, month) => {
 
 // === Nuevas funciones de servicio ===
 
-const getMonthlyIncomeByMethod = async (year, month) => {
+const getMonthlyIncomeByMethod = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getMonthlyIncomeByMethod(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getMonthlyIncomeByMethod(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener ingresos por método');
@@ -311,11 +311,11 @@ const getRetainedClients = async () => {
   }
 };
 
-const getMonthlyIncomeDetails = async (year, month) => {
+const getMonthlyIncomeDetails = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getMonthlyIncomeDetails(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getMonthlyIncomeDetails(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener detalles de ingresos');
@@ -389,33 +389,33 @@ const getNutritionPatientsToClientsConversion = async () => {
   }
 };
 
-const getNutritionRetentionByThreeMonths = async (year, month) => {
+const getNutritionRetentionByThreeMonths = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionRetentionByThreeMonths(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionRetentionByThreeMonths(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener retención de pacientes (3+)');
   }
 };
 
-const getNutritionConsultationDurations = async (year, month) => {
+const getNutritionConsultationDurations = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionConsultationDurations(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionConsultationDurations(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener duraciones de consultas');
   }
 };
 
-const getNutritionIncomeReal = async (year, month) => {
+const getNutritionIncomeReal = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionIncomeReal(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionIncomeReal(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener ingresos del consultorio');
@@ -431,11 +431,11 @@ const getAcquisitionOriginStats = async () => {
   }
 };
 
-const getNutritionAppointmentStats = async (year, month) => {
+const getNutritionAppointmentStats = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionAppointmentStats(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionAppointmentStats(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener citas de nutrición');
@@ -478,33 +478,33 @@ const getGymToNutritionList = async () => {
   }
 };
 
-const getNutritionEvaluationsList = async (year, month) => {
+const getNutritionEvaluationsList = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionEvaluationsList(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionEvaluationsList(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener listado de evaluaciones');
   }
 };
 
-const getVisitsDetailsList = async (year, month) => {
+const getVisitsDetailsList = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getVisitsDetailsList(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getVisitsDetailsList(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener listado detallado de visitas');
   }
 };
 
-const getNutritionAppointmentsDetailsList = async (year, month) => {
+const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
   try {
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
-    return await repository.getNutritionAppointmentsDetailsList(y, m);
+    const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
+    const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    return await repository.getNutritionAppointmentsDetailsList(y, m, from, to);
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener listado detallado de citas de nutrición');

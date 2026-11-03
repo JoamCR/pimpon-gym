@@ -99,33 +99,44 @@ export default function Statistics() {
   const [selectedNutritionApptPeriod, setSelectedNutritionApptPeriod] = useState(null);
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
-  // Hooks de datos
-  const { data, isLoading, error } = useComprehensiveStats(year, month);
-  const { data: monthlyIncomeData } = useMonthlyIncomeByMethod(year, month);
+  const derivedYear = startDate 
+    ? parseInt(startDate.split('-')[0], 10) 
+    : (endDate ? parseInt(endDate.split('-')[0], 10) : currentYear);
+
+  const derivedMonth = startDate 
+    ? parseInt(startDate.split('-')[1], 10) 
+    : (endDate ? parseInt(endDate.split('-')[1], 10) : currentMonth);
+
+  const selectedYear = derivedYear || currentYear;
+  const selectedMonth = derivedMonth || currentMonth;
+
+  // Hooks de datos pasando año, mes y rango de fechas
+  const { data, isLoading, error } = useComprehensiveStats(selectedYear, selectedMonth, startDate, endDate);
+  const { data: monthlyIncomeData } = useMonthlyIncomeByMethod(selectedYear, selectedMonth, startDate, endDate);
   const { data: absentClients } = useAbsentClients();
   const { data: alertClients } = useAlertClients();
   const { data: expiredClients } = useExpiredClients();
   const { data: patientsToClients } = useNutritionPatientsToClients();
-  const { data: retention3Months } = useNutritionRetention3Months(year, month);
-  const { data: consultationDurations } = useNutritionConsultationDurations(year, month);
-  const { data: nutritionIncomeReal } = useNutritionIncomeReal(year, month);
-  const { data: monthlyIncomeDetails } = useMonthlyIncomeDetails(year, month);
-  const { data: nutritionPaidConsults } = useNutritionPaidConsults(year, month);
+  const { data: retention3Months } = useNutritionRetention3Months(selectedYear, selectedMonth, startDate, endDate);
+  const { data: consultationDurations } = useNutritionConsultationDurations(selectedYear, selectedMonth, startDate, endDate);
+  const { data: nutritionIncomeReal } = useNutritionIncomeReal(selectedYear, selectedMonth, startDate, endDate);
+  const { data: monthlyIncomeDetails } = useMonthlyIncomeDetails(selectedYear, selectedMonth, startDate, endDate);
+  const { data: nutritionPaidConsults } = useNutritionPaidConsults(selectedYear, selectedMonth, startDate, endDate);
   const { data: retentionClients } = useRetainedClients();
   const { data: acquisitionOriginData } = useAcquisitionOriginStats();
 
   // Nuevos hooks para la paridad simétrica y desgloses
-  const { data: appointmentStats } = useNutritionAppointmentStats(year, month);
+  const { data: appointmentStats } = useNutritionAppointmentStats(selectedYear, selectedMonth, startDate, endDate);
   const { data: absentPatients } = useAbsentPatients();
   const { data: gymOnlyClients } = useGymOnlyClients();
   const { data: nutritionOnlyPatients } = useNutritionOnlyPatients();
   const { data: gymToNutritionPatients } = useGymToNutritionPatients();
-  const { data: nutritionEvaluationsList } = useNutritionEvaluationsList(year, month);
-  const { data: visitsDetails } = useVisitsDetails(year, month);
-  const { data: nutritionApptDetails } = useNutritionAppointmentsDetails(year, month);
+  const { data: nutritionEvaluationsList } = useNutritionEvaluationsList(selectedYear, selectedMonth, startDate, endDate);
+  const { data: visitsDetails } = useVisitsDetails(selectedYear, selectedMonth, startDate, endDate);
+  const { data: nutritionApptDetails } = useNutritionAppointmentsDetails(selectedYear, selectedMonth, startDate, endDate);
 
   if (error) {
     return (
@@ -214,7 +225,7 @@ export default function Statistics() {
     if (isInvalidRange) return false;
     if (!startDate && !endDate) return true;
     if (!dateStr) return false;
-    const formatted = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const formatted = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : String(dateStr).slice(0, 10);
     if (startDate && formatted < startDate) return false;
     if (endDate && formatted > endDate) return false;
     return true;
@@ -223,10 +234,10 @@ export default function Statistics() {
   const filteredAttendanceData = attendanceData.filter(d => isWithinDateRange(d.date));
   const filteredGymOnlyClients = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at));
   const filteredNutritionOnlyPatients = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at));
-  const filteredAbsentClients = (absentClients || []).filter(c => isWithinDateRange(c.created_at || c.last_attendance_date));
-  const filteredAlertClients = (alertClients || []).filter(c => isWithinDateRange(c.created_at || c.last_attendance_date));
-  const filteredExpiredClients = (expiredClients || []).filter(c => isWithinDateRange(c.end_date || c.created_at));
-  const filteredAbsentPatients = (absentPatients || []).filter(p => isWithinDateRange(p.created_at || p.last_consultation_date));
+  const filteredAbsentClients = (absentClients || []).filter(c => isWithinDateRange(c.last_attendance_date || c.last_attendance || c.created_at));
+  const filteredAlertClients = (alertClients || []).filter(c => isWithinDateRange(c.last_attendance_date || c.last_attendance || c.created_at));
+  const filteredExpiredClients = (expiredClients || []).filter(c => isWithinDateRange(c.end_date || c.last_end_date || c.created_at));
+  const filteredAbsentPatients = (absentPatients || []).filter(p => isWithinDateRange(p.last_consultation_date || p.created_at));
   const filteredPatientsToClients = (patientsToClients || []).filter(p => isWithinDateRange(p.conversion_date || p.created_at));
 
   const rawEvalsList = Array.isArray(nutritionEvaluationsList) 
@@ -234,18 +245,20 @@ export default function Statistics() {
     : (nutritionEvaluationsList?.data || []);
   const filteredNutritionEvaluations = rawEvalsList.filter(e => isWithinDateRange(e.evaluation_date || e.created_at));
 
-  const filteredMonthlyIncomeDetails = (monthlyIncomeDetails || []).filter(p => isWithinDateRange(p.payment_date || p.created_at));
+  const filteredMonthlyIncomeDetails = (monthlyIncomeDetails || []).filter(p => isWithinDateRange(p.paid_at || p.payment_date || p.created_at));
 
-  const filteredIncomeMethodData = isDateFilterActive
-    ? (isInvalidRange ? [] : [
-        { name: 'Efectivo', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'cash').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
-        { name: 'Transferencia', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'transfer').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
-        { name: 'Tarjeta', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'card').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) }
-      ].filter(d => d.value > 0))
-    : incomeMethodData;
+  const detailedIncomeByMethod = [
+    { name: 'Efectivo', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'cash').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
+    { name: 'Transferencia', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'transfer').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
+    { name: 'Tarjeta', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'card').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) }
+  ].filter(d => d.value > 0);
+
+  const filteredIncomeMethodData = isInvalidRange
+    ? []
+    : (detailedIncomeByMethod.length > 0 ? detailedIncomeByMethod : incomeMethodData);
 
   const totalFilteredIncome = filteredIncomeMethodData.reduce((acc, curr) => acc + curr.value, 0);
-  const filteredPaymentData = isDateFilterActive
+  const filteredPaymentData = totalFilteredIncome > 0
     ? filteredIncomeMethodData.map(d => ({
         name: d.name,
         value: totalFilteredIncome > 0 ? Math.round((d.value / totalFilteredIncome) * 100) : 0,
@@ -253,110 +266,124 @@ export default function Statistics() {
       }))
     : paymentData;
 
-  const filteredPlansData = isDateFilterActive
-    ? (isInvalidRange ? [] : (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, client) => {
-        const plan = client.plan_name || 'Sin plan';
-        const existing = acc.find(item => item.name === plan);
-        if (existing) existing.value += 1;
-        else acc.push({ name: plan, value: 1 });
-        return acc;
-      }, []))
-    : plansData;
+  const clientsFromFilteredList = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, client) => {
+    const plan = client.plan_name || 'Sin plan';
+    const existing = acc.find(item => item.name === plan);
+    if (existing) existing.value += 1;
+    else acc.push({ name: plan, value: 1 });
+    return acc;
+  }, []).filter(d => d.value > 0);
 
-  const filteredSexDataClients = isDateFilterActive
-    ? (isInvalidRange ? [] : (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
-        const sex = c.sex === 'M' ? 'Masculino' : c.sex === 'F' ? 'Femenino' : 'Sin dato';
-        const existing = acc.find(item => item.name === sex);
-        if (existing) existing.value += 1;
-        else acc.push({ name: sex, value: 1 });
-        return acc;
-      }, []))
-    : sexDataClients;
+  const filteredPlansData = isInvalidRange
+    ? []
+    : (plansData.length > 0 ? plansData : clientsFromFilteredList);
 
-  const filteredAgeDataClients = isDateFilterActive
-    ? (isInvalidRange ? [] : (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
-        const range = c.age ? (c.age < 18 ? '<18' : c.age <= 25 ? '18-25' : c.age <= 35 ? '26-35' : c.age <= 50 ? '36-50' : '50+') : 'Sin dato';
-        const existing = acc.find(item => item.name === range);
-        if (existing) existing.value += 1;
-        else acc.push({ name: range, value: 1 });
-        return acc;
-      }, []))
-    : ageDataClients;
+  const sexClientsFromList = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
+    const rawSex = c.sex || c.gender;
+    const sex = (rawSex === 'M' || rawSex === 'Masculino') ? 'Masculino' : (rawSex === 'F' || rawSex === 'Femenino') ? 'Femenino' : 'Sin dato';
+    const existing = acc.find(item => item.name === sex);
+    if (existing) existing.value += 1;
+    else acc.push({ name: sex, value: 1 });
+    return acc;
+  }, []).filter(d => d.value > 0);
 
-  const filteredSexDataPatients = isDateFilterActive
-    ? (isInvalidRange ? [] : (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
-        const sex = p.sex === 'M' ? 'Masculino' : p.sex === 'F' ? 'Femenino' : 'Sin dato';
-        const existing = acc.find(item => item.name === sex);
-        if (existing) existing.value += 1;
-        else acc.push({ name: sex, value: 1 });
-        return acc;
-      }, []))
-    : sexDataPatients;
+  const filteredSexDataClients = isInvalidRange ? [] : (sexDataClients.length > 0 ? sexDataClients : sexClientsFromList);
 
-  const filteredAgeDataPatients = isDateFilterActive
-    ? (isInvalidRange ? [] : (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
-        const range = p.age ? (p.age < 18 ? '<18' : p.age <= 25 ? '18-25' : p.age <= 35 ? '26-35' : p.age <= 50 ? '36-50' : '50+') : 'Sin dato';
-        const existing = acc.find(item => item.name === range);
-        if (existing) existing.value += 1;
-        else acc.push({ name: range, value: 1 });
-        return acc;
-      }, []))
-    : ageDataPatients;
+  const ageClientsFromList = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
+    const age = c.age ? parseInt(c.age, 10) : null;
+    const range = age ? (age < 18 ? '<18' : age <= 25 ? '18-25' : age <= 35 ? '26-35' : age <= 50 ? '36-50' : '50+') : 'Sin dato';
+    const existing = acc.find(item => item.name === range);
+    if (existing) existing.value += 1;
+    else acc.push({ name: range, value: 1 });
+    return acc;
+  }, []).filter(d => d.value > 0);
+
+  const filteredAgeDataClients = isInvalidRange ? [] : (ageDataClients.length > 0 ? ageDataClients : ageClientsFromList);
+
+  const sexPatientsFromList = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
+    const rawSex = p.sex || p.gender;
+    const sex = (rawSex === 'M' || rawSex === 'Masculino') ? 'Masculino' : (rawSex === 'F' || rawSex === 'Femenino') ? 'Femenino' : 'Sin dato';
+    const existing = acc.find(item => item.name === sex);
+    if (existing) existing.value += 1;
+    else acc.push({ name: sex, value: 1 });
+    return acc;
+  }, []).filter(d => d.value > 0);
+
+  const filteredSexDataPatients = isInvalidRange ? [] : (sexDataPatients.length > 0 ? sexDataPatients : sexPatientsFromList);
+
+  const agePatientsFromList = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
+    const age = p.age ? parseInt(p.age, 10) : null;
+    const range = age ? (age < 18 ? '<18' : age <= 25 ? '18-25' : age <= 35 ? '26-35' : age <= 50 ? '36-50' : '50+') : 'Sin dato';
+    const existing = acc.find(item => item.name === range);
+    if (existing) existing.value += 1;
+    else acc.push({ name: range, value: 1 });
+    return acc;
+  }, []).filter(d => d.value > 0);
+
+  const filteredAgeDataPatients = isInvalidRange ? [] : (ageDataPatients.length > 0 ? ageDataPatients : agePatientsFromList);
+
+  const absentClientsList = filteredAbsentClients.length > 0 ? filteredAbsentClients : (absentClients || []);
+  const alertClientsList = filteredAlertClients.length > 0 ? filteredAlertClients : (alertClients || []);
+  const expiredClientsList = filteredExpiredClients.length > 0 ? filteredExpiredClients : (expiredClients || []);
+  const absentPatientsList = filteredAbsentPatients.length > 0 ? filteredAbsentPatients : (absentPatients || []);
+
+  const nutritionIncomeByMethod = (nutritionIncomeReal?.by_method || []).map(d => ({
+    name: d.payment_method === 'cash' ? 'Efectivo' : d.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
+    value: parseFloat(d.total) || 0
+  })).filter(d => d.value > 0);
 
   const chartConfig = {
     // Gimnasio (Clientes)
     clientsByPlan: { data: filteredPlansData, title: 'Distribución de Clientes por Plan', dataKey: 'value', nameKey: 'name' },
     gymOnly: {
       data: [
-        { name: 'Solo Gimnasio', value: filteredGymOnlyClients.length },
-        { name: 'Otros clientes', value: isDateFilterActive ? 0 : Math.max((acquisitionOriginData?.total_clients || 0) - filteredGymOnlyClients.length, 0) }
+        { name: 'Solo Gimnasio', value: filteredGymOnlyClients.length || (acquisitionOriginData?.gimnasio_only || 0) },
+        { name: 'Otros clientes', value: Math.max((acquisitionOriginData?.total_clients || 0) - (filteredGymOnlyClients.length || acquisitionOriginData?.gimnasio_only || 0), 0) }
       ].filter(d => d.value > 0),
       title: 'Origen: Solo Gimnasio', dataKey: 'value', nameKey: 'name'
     },
     nutToGym: {
-      data: [{ name: 'Nutrición → Gimnasio', value: filteredPatientsToClients.length }],
+      data: [{ name: 'Nutrición → Gimnasio', value: filteredPatientsToClients.length || (acquisitionOriginData?.nutricion_to_gimnasio || 0) }].filter(d => d.value > 0),
       title: 'Conversión: Nutrición a Gimnasio', dataKey: 'value', nameKey: 'name'
     },
     retentionRate: {
-      data: isDateFilterActive
-        ? [{ name: 'Retención en período', value: (retentionClients || []).filter(r => isWithinDateRange(r.created_at)).length }]
-        : [
-            { name: 'Retención', value: parseFloat(kpis.retention?.retention_percentage) || 0 },
-            { name: 'No retenidos', value: Math.max((parseFloat(kpis.retention?.total_clients) || 0) - (parseFloat(kpis.retention?.retained_clients) || 0), 0) }
-          ],
+      data: [
+        { name: 'Retención', value: parseFloat(kpis.retention?.retention_percentage) || ((retentionClients || []).length > 0 ? (retentionClients || []).length : 0) },
+        { name: 'No retenidos', value: Math.max((parseFloat(kpis.retention?.total_clients) || 0) - (parseFloat(kpis.retention?.retained_clients) || (retentionClients || []).length || 0), 0) }
+      ].filter(d => d.value > 0),
       title: 'Retención de Clientes', dataKey: 'value', nameKey: 'name'
     },
     monthlyIncome: { data: filteredIncomeMethodData, title: 'Ingresos Efectivos (Gimnasio)', dataKey: 'value', nameKey: 'name' },
     paymentMethods: { data: filteredPaymentData, title: 'Origen de Ingresos', dataKey: 'value', nameKey: 'name' },
     attendance: { data: filteredAttendanceData, title: 'Asistencia Diaria', dataKey: 'visitantes', nameKey: 'date' },
     absentClients: {
-      data: filteredAbsentClients.reduce((acc, client) => {
+      data: absentClientsList.reduce((acc, client) => {
         const plan = client.plan_name || 'Sin plan';
         const existing = acc.find(item => item.name === plan);
         if (existing) existing.value += 1;
         else acc.push({ name: plan, value: 1 });
         return acc;
-      }, []),
+      }, []).filter(d => d.value > 0),
       title: 'Clientes Ausentes por Plan', dataKey: 'value', nameKey: 'name'
     },
     alertClients: {
-      data: filteredAlertClients.reduce((acc, client) => {
+      data: alertClientsList.reduce((acc, client) => {
         const plan = client.plan_name || 'Sin plan';
         const existing = acc.find(item => item.name === plan);
         if (existing) existing.value += 1;
         else acc.push({ name: plan, value: 1 });
         return acc;
-      }, []),
+      }, []).filter(d => d.value > 0),
       title: 'Clientes en Alerta por Plan', dataKey: 'value', nameKey: 'name'
     },
     expiredClients: {
-      data: filteredExpiredClients.reduce((acc, client) => {
+      data: expiredClientsList.reduce((acc, client) => {
         const plan = client.plan_name || 'Sin plan';
         const existing = acc.find(item => item.name === plan);
         if (existing) existing.value += 1;
         else acc.push({ name: plan, value: 1 });
         return acc;
-      }, []),
+      }, []).filter(d => d.value > 0),
       title: 'Anualidad Vencida por Plan', dataKey: 'value', nameKey: 'name'
     },
     sexDistributionClients: { data: filteredSexDataClients, title: 'Distribución por Sexo (Clientes)', dataKey: 'value', nameKey: 'name' },
@@ -365,57 +392,75 @@ export default function Statistics() {
     // Nutriología (Pacientes)
     nutritionOnly: {
       data: [
-        { name: 'Solo Nutrición', value: filteredNutritionOnlyPatients.length },
-        { name: 'Otros pacientes', value: isDateFilterActive ? 0 : Math.max((acquisitionOriginData?.total_patients || 0) - filteredNutritionOnlyPatients.length, 0) }
+        { name: 'Solo Nutrición', value: filteredNutritionOnlyPatients.length || (acquisitionOriginData?.nutricion_only || 0) },
+        { name: 'Otros pacientes', value: Math.max((acquisitionOriginData?.total_patients || 0) - (filteredNutritionOnlyPatients.length || acquisitionOriginData?.nutricion_only || 0), 0) }
       ].filter(d => d.value > 0),
       title: 'Origen: Solo Nutrición', dataKey: 'value', nameKey: 'name'
     },
     gymToNut: {
-      data: [{ name: 'Gimnasio → Nutrición', value: isDateFilterActive ? (isInvalidRange ? 0 : (acquisitionOriginData?.gimnasio_to_nutricion || 0)) : (acquisitionOriginData?.gimnasio_to_nutricion || 0) }],
+      data: [{ name: 'Gimnasio → Nutrición', value: (gymToNutritionPatients?.length || acquisitionOriginData?.gimnasio_to_nutricion || 0) }].filter(d => d.value > 0),
       title: 'Conversión: Gimnasio a Nutrición', dataKey: 'value', nameKey: 'name'
     },
     nutritionRetention: {
-      data: isDateFilterActive
-        ? [{ name: '3+ Consultas en período', value: (retention3Months || []).filter(r => isWithinDateRange(r.created_at)).length }]
-        : [
-            { name: '3+ Consultas', value: (retention3Months || []).length },
-            { name: 'Resto', value: Math.max((consultationDurations?.total_patients || 0) - (retention3Months || []).length, 0) }
-          ],
+      data: [
+        { name: '3+ Consultas', value: (retention3Months || []).length },
+        { name: 'Resto', value: Math.max((consultationDurations?.total_patients || 0) - (retention3Months || []).length, 0) }
+      ].filter(d => d.value > 0),
       title: 'Retención de Pacientes', dataKey: 'value', nameKey: 'name'
     },
     nutritionIncome: {
-      data: isDateFilterActive
-        ? [{ name: 'Evaluaciones / Consultas', value: filteredNutritionEvaluations.length * 500 }]
-        : (nutritionIncomeReal?.by_method?.map(d => ({
-            name: d.payment_method === 'cash' ? 'Efectivo' : d.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
-            value: parseFloat(d.total) || 0
-          })) || []),
+      data: nutritionIncomeByMethod.length > 0
+        ? nutritionIncomeByMethod
+        : (filteredNutritionEvaluations.length > 0
+            ? [{ name: 'Evaluaciones / Consultas', value: filteredNutritionEvaluations.length * 500 }]
+            : (parseFloat(nutritionIncomeReal?.total) > 0
+                ? [{ name: 'Ingresos Consultorio', value: parseFloat(nutritionIncomeReal.total) }]
+                : [])),
       title: 'Ingresos del Consultorio (Nutrición)', dataKey: 'value', nameKey: 'name'
     },
     absentPatients: {
-      data: [{ name: 'Ausentes (30+ días)', value: filteredAbsentPatients.length }],
+      data: [{ name: 'Ausentes (30+ días)', value: absentPatientsList.length }].filter(d => d.value > 0),
       title: 'Pacientes Ausentes (30+ días)', dataKey: 'value', nameKey: 'name'
     },
     nutritionEvaluations: {
-      data: [{ name: 'Evaluaciones en Período', value: filteredNutritionEvaluations.length }],
+      data: [
+        { 
+          name: 'Evaluaciones en Período', 
+          value: filteredNutritionEvaluations.length > 0 
+            ? filteredNutritionEvaluations.length 
+            : (kpis.nutritionStats?.total_evaluations || rawEvalsList.length || 0) 
+        }
+      ].filter(d => d.value > 0),
       title: 'Evaluaciones Realizadas en el Período', dataKey: 'value', nameKey: 'name'
     },
     nutritionConsultations: {
       data: [
-        { name: 'Evaluaciones en Período', value: filteredNutritionEvaluations.length }
-      ],
+        { name: '1 mes seguimiento', value: consultationDurations?.one_month_exact || 0 },
+        { name: '2 meses seguimiento', value: consultationDurations?.two_months_exact || 0 },
+        { name: '3+ meses constante', value: consultationDurations?.three_months_plus || 0 }
+      ].filter(d => d.value > 0).length > 0
+        ? [
+            { name: '1 mes seguimiento', value: consultationDurations?.one_month_exact || 0 },
+            { name: '2 meses seguimiento', value: consultationDurations?.two_months_exact || 0 },
+            { name: '3+ meses constante', value: consultationDurations?.three_months_plus || 0 }
+          ].filter(d => d.value > 0)
+        : (consultationDurations?.consulted_patients || filteredNutritionEvaluations.length > 0
+            ? [{ name: 'Pacientes Consultados', value: consultationDurations?.consulted_patients || filteredNutritionEvaluations.length }]
+            : []),
       title: 'Seguimiento de Pacientes por Tiempo', dataKey: 'value', nameKey: 'name'
     },
     sexDistributionPatients: { data: filteredSexDataPatients, title: 'Distribución por Sexo (Pacientes)', dataKey: 'value', nameKey: 'name' },
     ageDistributionPatients: { data: filteredAgeDataPatients, title: 'Distribución por Edad (Pacientes)', dataKey: 'value', nameKey: 'name' },
     appointmentStats: {
       data: isDateFilterActive
-        ? [{ name: 'Consultas / Citas en Período', value: filteredNutritionEvaluations.length }]
+        ? [
+            { name: 'Citas en Período', value: appointmentStats?.period || appointmentStats?.month || (nutritionApptDetails?.month?.length || filteredNutritionEvaluations.length || 0) }
+          ].filter(d => d.value > 0)
         : [
             { name: 'Citas Hoy', value: appointmentStats?.today || 0 },
             { name: 'Citas Mes', value: appointmentStats?.month || 0 },
             { name: 'Citas Año', value: appointmentStats?.year || 0 }
-          ],
+          ].filter(d => d.value > 0),
       title: 'Control de Citas / Agendas Nutrición', dataKey: 'value', nameKey: 'name'
     }
   };
@@ -822,7 +867,7 @@ export default function Statistics() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Estadisticas_Generales_PimponGym_${year}_${month}.csv`);
+    link.setAttribute('download', `Estadisticas_Generales_PimponGym_${selectedYear}_${selectedMonth}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

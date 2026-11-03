@@ -17,8 +17,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getDashboardStats(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getDashboardStats(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -82,8 +84,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getDailyAttendance(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getDailyAttendance(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -97,8 +101,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getPaymentMethodsDistribution(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getPaymentMethodsDistribution(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -147,8 +153,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionStats(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionStats(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -157,8 +165,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getComprehensiveStats(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getComprehensiveStats(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -169,8 +179,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getMonthlyIncomeByMethod(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getMonthlyIncomeByMethod(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -179,8 +191,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getMonthlyIncomeDetails(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getMonthlyIncomeDetails(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -234,8 +248,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionRetentionByThreeMonths(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionRetentionByThreeMonths(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -244,8 +260,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionConsultationDurations(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionConsultationDurations(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -254,8 +272,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionIncomeReal(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionIncomeReal(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -269,8 +289,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionAppointmentStats(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionAppointmentStats(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -299,8 +321,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionEvaluationsList(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionEvaluationsList(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -309,8 +333,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getVisitsDetailsList(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getVisitsDetailsList(year, month, fromDate, toDate);
     return { data };
   });
 
@@ -319,8 +345,10 @@ async function statisticsRoutes(fastify, options) {
     if (!validation.success) {
       return reply.status(400).send({ error: 'Parámetros inválidos', details: validation.error.format() });
     }
-    const { year, month } = validation.data;
-    const data = await service.getNutritionAppointmentsDetailsList(year, month);
+    const { year, month, from, to, startDate, endDate } = validation.data;
+    const fromDate = from || startDate;
+    const toDate = to || endDate;
+    const data = await service.getNutritionAppointmentsDetailsList(year, month, fromDate, toDate);
     return { data };
   });
 }
