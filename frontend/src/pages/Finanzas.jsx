@@ -131,12 +131,12 @@ export default function Finanzas() {
       return map.get(dateKey);
     };
 
-    // Pre-poblar los días pasados del mes en curso (desde el día 1 hasta ayer)
-    const monthStart = startOfMonth(today);
+    // Pre-poblar los últimos 30 días pasados (hasta ayer) para contar con el historial continuo
+    const startRange = subDays(today, 30);
     const yesterday = subDays(today, 1);
-    if (yesterday >= monthStart) {
-      const daysInMonthSoFar = eachDayOfInterval({ start: monthStart, end: yesterday });
-      daysInMonthSoFar.forEach((dayDate) => {
+    if (yesterday >= startRange) {
+      const pastDaysRange = eachDayOfInterval({ start: startRange, end: yesterday });
+      pastDaysRange.forEach((dayDate) => {
         ensureDay(format(dayDate, 'yyyy-MM-dd'));
       });
     }
@@ -753,18 +753,20 @@ export default function Finanzas() {
                     </table>
                   </div>
 
-                  {history.length > 10 && (
-                    <div className="flex justify-center pt-2">
-                      <GymButton
-                        variant="secondary"
-                        size="xs"
-                        icon={showAllIncome ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-                        onClick={() => setShowAllIncome((prev) => !prev)}
-                      >
-                        {showAllIncome ? 'Ver menos' : 'Ver más'}
-                      </GymButton>
-                    </div>
-                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      Mostrando {displayedHistory.length} de {history.length} filas (10 por defecto)
+                    </span>
+                    <GymButton
+                      variant="secondary"
+                      size="sm"
+                      icon={showAllIncome ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
+                      onClick={() => setShowAllIncome((prev) => !prev)}
+                      disabled={history.length <= 10 && !showAllIncome}
+                    >
+                      {showAllIncome ? 'Ver menos' : `Ver más${history.length > 10 ? ` (${history.length - 10} más)` : ''}`}
+                    </GymButton>
+                  </div>
                 </>
               )}
             </div>
@@ -913,18 +915,20 @@ export default function Finanzas() {
                     </table>
                   </div>
 
-                  {dailyHistory.length > 10 && (
-                    <div className="flex justify-center pt-2">
-                      <GymButton
-                        variant="secondary"
-                        size="xs"
-                        icon={showAllDailyIncome ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-                        onClick={() => setShowAllDailyIncome((prev) => !prev)}
-                      >
-                        {showAllDailyIncome ? 'Ver menos' : 'Ver más'}
-                      </GymButton>
-                    </div>
-                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      Mostrando {displayedDailyHistory.length} de {dailyHistory.length} filas (10 por defecto)
+                    </span>
+                    <GymButton
+                      variant="secondary"
+                      size="sm"
+                      icon={showAllDailyIncome ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
+                      onClick={() => setShowAllDailyIncome((prev) => !prev)}
+                      disabled={dailyHistory.length <= 10 && !showAllDailyIncome}
+                    >
+                      {showAllDailyIncome ? 'Ver menos' : `Ver más${dailyHistory.length > 10 ? ` (${dailyHistory.length - 10} más)` : ''}`}
+                    </GymButton>
+                  </div>
                 </>
               )}
             </div>
@@ -1071,18 +1075,20 @@ export default function Finanzas() {
                     </table>
                   </div>
 
-                  {expenses.length > 10 && (
-                    <div className="flex justify-center pt-2">
-                      <GymButton
-                        variant="secondary"
-                        size="xs"
-                        icon={showAllExpenses ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-                        onClick={() => setShowAllExpenses((prev) => !prev)}
-                      >
-                        {showAllExpenses ? 'Ver menos' : 'Ver más'}
-                      </GymButton>
-                    </div>
-                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      Mostrando {displayedExpenses.length} de {expenses.length} filas (10 por defecto)
+                    </span>
+                    <GymButton
+                      variant="secondary"
+                      size="sm"
+                      icon={showAllExpenses ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
+                      onClick={() => setShowAllExpenses((prev) => !prev)}
+                      disabled={expenses.length <= 10 && !showAllExpenses}
+                    >
+                      {showAllExpenses ? 'Ver menos' : `Ver más${expenses.length > 10 ? ` (${expenses.length - 10} más)` : ''}`}
+                    </GymButton>
+                  </div>
                 </>
               )}
             </div>
@@ -1224,18 +1230,20 @@ export default function Finanzas() {
                     </table>
                   </div>
 
-                  {dailyExpenses.length > 10 && (
-                    <div className="flex justify-center pt-2">
-                      <GymButton
-                        variant="secondary"
-                        size="xs"
-                        icon={showAllDailyExpenses ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-                        onClick={() => setShowAllDailyExpenses((prev) => !prev)}
-                      >
-                        {showAllDailyExpenses ? 'Ver menos' : 'Ver más'}
-                      </GymButton>
-                    </div>
-                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      Mostrando {displayedDailyExpenses.length} de {dailyExpenses.length} filas (10 por defecto)
+                    </span>
+                    <GymButton
+                      variant="secondary"
+                      size="sm"
+                      icon={showAllDailyExpenses ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
+                      onClick={() => setShowAllDailyExpenses((prev) => !prev)}
+                      disabled={dailyExpenses.length <= 10 && !showAllDailyExpenses}
+                    >
+                      {showAllDailyExpenses ? 'Ver menos' : `Ver más${dailyExpenses.length > 10 ? ` (${dailyExpenses.length - 10} más)` : ''}`}
+                    </GymButton>
+                  </div>
                 </>
               )}
             </div>
@@ -1503,18 +1511,20 @@ export default function Finanzas() {
                 </table>
               </div>
 
-              {pastDailyCutoffs.length > 10 && (
-                <div className="flex justify-center pt-2">
-                  <GymButton
-                    variant="secondary"
-                    size="xs"
-                    icon={showAllPastCutoffs ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-                    onClick={() => setShowAllPastCutoffs((prev) => !prev)}
-                  >
-                    {showAllPastCutoffs ? 'Ver menos' : 'Ver más'}
-                  </GymButton>
-                </div>
-              )}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3">
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  Mostrando {displayedPastCutoffs.length} de {pastDailyCutoffs.length} filas (10 por defecto)
+                </span>
+                <GymButton
+                  variant="secondary"
+                  size="sm"
+                  icon={showAllPastCutoffs ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
+                  onClick={() => setShowAllPastCutoffs((prev) => !prev)}
+                  disabled={pastDailyCutoffs.length <= 10 && !showAllPastCutoffs}
+                >
+                  {showAllPastCutoffs ? 'Ver menos' : `Ver más${pastDailyCutoffs.length > 10 ? ` (${pastDailyCutoffs.length - 10} más)` : ''}`}
+                </GymButton>
+              </div>
             </>
           )}
         </div>
