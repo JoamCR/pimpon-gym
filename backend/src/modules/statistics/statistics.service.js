@@ -8,7 +8,6 @@ const { createError } = require('../../lib/appError');
 
 const getDashboardStats = async (year, month) => {
   try {
-    // Current year and month fallback
     const y = year || new Date().getFullYear();
     const m = month || (new Date().getMonth() + 1);
 
@@ -23,13 +22,11 @@ const getDashboardStats = async (year, month) => {
       repository.getActiveClientsReal(),
       repository.getClientsByPlan(),
       repository.getEnrollmentCutoff(m, y),
-      repository.getConsistentClients(6) // 6 meses es el incentivo default
+      repository.getConsistentClients(6)
     ]);
 
-    // Filtrar los ingresos para el mes actual y sumar el total
     const currentMonthIncomeList = monthlyIncome.filter(inc => parseInt(inc.month) === parseInt(m));
     const currentMonthIncome = currentMonthIncomeList.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
-    const totalEnrollments = enrollments.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
 
     return {
       kpis: {
@@ -134,7 +131,7 @@ const getDailyAttendance = async (year, month, from, to) => {
 
 const getGhostClients = async () => {
   try {
-    return await repository.getGhostClients();
+    return await repository.getAbsentClients();
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener clientes fantasma');
@@ -236,7 +233,24 @@ const getComprehensiveStats = async (year, month, from, to) => {
       activeClients,
       monthlyIncome,
       acquisitionOrigin,
-      visitStats
+      visitsDetails,
+      nutritionApptDetails,
+      monthlyIncomeData,
+      absentClients,
+      alertClients,
+      expiredClients,
+      patientsToClients,
+      retention3Months,
+      consultationDurations,
+      nutritionIncomeReal,
+      monthlyIncomeDetails,
+      nutritionPaidConsults,
+      retentionClients,
+      absentPatients,
+      gymOnlyClients,
+      nutritionOnlyPatients,
+      gymToNutritionPatients,
+      nutritionEvaluationsList
     ] = await Promise.all([
       repository.getRetentionRate(),
       repository.getPaymentMethodsDistribution(y, m, from, to),
@@ -255,8 +269,37 @@ const getComprehensiveStats = async (year, month, from, to) => {
       repository.getActiveClientsReal(),
       repository.getMonthlyIncome(y),
       repository.getAcquisitionOriginStats(),
-      repository.getVisitStats(y, m, from, to)
+      repository.getVisitsDetailsList(y, m, from, to),
+      repository.getNutritionAppointmentsDetailsList(y, m, from, to),
+      repository.getMonthlyIncomeByMethod(y, m, from, to),
+      repository.getAbsentClients(),
+      repository.getAlertClients(),
+      repository.getExpiredClients(),
+      repository.getNutritionPatientsToClientsConversion(),
+      repository.getNutritionRetentionByThreeMonths(y, m, from, to),
+      repository.getNutritionConsultationDurations(y, m, from, to),
+      repository.getNutritionIncomeReal(y, m, from, to),
+      repository.getMonthlyIncomeDetails(y, m, from, to),
+      repository.getNutritionPaidConsults(y, m),
+      repository.getRetainedClients(),
+      repository.getAbsentPatients(),
+      repository.getGymOnlyClientsList(),
+      repository.getNutritionOnlyPatientsList(),
+      repository.getGymToNutritionList(),
+      repository.getNutritionEvaluationsList(y, m, from, to)
     ]);
+
+    const visitStats = {
+      today: visitsDetails?.today?.length || 0,
+      month: visitsDetails?.month?.length || 0,
+      year: visitsDetails?.year?.length || 0
+    };
+
+    const appointmentStats = {
+      today: nutritionApptDetails?.today?.length || 0,
+      month: nutritionApptDetails?.month?.length || 0,
+      year: nutritionApptDetails?.year?.length || 0
+    };
 
     return {
       kpis: {
@@ -268,7 +311,8 @@ const getComprehensiveStats = async (year, month, from, to) => {
         activeClients: activeClients,
         sixMonthEligible: sixMonthEligible?.length || 0,
         acquisitionOrigin: acquisitionOrigin,
-        visitStats: visitStats
+        visitStats: visitStats,
+        appointmentStats: appointmentStats
       },
       charts: {
         paymentMethods,
@@ -281,6 +325,28 @@ const getComprehensiveStats = async (year, month, from, to) => {
         sexDistributionPatients,
         nutritionRetention,
         acquisitionOrigin
+      },
+      lists: {
+        monthlyIncomeData,
+        absentClients,
+        alertClients,
+        expiredClients,
+        patientsToClients,
+        retention3Months,
+        consultationDurations,
+        nutritionIncomeReal,
+        monthlyIncomeDetails,
+        nutritionPaidConsults,
+        retentionClients,
+        acquisitionOriginData: acquisitionOrigin,
+        appointmentStats,
+        absentPatients,
+        gymOnlyClients,
+        nutritionOnlyPatients,
+        gymToNutritionPatients,
+        nutritionEvaluationsList,
+        visitsDetails,
+        nutritionApptDetails
       }
     };
   } catch (error) {
@@ -553,4 +619,3 @@ module.exports = {
   getVisitsDetailsList,
   getNutritionAppointmentsDetailsList
 };
-

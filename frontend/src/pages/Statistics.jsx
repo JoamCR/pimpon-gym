@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { PageHeader } from '../components/ui/PageHeader';
 import {
   IconTrendingUp,
@@ -8,7 +10,6 @@ import {
   IconLoader,
   IconAlertCircle,
   IconMailbox,
-  IconSparkles,
   IconDownload,
   IconShare,
   IconSpeakerphone,
@@ -22,32 +23,10 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { useComprehensiveStats } from '../hooks/useStatistics';
-import {
-  useMonthlyIncomeByMethod,
-  useAbsentClients,
-  useAlertClients,
-  useExpiredClients,
-  useNutritionPatientsToClients,
-  useNutritionRetention3Months,
-  useNutritionConsultationDurations,
-  useNutritionIncomeReal,
-  useMonthlyIncomeDetails,
-  useNutritionPaidConsults,
-  useRetainedClients,
-  useConsistentClients,
-  useAcquisitionOriginStats,
-  useNutritionAppointmentStats,
-  useAbsentPatients,
-  useGymOnlyClients,
-  useNutritionOnlyPatients,
-  useGymToNutritionPatients,
-  useNutritionEvaluationsList,
-  useVisitsDetails,
-  useNutritionAppointmentsDetails
-} from '../hooks/useStatistics';
 import { GymCard } from '../components/ui/GymCard';
 import { GymButton } from '../components/ui/GymButton';
 import { SimpleDateInput } from '../components/ui/SimpleDateInput';
+import { ZebraTableCard } from '../components/statistics/ZebraTableCard';
 
 const COLORS = ['#0F3E60', '#E29A00', '#16A34A', '#DC2626', '#0D1B2A', '#8B5CF6'];
 
@@ -85,18 +64,15 @@ const allMetrics = [
 ];
 
 export default function Statistics() {
+  const navigate = useNavigate();
   const [chartType, setChartType] = useState('bar');
   const [selectedMetric, setSelectedMetric] = useState('clientsByPlan');
-  const [filterMetric, setFilterMetric] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   // Selección de tarjetas interactiva para Tablas Cebra
   const [selectedGymCard, setSelectedGymCard] = useState('gymOnly');
   const [selectedNutritionCard, setSelectedNutritionCard] = useState('nutritionOnly');
-  // Selección de sub-tarjetas de visitas/citas ('today' | 'month' | 'year')
-  const [selectedGymVisitPeriod, setSelectedGymVisitPeriod] = useState(null);
-  const [selectedNutritionApptPeriod, setSelectedNutritionApptPeriod] = useState(null);
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -113,30 +89,8 @@ export default function Statistics() {
   const selectedYear = derivedYear || currentYear;
   const selectedMonth = derivedMonth || currentMonth;
 
-  // Hooks de datos pasando año, mes y rango de fechas
-  const { data, isLoading, error } = useComprehensiveStats(selectedYear, selectedMonth, startDate, endDate);
-  const { data: monthlyIncomeData } = useMonthlyIncomeByMethod(selectedYear, selectedMonth, startDate, endDate);
-  const { data: absentClients } = useAbsentClients();
-  const { data: alertClients } = useAlertClients();
-  const { data: expiredClients } = useExpiredClients();
-  const { data: patientsToClients } = useNutritionPatientsToClients();
-  const { data: retention3Months } = useNutritionRetention3Months(selectedYear, selectedMonth, startDate, endDate);
-  const { data: consultationDurations } = useNutritionConsultationDurations(selectedYear, selectedMonth, startDate, endDate);
-  const { data: nutritionIncomeReal } = useNutritionIncomeReal(selectedYear, selectedMonth, startDate, endDate);
-  const { data: monthlyIncomeDetails } = useMonthlyIncomeDetails(selectedYear, selectedMonth, startDate, endDate);
-  const { data: nutritionPaidConsults } = useNutritionPaidConsults(selectedYear, selectedMonth, startDate, endDate);
-  const { data: retentionClients } = useRetainedClients();
-  const { data: acquisitionOriginData } = useAcquisitionOriginStats();
-
-  // Nuevos hooks para la paridad simétrica y desgloses
-  const { data: appointmentStats } = useNutritionAppointmentStats(selectedYear, selectedMonth, startDate, endDate);
-  const { data: absentPatients } = useAbsentPatients();
-  const { data: gymOnlyClients } = useGymOnlyClients();
-  const { data: nutritionOnlyPatients } = useNutritionOnlyPatients();
-  const { data: gymToNutritionPatients } = useGymToNutritionPatients();
-  const { data: nutritionEvaluationsList } = useNutritionEvaluationsList(selectedYear, selectedMonth, startDate, endDate);
-  const { data: visitsDetails } = useVisitsDetails(selectedYear, selectedMonth, startDate, endDate);
-  const { data: nutritionApptDetails } = useNutritionAppointmentsDetails(selectedYear, selectedMonth, startDate, endDate);
+  // Un solo hook consolidado que trae todos los KPIs, gráficos y listas en 1 petición HTTP
+  const { data, isLoading, error, refetch } = useComprehensiveStats(selectedYear, selectedMonth, startDate, endDate);
 
   if (error) {
     return (
@@ -146,7 +100,7 @@ export default function Statistics() {
             <p className="text-[var(--color-text)] flex items-center gap-2">
               <IconAlertCircle size={24} className="text-red-500" /> {error.message}
             </p>
-            <GymButton variant="primary" size="lg">Reintentar</GymButton>
+            <GymButton variant="primary" size="lg" onClick={() => refetch()}>Reintentar</GymButton>
           </div>
         </GymCard>
       </div>
@@ -171,6 +125,27 @@ export default function Statistics() {
   const stats = data || {};
   const kpis = stats.kpis || {};
   const charts = stats.charts || {};
+  const lists = stats.lists || {};
+
+  const monthlyIncomeData = lists.monthlyIncomeData || { total: 0, payment_breakdown: [] };
+  const absentClients = lists.absentClients || [];
+  const alertClients = lists.alertClients || [];
+  const expiredClients = lists.expiredClients || [];
+  const patientsToClients = lists.patientsToClients || [];
+  const retention3Months = lists.retention3Months || [];
+  const consultationDurations = lists.consultationDurations || {};
+  const nutritionIncomeReal = lists.nutritionIncomeReal || { total: 0, by_method: [], details: [] };
+  const monthlyIncomeDetails = lists.monthlyIncomeDetails || [];
+  const retentionClients = lists.retentionClients || [];
+  const acquisitionOriginData = lists.acquisitionOriginData || kpis.acquisitionOrigin || {};
+  const appointmentStats = lists.appointmentStats || kpis.appointmentStats || { today: 0, month: 0, year: 0 };
+  const absentPatients = lists.absentPatients || [];
+  const gymOnlyClients = lists.gymOnlyClients || [];
+  const nutritionOnlyPatients = lists.nutritionOnlyPatients || [];
+  const gymToNutritionPatients = lists.gymToNutritionPatients || [];
+  const nutritionEvaluationsList = lists.nutritionEvaluationsList || [];
+  const visitsDetails = lists.visitsDetails || { today: [], month: [], year: [] };
+  const nutritionApptDetails = lists.nutritionApptDetails || { today: [], month: [], year: [] };
 
   const totalIncome = monthlyIncomeData?.total || 0;
   const incomeByMethod = monthlyIncomeData?.payment_breakdown || [];
@@ -232,20 +207,21 @@ export default function Statistics() {
   };
 
   const filteredAttendanceData = attendanceData.filter(d => isWithinDateRange(d.date));
-  const filteredGymOnlyClients = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at));
-  const filteredNutritionOnlyPatients = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at));
-  const filteredAbsentClients = (absentClients || []).filter(c => isWithinDateRange(c.last_attendance_date || c.last_attendance || c.created_at));
-  const filteredAlertClients = (alertClients || []).filter(c => isWithinDateRange(c.last_attendance_date || c.last_attendance || c.created_at));
-  const filteredExpiredClients = (expiredClients || []).filter(c => isWithinDateRange(c.end_date || c.last_end_date || c.created_at));
-  const filteredAbsentPatients = (absentPatients || []).filter(p => isWithinDateRange(p.last_consultation_date || p.created_at));
-  const filteredPatientsToClients = (patientsToClients || []).filter(p => isWithinDateRange(p.conversion_date || p.created_at));
+  const filteredGymOnlyClients = gymOnlyClients.filter(c => isWithinDateRange(c.created_at));
+  const filteredNutritionOnlyPatients = nutritionOnlyPatients.filter(p => isWithinDateRange(p.created_at));
+  const filteredAbsentClients = absentClients.filter(c => isWithinDateRange(c.last_attendance_date || c.last_attendance || c.created_at));
+  const filteredAlertClients = alertClients.filter(c => isWithinDateRange(c.last_attendance_date || c.last_attendance || c.created_at));
+  const filteredExpiredClients = expiredClients.filter(c => isWithinDateRange(c.end_date || c.last_end_date || c.created_at));
+  const filteredAbsentPatients = absentPatients.filter(p => isWithinDateRange(p.last_consultation_date || p.created_at));
+  const filteredPatientsToClients = patientsToClients.filter(p => isWithinDateRange(p.conversion_date || p.created_at));
+  const filteredGymToNutritionPatients = gymToNutritionPatients.filter(p => isWithinDateRange(p.conversion_date || p.created_at));
 
   const rawEvalsList = Array.isArray(nutritionEvaluationsList) 
     ? nutritionEvaluationsList 
     : (nutritionEvaluationsList?.data || []);
   const filteredNutritionEvaluations = rawEvalsList.filter(e => isWithinDateRange(e.evaluation_date || e.created_at));
 
-  const filteredMonthlyIncomeDetails = (monthlyIncomeDetails || []).filter(p => isWithinDateRange(p.paid_at || p.payment_date || p.created_at));
+  const filteredMonthlyIncomeDetails = monthlyIncomeDetails.filter(p => isWithinDateRange(p.paid_at || p.payment_date || p.created_at));
 
   const detailedIncomeByMethod = [
     { name: 'Efectivo', value: filteredMonthlyIncomeDetails.filter(d => d.payment_method === 'cash').reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0) },
@@ -266,66 +242,16 @@ export default function Statistics() {
       }))
     : paymentData;
 
-  const clientsFromFilteredList = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, client) => {
-    const plan = client.plan_name || 'Sin plan';
-    const existing = acc.find(item => item.name === plan);
-    if (existing) existing.value += 1;
-    else acc.push({ name: plan, value: 1 });
-    return acc;
-  }, []).filter(d => d.value > 0);
+  const filteredPlansData = isInvalidRange ? [] : plansData;
+  const filteredSexDataClients = isInvalidRange ? [] : sexDataClients;
+  const filteredAgeDataClients = isInvalidRange ? [] : ageDataClients;
+  const filteredSexDataPatients = isInvalidRange ? [] : sexDataPatients;
+  const filteredAgeDataPatients = isInvalidRange ? [] : ageDataPatients;
 
-  const filteredPlansData = isInvalidRange
-    ? []
-    : (plansData.length > 0 ? plansData : clientsFromFilteredList);
-
-  const sexClientsFromList = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
-    const rawSex = c.sex || c.gender;
-    const sex = (rawSex === 'M' || rawSex === 'Masculino') ? 'Masculino' : (rawSex === 'F' || rawSex === 'Femenino') ? 'Femenino' : 'Sin dato';
-    const existing = acc.find(item => item.name === sex);
-    if (existing) existing.value += 1;
-    else acc.push({ name: sex, value: 1 });
-    return acc;
-  }, []).filter(d => d.value > 0);
-
-  const filteredSexDataClients = isInvalidRange ? [] : (sexDataClients.length > 0 ? sexDataClients : sexClientsFromList);
-
-  const ageClientsFromList = (gymOnlyClients || []).filter(c => isWithinDateRange(c.created_at)).reduce((acc, c) => {
-    const age = c.age ? parseInt(c.age, 10) : null;
-    const range = age ? (age < 18 ? '<18' : age <= 25 ? '18-25' : age <= 35 ? '26-35' : age <= 50 ? '36-50' : '50+') : 'Sin dato';
-    const existing = acc.find(item => item.name === range);
-    if (existing) existing.value += 1;
-    else acc.push({ name: range, value: 1 });
-    return acc;
-  }, []).filter(d => d.value > 0);
-
-  const filteredAgeDataClients = isInvalidRange ? [] : (ageDataClients.length > 0 ? ageDataClients : ageClientsFromList);
-
-  const sexPatientsFromList = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
-    const rawSex = p.sex || p.gender;
-    const sex = (rawSex === 'M' || rawSex === 'Masculino') ? 'Masculino' : (rawSex === 'F' || rawSex === 'Femenino') ? 'Femenino' : 'Sin dato';
-    const existing = acc.find(item => item.name === sex);
-    if (existing) existing.value += 1;
-    else acc.push({ name: sex, value: 1 });
-    return acc;
-  }, []).filter(d => d.value > 0);
-
-  const filteredSexDataPatients = isInvalidRange ? [] : (sexDataPatients.length > 0 ? sexDataPatients : sexPatientsFromList);
-
-  const agePatientsFromList = (nutritionOnlyPatients || []).filter(p => isWithinDateRange(p.created_at)).reduce((acc, p) => {
-    const age = p.age ? parseInt(p.age, 10) : null;
-    const range = age ? (age < 18 ? '<18' : age <= 25 ? '18-25' : age <= 35 ? '26-35' : age <= 50 ? '36-50' : '50+') : 'Sin dato';
-    const existing = acc.find(item => item.name === range);
-    if (existing) existing.value += 1;
-    else acc.push({ name: range, value: 1 });
-    return acc;
-  }, []).filter(d => d.value > 0);
-
-  const filteredAgeDataPatients = isInvalidRange ? [] : (ageDataPatients.length > 0 ? ageDataPatients : agePatientsFromList);
-
-  const absentClientsList = filteredAbsentClients.length > 0 ? filteredAbsentClients : (absentClients || []);
-  const alertClientsList = filteredAlertClients.length > 0 ? filteredAlertClients : (alertClients || []);
-  const expiredClientsList = filteredExpiredClients.length > 0 ? filteredExpiredClients : (expiredClients || []);
-  const absentPatientsList = filteredAbsentPatients.length > 0 ? filteredAbsentPatients : (absentPatients || []);
+  const absentClientsList = isDateFilterActive ? filteredAbsentClients : absentClients;
+  const alertClientsList = isDateFilterActive ? filteredAlertClients : alertClients;
+  const expiredClientsList = isDateFilterActive ? filteredExpiredClients : expiredClients;
+  const absentPatientsList = isDateFilterActive ? filteredAbsentPatients : absentPatients;
 
   const nutritionIncomeByMethod = (nutritionIncomeReal?.by_method || []).map(d => ({
     name: d.payment_method === 'cash' ? 'Efectivo' : d.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta',
@@ -334,27 +260,27 @@ export default function Statistics() {
 
   const chartConfig = {
     // Gimnasio (Clientes)
-    clientsByPlan: { data: filteredPlansData, title: 'Distribución de Clientes por Plan', dataKey: 'value', nameKey: 'name' },
+    clientsByPlan: { data: filteredPlansData, title: 'Distribución de Clientes Activos por Plan', dataKey: 'value', nameKey: 'name' },
     gymOnly: {
       data: [
-        { name: 'Solo Gimnasio', value: filteredGymOnlyClients.length || (acquisitionOriginData?.gimnasio_only || 0) },
-        { name: 'Otros clientes', value: Math.max((acquisitionOriginData?.total_clients || 0) - (filteredGymOnlyClients.length || acquisitionOriginData?.gimnasio_only || 0), 0) }
+        { name: 'Solo Gimnasio', value: filteredGymOnlyClients.length },
+        { name: 'Vinculados a Nutrición', value: Math.max((acquisitionOriginData?.total_clients || 0) - filteredGymOnlyClients.length, 0) }
       ].filter(d => d.value > 0),
       title: 'Origen: Solo Gimnasio', dataKey: 'value', nameKey: 'name'
     },
     nutToGym: {
-      data: [{ name: 'Nutrición → Gimnasio', value: filteredPatientsToClients.length || (acquisitionOriginData?.nutricion_to_gimnasio || 0) }].filter(d => d.value > 0),
+      data: [{ name: 'Nutrición → Gimnasio', value: filteredPatientsToClients.length }].filter(d => d.value > 0),
       title: 'Conversión: Nutrición a Gimnasio', dataKey: 'value', nameKey: 'name'
     },
     retentionRate: {
       data: [
-        { name: 'Retención', value: parseFloat(kpis.retention?.retention_percentage) || ((retentionClients || []).length > 0 ? (retentionClients || []).length : 0) },
-        { name: 'No retenidos', value: Math.max((parseFloat(kpis.retention?.total_clients) || 0) - (parseFloat(kpis.retention?.retained_clients) || (retentionClients || []).length || 0), 0) }
+        { name: 'Retenidos (6+ meses)', value: parseFloat(kpis.retention?.retained_clients) || retentionClients.length || 0 },
+        { name: 'Menos de 6 meses', value: Math.max((parseFloat(kpis.retention?.total_clients) || 0) - (parseFloat(kpis.retention?.retained_clients) || retentionClients.length || 0), 0) }
       ].filter(d => d.value > 0),
       title: 'Retención de Clientes', dataKey: 'value', nameKey: 'name'
     },
     monthlyIncome: { data: filteredIncomeMethodData, title: 'Ingresos Efectivos (Gimnasio)', dataKey: 'value', nameKey: 'name' },
-    paymentMethods: { data: filteredPaymentData, title: 'Origen de Ingresos', dataKey: 'value', nameKey: 'name' },
+    paymentMethods: { data: filteredPaymentData, title: 'Origen de Ingresos (Gimnasio)', dataKey: 'value', nameKey: 'name' },
     attendance: { data: filteredAttendanceData, title: 'Asistencia Diaria', dataKey: 'visitantes', nameKey: 'date' },
     absentClients: {
       data: absentClientsList.reduce((acc, client) => {
@@ -364,7 +290,7 @@ export default function Statistics() {
         else acc.push({ name: plan, value: 1 });
         return acc;
       }, []).filter(d => d.value > 0),
-      title: 'Clientes Ausentes por Plan', dataKey: 'value', nameKey: 'name'
+      title: 'Clientes Ausentes (15+ días) por Plan', dataKey: 'value', nameKey: 'name'
     },
     alertClients: {
       data: alertClientsList.reduce((acc, client) => {
@@ -374,7 +300,7 @@ export default function Statistics() {
         else acc.push({ name: plan, value: 1 });
         return acc;
       }, []).filter(d => d.value > 0),
-      title: 'Clientes en Alerta por Plan', dataKey: 'value', nameKey: 'name'
+      title: 'Clientes en Alerta (7 a 14 días) por Plan', dataKey: 'value', nameKey: 'name'
     },
     expiredClients: {
       data: expiredClientsList.reduce((acc, client) => {
@@ -392,30 +318,28 @@ export default function Statistics() {
     // Nutriología (Pacientes)
     nutritionOnly: {
       data: [
-        { name: 'Solo Nutrición', value: filteredNutritionOnlyPatients.length || (acquisitionOriginData?.nutricion_only || 0) },
-        { name: 'Otros pacientes', value: Math.max((acquisitionOriginData?.total_patients || 0) - (filteredNutritionOnlyPatients.length || acquisitionOriginData?.nutricion_only || 0), 0) }
+        { name: 'Solo Nutrición', value: filteredNutritionOnlyPatients.length },
+        { name: 'Vinculados a Gimnasio', value: Math.max((acquisitionOriginData?.total_patients || 0) - filteredNutritionOnlyPatients.length, 0) }
       ].filter(d => d.value > 0),
       title: 'Origen: Solo Nutrición', dataKey: 'value', nameKey: 'name'
     },
     gymToNut: {
-      data: [{ name: 'Gimnasio → Nutrición', value: (gymToNutritionPatients?.length || acquisitionOriginData?.gimnasio_to_nutricion || 0) }].filter(d => d.value > 0),
+      data: [{ name: 'Gimnasio → Nutrición', value: filteredGymToNutritionPatients.length }].filter(d => d.value > 0),
       title: 'Conversión: Gimnasio a Nutrición', dataKey: 'value', nameKey: 'name'
     },
     nutritionRetention: {
       data: [
-        { name: '3+ Consultas', value: (retention3Months || []).length },
-        { name: 'Resto', value: Math.max((consultationDurations?.total_patients || 0) - (retention3Months || []).length, 0) }
+        { name: '3+ Consultas', value: retention3Months.length },
+        { name: 'Resto', value: Math.max((consultationDurations?.total_patients || 0) - retention3Months.length, 0) }
       ].filter(d => d.value > 0),
       title: 'Retención de Pacientes', dataKey: 'value', nameKey: 'name'
     },
     nutritionIncome: {
       data: nutritionIncomeByMethod.length > 0
         ? nutritionIncomeByMethod
-        : (filteredNutritionEvaluations.length > 0
-            ? [{ name: 'Evaluaciones / Consultas', value: filteredNutritionEvaluations.length * 500 }]
-            : (parseFloat(nutritionIncomeReal?.total) > 0
-                ? [{ name: 'Ingresos Consultorio', value: parseFloat(nutritionIncomeReal.total) }]
-                : [])),
+        : (parseFloat(nutritionIncomeReal?.total) > 0
+            ? [{ name: 'Ingresos Consultorio', value: parseFloat(nutritionIncomeReal.total) }]
+            : []),
       title: 'Ingresos del Consultorio (Nutrición)', dataKey: 'value', nameKey: 'name'
     },
     absentPatients: {
@@ -426,9 +350,7 @@ export default function Statistics() {
       data: [
         { 
           name: 'Evaluaciones en Período', 
-          value: filteredNutritionEvaluations.length > 0 
-            ? filteredNutritionEvaluations.length 
-            : (kpis.nutritionStats?.total_evaluations || rawEvalsList.length || 0) 
+          value: filteredNutritionEvaluations.length
         }
       ].filter(d => d.value > 0),
       title: 'Evaluaciones Realizadas en el Período', dataKey: 'value', nameKey: 'name'
@@ -438,15 +360,7 @@ export default function Statistics() {
         { name: '1 mes seguimiento', value: consultationDurations?.one_month_exact || 0 },
         { name: '2 meses seguimiento', value: consultationDurations?.two_months_exact || 0 },
         { name: '3+ meses constante', value: consultationDurations?.three_months_plus || 0 }
-      ].filter(d => d.value > 0).length > 0
-        ? [
-            { name: '1 mes seguimiento', value: consultationDurations?.one_month_exact || 0 },
-            { name: '2 meses seguimiento', value: consultationDurations?.two_months_exact || 0 },
-            { name: '3+ meses constante', value: consultationDurations?.three_months_plus || 0 }
-          ].filter(d => d.value > 0)
-        : (consultationDurations?.consulted_patients || filteredNutritionEvaluations.length > 0
-            ? [{ name: 'Pacientes Consultados', value: consultationDurations?.consulted_patients || filteredNutritionEvaluations.length }]
-            : []),
+      ].filter(d => d.value > 0),
       title: 'Seguimiento de Pacientes por Tiempo', dataKey: 'value', nameKey: 'name'
     },
     sexDistributionPatients: { data: filteredSexDataPatients, title: 'Distribución por Sexo (Pacientes)', dataKey: 'value', nameKey: 'name' },
@@ -454,7 +368,7 @@ export default function Statistics() {
     appointmentStats: {
       data: isDateFilterActive
         ? [
-            { name: 'Citas en Período', value: appointmentStats?.period || appointmentStats?.month || (nutritionApptDetails?.month?.length || filteredNutritionEvaluations.length || 0) }
+            { name: 'Citas en Período', value: appointmentStats?.month || nutritionApptDetails?.month?.length || 0 }
           ].filter(d => d.value > 0)
         : [
             { name: 'Citas Hoy', value: appointmentStats?.today || 0 },
@@ -467,7 +381,6 @@ export default function Statistics() {
 
   // Helper para generar los datos de la Tabla Cebra del Gimnasio (Clientes)
   const getGymTableData = () => {
-    // Tarjetas de Visitas (Día / Mes / Año)
     if (selectedGymCard === 'visitToday') {
       const rows = (visitsDetails?.today || []).map(v => ({
         name: `${v.first_name} ${v.last_name || ''}`.trim() || 'Sin nombre',
@@ -498,7 +411,7 @@ export default function Statistics() {
         return {
           title: 'Origen: Solo Gimnasio',
           headers: ['Cliente', 'Teléfono / Plan', 'Fecha Registro'],
-          rows: (gymOnlyClients || []).map(c => ({
+          rows: filteredGymOnlyClients.map(c => ({
             name: `${c.first_name} ${c.last_name || ''}`,
             phone: `${c.phone || 'Sin tel.'} • ${c.plan_name || 'Sin plan'}`,
             detail: new Date(c.created_at).toLocaleDateString('es-MX')
@@ -508,7 +421,7 @@ export default function Statistics() {
         return {
           title: 'Conversión: Nutrición → Gimnasio',
           headers: ['Cliente', 'Teléfono', 'Consultas Previas'],
-          rows: (patientsToClients || []).map(p => ({
+          rows: filteredPatientsToClients.map(p => ({
             name: `${p.first_name} ${p.last_name || ''}`,
             phone: p.phone || 'Sin teléfono',
             detail: `${p.total_consultations || 0} consulta(s)`
@@ -518,7 +431,7 @@ export default function Statistics() {
         return {
           title: 'Retención de Clientes',
           headers: ['Cliente', 'Teléfono / Plan', 'Permanencia'],
-          rows: (retentionClients || []).map(r => ({
+          rows: retentionClients.map(r => ({
             name: `${r.first_name} ${r.last_name || ''}`,
             phone: `${r.phone || 'Sin tel.'} • ${r.plan_name || 'Sin plan'}`,
             detail: `${r.consecutive_months || 0} meses seguidos`
@@ -538,32 +451,32 @@ export default function Statistics() {
       }
       case 'absentClients':
         return {
-          title: 'Clientes Ausentes',
-          headers: ['Cliente', 'Plan / Anualidad', 'Inasistencia'],
-          rows: (absentClients || []).map(a => ({
+          title: 'Clientes Ausentes (15+ días sin asistir)',
+          headers: ['Cliente', 'Teléfono / Plan', 'Inasistencia'],
+          rows: absentClientsList.map(a => ({
             name: `${a.first_name} ${a.last_name || ''}`,
-            phone: a.plan_name || 'Sin plan',
-            detail: `${a.days_without_attendance || 'Sin datos'} días`
+            phone: `${a.phone || 'Sin tel.'} • ${a.plan_name || 'Sin plan'}`,
+            detail: `${a.days_without_attendance ?? 0} días${!a.last_attendance ? ' (sin asistencias)' : ''}`
           }))
         };
       case 'alertClients':
         return {
-          title: 'Clientes en Alerta',
-          headers: ['Cliente', 'Teléfono', 'Sin Asistir'],
-          rows: (alertClients || []).map(a => ({
+          title: 'Clientes en Alerta (7 a 14 días sin asistir)',
+          headers: ['Cliente', 'Teléfono / Plan', 'Sin Asistir'],
+          rows: alertClientsList.map(a => ({
             name: `${a.first_name} ${a.last_name || ''}`,
-            phone: a.phone || 'Sin teléfono',
-            detail: `${a.days_without_attendance || 0} días`
+            phone: `${a.phone || 'Sin tel.'} • ${a.plan_name || 'Sin plan'}`,
+            detail: `${a.days_without_attendance ?? 0} días${!a.last_attendance ? ' (sin asistencias)' : ''}`
           }))
         };
       case 'expiredClients':
         return {
           title: 'Anualidad Vencida',
-          headers: ['Cliente', 'Teléfono', 'Estado'],
-          rows: (expiredClients || []).map(e => ({
+          headers: ['Cliente', 'Teléfono / Plan', 'Venció el'],
+          rows: expiredClientsList.map(e => ({
             name: `${e.first_name} ${e.last_name || ''}`,
-            phone: e.phone || 'Sin teléfono',
-            detail: e.plan_name || 'Vencido'
+            phone: `${e.phone || 'Sin tel.'} • ${e.plan_name || 'Sin plan'}`,
+            detail: e.enrollment_expires_at ? new Date(e.enrollment_expires_at).toLocaleDateString('es-MX') : 'Vencida'
           }))
         };
       case 'sexDistributionClients':
@@ -593,7 +506,6 @@ export default function Statistics() {
 
   // Helper para generar los datos de la Tabla Cebra de Nutriología (Pacientes)
   const getNutritionTableData = () => {
-    // Tarjetas de Citas (Día / Mes / Año)
     if (selectedNutritionCard === 'apptToday') {
       const rows = (nutritionApptDetails?.today || []).map(a => ({
         name: `${a.first_name} ${a.last_name || ''}`.trim() || 'Sin nombre',
@@ -624,7 +536,7 @@ export default function Statistics() {
         return {
           title: 'Origen: Solo Nutrición',
           headers: ['Paciente', 'Teléfono', 'Fecha Registro'],
-          rows: (nutritionOnlyPatients || []).map(p => ({
+          rows: filteredNutritionOnlyPatients.map(p => ({
             name: `${p.first_name} ${p.last_name || ''}`,
             phone: p.phone || 'Sin teléfono',
             detail: new Date(p.created_at).toLocaleDateString('es-MX')
@@ -633,18 +545,18 @@ export default function Statistics() {
       case 'gymToNut':
         return {
           title: 'Conversión: Gimnasio → Nutrición',
-          headers: ['Paciente', 'Teléfono', 'Origen'],
-          rows: (gymToNutritionPatients || []).map(p => ({
+          headers: ['Paciente', 'Teléfono', 'Conversión'],
+          rows: filteredGymToNutritionPatients.map(p => ({
             name: `${p.first_name} ${p.last_name || ''}`,
             phone: p.phone || 'Sin teléfono',
-            detail: 'Cliente Gimnasio'
+            detail: p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : 'Cliente Gimnasio'
           }))
         };
       case 'nutritionRetention':
         return {
           title: 'Retención de Pacientes',
           headers: ['Paciente', 'Teléfono', 'Consultas'],
-          rows: (retention3Months || []).map(r => ({
+          rows: retention3Months.map(r => ({
             name: `${r.first_name} ${r.last_name || ''}`,
             phone: r.phone || 'Sin teléfono',
             detail: `${r.total_consults || 0} consulta(s)`
@@ -667,26 +579,22 @@ export default function Statistics() {
         return {
           title: 'Pacientes Ausentes (30+ días)',
           headers: ['Paciente', 'Teléfono', 'Sin Consulta'],
-          rows: (absentPatients || []).map(a => ({
+          rows: absentPatientsList.map(a => ({
             name: `${a.first_name} ${a.last_name || ''}`,
             phone: a.phone || 'Sin teléfono',
             detail: a.status_text || 'Sin consulta reciente'
           }))
         };
-      case 'nutritionEvaluations': {
-        const rawEvals = Array.isArray(nutritionEvaluationsList) 
-          ? nutritionEvaluationsList 
-          : (nutritionEvaluationsList?.data || []);
+      case 'nutritionEvaluations':
         return {
-          title: 'Evaluaciones Realizadas en el Mes',
+          title: 'Evaluaciones Realizadas',
           headers: ['Paciente', 'Teléfono / Detalle', 'Fecha de Evaluación'],
-          rows: rawEvals.map(e => ({
+          rows: filteredNutritionEvaluations.map(e => ({
             name: `${e.first_name} ${e.last_name || ''}`,
             phone: `${e.phone || 'Sin teléfono'} ${e.bmi ? `• IMC: ${e.bmi}` : ''}`,
             detail: e.evaluation_date ? new Date(e.evaluation_date).toLocaleDateString('es-MX') : 'Sin fecha'
           }))
         };
-      }
       case 'nutritionConsultations':
         return {
           title: 'Seguimiento de Pacientes por Tiempo',
@@ -781,10 +689,31 @@ export default function Statistics() {
     );
   };
 
+  const handleShareKPIs = async () => {
+    const summaryText = [
+      `📊 Resumen de Estadísticas Pimpon Gym (${selectedMonth}/${selectedYear})`,
+      `🏋️ Gimnasio:`,
+      `- Clientes activos: ${kpis.activeClients || 0}`,
+      `- Visitas hoy / mes: ${kpis.visitStats?.today || 0} / ${kpis.visitStats?.month || 0}`,
+      `- Ingresos del mes: $${(totalIncome || 0).toLocaleString('es-MX')}`,
+      `- Clientes en alerta (7-14d): ${alertClientsList.length} | Ausentes (15+d): ${absentClientsList.length}`,
+      `🍏 Consultorio Nutrición:`,
+      `- Citas hoy / mes: ${appointmentStats?.today || 0} / ${appointmentStats?.month || 0}`,
+      `- Ingresos consultorio: $${(nutritionIncomeReal?.total || 0).toLocaleString('es-MX')}`,
+      `- Evaluaciones en el periodo: ${filteredNutritionEvaluations.length}`
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      toast.success('Resumen de KPIs copiado al portapapeles');
+    } catch {
+      toast.error('No se pudo copiar al portapapeles');
+    }
+  };
+
   const exportAllStatisticsCSV = () => {
     const lines = [];
 
-    // Metadatos de cabecera
     lines.push(`REPORTES_ESTADISTICAS_PIMPON_GYM`);
     lines.push(`Fecha de generación: "${new Date().toLocaleString('es-MX')}"`);
     lines.push(`Filtros aplicados: ${startDate || endDate ? `Desde ${startDate || 'Inicio'} Hasta ${endDate || 'Hoy'}` : 'Sin filtro (Mes completo)'}`);
@@ -796,13 +725,13 @@ export default function Statistics() {
     lines.push(`Visitas del Día,${kpis.visitStats?.today || 0},Asistencias hoy`);
     lines.push(`Visitas del Mes,${kpis.visitStats?.month || 0},Asistencias este mes`);
     lines.push(`Visitas del Año,${kpis.visitStats?.year || 0},Asistencias acumuladas año`);
-    lines.push(`Origen: Solo Gimnasio,${acquisitionOriginData?.gimnasio_only || 0},${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total`);
-    lines.push(`Nutrición -> Gimnasio,${acquisitionOriginData?.nutricion_to_gimnasio || 0},${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones`);
+    lines.push(`Origen: Solo Gimnasio,${filteredGymOnlyClients.length},${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total`);
+    lines.push(`Nutrición -> Gimnasio,${filteredPatientsToClients.length},${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones`);
     lines.push(`Retención de Clientes,${kpis.retention?.retention_percentage || 0}%,${kpis.retention?.retained_clients || 0} clientes retenidos`);
     lines.push(`Ingresos del Mes (Gimnasio),$${(totalIncome || 0).toLocaleString('es-MX')},${incomeByMethod.length} métodos de pago`);
-    lines.push(`Clientes Ausentes,${absentClients?.length || 0},Anualidad activa sin mensualidad`);
-    lines.push(`Clientes en Alerta,${alertClients?.length || 0},15+ días sin asistir`);
-    lines.push(`Anualidad Vencida,${expiredClients?.length || 0},Sin renovación`);
+    lines.push(`Clientes Ausentes,${absentClientsList.length},15+ días sin asistir`);
+    lines.push(`Clientes en Alerta,${alertClientsList.length},7 a 14 días sin asistir`);
+    lines.push(`Anualidad Vencida,${expiredClientsList.length},Inscripción anual vencida`);
     lines.push('');
 
     // DESGLOSE DE INGRESOS GIMNASIO POR MÉTODO DE PAGO
@@ -820,12 +749,12 @@ export default function Statistics() {
     lines.push(`Citas del Día,${appointmentStats?.today || 0},Consultas agendadas hoy`);
     lines.push(`Citas del Mes,${appointmentStats?.month || 0},Consultas acumuladas mes`);
     lines.push(`Citas del Año,${appointmentStats?.year || 0},Consultas acumuladas año`);
-    lines.push(`Origen: Solo Nutrición,${acquisitionOriginData?.nutricion_only || 0},${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total`);
-    lines.push(`Gimnasio -> Nutrición,${acquisitionOriginData?.gimnasio_to_nutricion || 0},${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones`);
-    lines.push(`Retención de Pacientes,${(retention3Months || []).length || 0},3+ consultas realizadas`);
+    lines.push(`Origen: Solo Nutrición,${filteredNutritionOnlyPatients.length},${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total`);
+    lines.push(`Gimnasio -> Nutrición,${filteredGymToNutritionPatients.length},${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones`);
+    lines.push(`Retención de Pacientes,${retention3Months.length || 0},3+ consultas realizadas`);
     lines.push(`Ingresos del Mes (Consultorio),$${(nutritionIncomeReal?.total || 0).toLocaleString('es-MX')},Pagos reales consultorio`);
-    lines.push(`Pacientes Ausentes,${absentPatients?.length || 0},30+ días sin consulta`);
-    lines.push(`Evaluaciones Realizadas,${kpis.nutritionStats?.total_evaluations || 0},Evaluaciones registradas en el mes`);
+    lines.push(`Pacientes Ausentes,${absentPatientsList.length},30+ días sin consulta`);
+    lines.push(`Evaluaciones Realizadas,${filteredNutritionEvaluations.length},Evaluaciones registradas en el período`);
     lines.push(`Seguimiento Pacientes,${consultationDurations?.consulted_patients || 0},Con al menos 1 consulta`);
     lines.push('');
 
@@ -834,14 +763,14 @@ export default function Statistics() {
     lines.push(`Método de Pago,Transacciones,Monto Total`);
     (nutritionIncomeReal?.by_method || []).forEach(b => {
       const method = b.payment_method === 'cash' ? 'Efectivo' : b.payment_method === 'transfer' ? 'Transferencia' : 'Tarjeta';
-      lines.push(`${method},${b.count || 0},$${parseFloat(b.total || 0).toLocaleString('es-MX')}`);
+      lines.push(`${method},${b.transaction_count || 0},$${parseFloat(b.total || 0).toLocaleString('es-MX')}`);
     });
     lines.push('');
 
     // LISTADO DETALLADO DE CLIENTES SOLO GIMNASIO
     lines.push(`--- LISTADO DE CLIENTES (SOLO GIMNASIO) ---`);
     lines.push(`Nombre,Teléfono,Plan,Fecha Registro`);
-    (gymOnlyClients || []).forEach(c => {
+    filteredGymOnlyClients.forEach(c => {
       lines.push(`"${c.first_name} ${c.last_name || ''}","${c.phone || 'Sin tel.'}","${c.plan_name || 'Sin plan'}","${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : ''}"`);
     });
     lines.push('');
@@ -849,7 +778,7 @@ export default function Statistics() {
     // LISTADO DETALLADO DE PACIENTES SOLO NUTRICIÓN
     lines.push(`--- LISTADO DE PACIENTES (SOLO NUTRICIÓN) ---`);
     lines.push(`Nombre,Teléfono,Fecha Registro`);
-    (nutritionOnlyPatients || []).forEach(p => {
+    filteredNutritionOnlyPatients.forEach(p => {
       lines.push(`"${p.first_name} ${p.last_name || ''}","${p.phone || 'Sin tel.'}","${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : ''}"`);
     });
     lines.push('');
@@ -857,8 +786,7 @@ export default function Statistics() {
     // LISTADO DETALLADO DE EVALUACIONES REALIZADAS
     lines.push(`--- LISTADO DE EVALUACIONES DE NUTRICIÓN REALIZADAS ---`);
     lines.push(`Nombre,Teléfono,IMC,Fecha Evaluación`);
-    const rawEvals = Array.isArray(nutritionEvaluationsList) ? nutritionEvaluationsList : (nutritionEvaluationsList?.data || []);
-    rawEvals.forEach(e => {
+    filteredNutritionEvaluations.forEach(e => {
       lines.push(`"${e.first_name} ${e.last_name || ''}","${e.phone || 'Sin tel.'}","${e.bmi || 'N/A'}","${e.evaluation_date ? new Date(e.evaluation_date).toLocaleDateString('es-MX') : ''}"`);
     });
 
@@ -940,7 +868,7 @@ export default function Statistics() {
               {
                 id: 'gymOnly',
                 title: 'Origen: Solo Gimnasio',
-                value: acquisitionOriginData?.gimnasio_only || 0,
+                value: filteredGymOnlyClients.length,
                 subtitle: `${acquisitionOriginData?.percentages?.gimnasio_only || 0}% del total`,
                 variant: 'default',
                 color: 'text-[var(--color-secondary)]'
@@ -948,7 +876,7 @@ export default function Statistics() {
               {
                 id: 'nutToGym',
                 title: 'Nutrición → Gimnasio',
-                value: acquisitionOriginData?.nutricion_to_gimnasio || 0,
+                value: filteredPatientsToClients.length,
                 subtitle: `${acquisitionOriginData?.percentages?.nutricion_to_gimnasio || 0}% conversiones`,
                 variant: 'success',
                 color: 'text-[var(--color-success)]'
@@ -965,31 +893,31 @@ export default function Statistics() {
                 id: 'monthlyIncome',
                 title: 'Ingresos del Mes',
                 value: `$${(totalIncome || 0).toLocaleString('es-MX')}`,
-                subtitle: `${incomeByMethod.length} métodos`,
+                subtitle: `${incomeByMethod.length} métodos (solo gym)`,
                 variant: 'success',
                 color: 'text-[var(--color-success)]'
               },
               {
                 id: 'absentClients',
                 title: 'Clientes Ausentes',
-                value: absentClients?.length || 0,
-                subtitle: 'Anualidad sin mensualidad',
-                variant: 'default',
-                color: 'text-[var(--color-secondary)]'
-              },
-              {
-                id: 'alertClients',
-                title: 'Clientes en Alerta',
-                value: alertClients?.length || 0,
+                value: absentClientsList.length,
                 subtitle: '15+ días sin asistir',
                 variant: 'danger',
                 color: 'text-red-500'
               },
               {
+                id: 'alertClients',
+                title: 'Clientes en Alerta',
+                value: alertClientsList.length,
+                subtitle: '7 a 14 días sin asistir',
+                variant: 'default',
+                color: 'text-[var(--color-secondary)]'
+              },
+              {
                 id: 'expiredClients',
                 title: 'Anualidad Vencida',
-                value: expiredClients?.length || 0,
-                subtitle: 'Sin renovación',
+                value: expiredClientsList.length,
+                subtitle: 'Inscripción anual vencida',
                 variant: 'danger',
                 color: 'text-red-600'
               },
@@ -1027,51 +955,14 @@ export default function Statistics() {
             ))}
           </div>
 
-          {/* Tabla Cebra Dinámica de Clientes (Columna Derecha) */}
-          <div className="lg:col-span-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden shadow-sm sticky top-6">
-            <div className="bg-[var(--color-surface)] p-4 border-b border-[var(--color-border)] flex items-center justify-between">
-              <h4 className="font-bold text-[var(--color-text)] flex items-center gap-2 text-sm">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-secondary)]" />
-                {gymTableData.title}
-              </h4>
-              <span className="text-xs font-semibold px-2 py-1 rounded bg-[rgba(15,62,96,0.1)] text-[var(--color-secondary)]">
-                {gymTableData.rows.length} cliente(s)
-              </span>
-            </div>
-
-            {gymTableData.rows.length === 0 ? (
-              <div className="p-8 text-center text-[var(--color-text-muted)] text-sm space-y-2">
-                <IconUsers size={32} className="mx-auto opacity-40" />
-                <p>Selecciona una tarjeta para ver el listado detallado de clientes.</p>
-              </div>
-            ) : (
-              <div className="max-h-[520px] overflow-y-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="sticky top-0 bg-[var(--color-card-alt)] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">
-                    <tr>
-                      <th className="py-3 px-4">{gymTableData.headers[0]}</th>
-                      <th className="py-3 px-4">{gymTableData.headers[1]}</th>
-                      <th className="py-3 px-4 text-right">{gymTableData.headers[2]}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
-                    {gymTableData.rows.map((row, idx) => (
-                      <tr
-                        key={idx}
-                        className={`${
-                          idx % 2 === 0 ? 'bg-[var(--color-card)]' : 'bg-[var(--color-card-alt)]/50'
-                        } hover:bg-[rgba(15,62,96,0.08)] transition-colors`}
-                      >
-                        <td className="py-3 px-4 font-semibold text-[var(--color-text)]">{row.name}</td>
-                        <td className="py-3 px-4 text-[var(--color-text-muted)]">{row.phone}</td>
-                        <td className="py-3 px-4 text-right font-medium text-[var(--color-secondary)]">{row.detail}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <ZebraTableCard
+            title={gymTableData.title}
+            headers={gymTableData.headers}
+            rows={gymTableData.rows}
+            countLabel="cliente(s)"
+            emptyIcon={<IconUsers size={32} className="mx-auto opacity-40" />}
+            emptyText="No hay registros que coincidan con la tarjeta o filtro seleccionado."
+          />
         </div>
       </section>
 
@@ -1132,7 +1023,7 @@ export default function Statistics() {
               {
                 id: 'nutritionOnly',
                 title: 'Origen: Solo Nutrición',
-                value: acquisitionOriginData?.nutricion_only || 0,
+                value: filteredNutritionOnlyPatients.length,
                 subtitle: `${acquisitionOriginData?.percentages?.nutricion_only || 0}% del total`,
                 variant: 'default',
                 color: 'text-[var(--color-secondary)]'
@@ -1140,7 +1031,7 @@ export default function Statistics() {
               {
                 id: 'gymToNut',
                 title: 'Gimnasio → Nutrición',
-                value: acquisitionOriginData?.gimnasio_to_nutricion || 0,
+                value: filteredGymToNutritionPatients.length,
                 subtitle: `${acquisitionOriginData?.percentages?.gimnasio_to_nutricion || 0}% conversiones`,
                 variant: 'success',
                 color: 'text-[var(--color-success)]'
@@ -1148,7 +1039,7 @@ export default function Statistics() {
               {
                 id: 'nutritionRetention',
                 title: 'Retención de Pacientes',
-                value: (retention3Months || []).length || 0,
+                value: retention3Months.length || 0,
                 subtitle: '3+ consultas realizadas',
                 variant: 'default',
                 color: 'text-[var(--color-secondary)]'
@@ -1164,7 +1055,7 @@ export default function Statistics() {
               {
                 id: 'absentPatients',
                 title: 'Pacientes Ausentes',
-                value: absentPatients?.length || 0,
+                value: absentPatientsList.length,
                 subtitle: '30+ días sin consulta',
                 variant: 'default',
                 color: 'text-[var(--color-secondary)]'
@@ -1172,8 +1063,8 @@ export default function Statistics() {
               {
                 id: 'nutritionEvaluations',
                 title: 'Evaluaciones Realizadas',
-                value: kpis.nutritionStats?.total_evaluations || 0,
-                subtitle: 'Evaluaciones en el mes',
+                value: filteredNutritionEvaluations.length,
+                subtitle: 'Evaluaciones en el período',
                 variant: 'default',
                 color: 'text-[var(--color-secondary)]'
               },
@@ -1219,51 +1110,16 @@ export default function Statistics() {
             ))}
           </div>
 
-          {/* Tabla Cebra Dinámica de Pacientes (Columna Derecha) */}
-          <div className="lg:col-span-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden shadow-sm sticky top-6">
-            <div className="bg-[var(--color-surface)] p-4 border-b border-[var(--color-border)] flex items-center justify-between">
-              <h4 className="font-bold text-[var(--color-text)] flex items-center gap-2 text-sm">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-secondary)]" />
-                {nutritionTableData.title}
-              </h4>
-              <span className="text-xs font-semibold px-2 py-1 rounded bg-[rgba(16,185,129,0.1)] text-[var(--color-secondary)]">
-                {nutritionTableData.rows.length} paciente(s)
-              </span>
-            </div>
-
-            {nutritionTableData.rows.length === 0 ? (
-              <div className="p-8 text-center text-[var(--color-text-muted)] text-sm space-y-2">
-                <IconStethoscope size={32} className="mx-auto opacity-40" />
-                <p>Selecciona una tarjeta para ver el listado detallado de pacientes.</p>
-              </div>
-            ) : (
-              <div className="max-h-[520px] overflow-y-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="sticky top-0 bg-[var(--color-card-alt)] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">
-                    <tr>
-                      <th className="py-3 px-4">{nutritionTableData.headers[0]}</th>
-                      <th className="py-3 px-4">{nutritionTableData.headers[1]}</th>
-                      <th className="py-3 px-4 text-right">{nutritionTableData.headers[2]}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
-                    {nutritionTableData.rows.map((row, idx) => (
-                      <tr
-                        key={idx}
-                        className={`${
-                          idx % 2 === 0 ? 'bg-[var(--color-card)]' : 'bg-[var(--color-card-alt)]/50'
-                        } hover:bg-[rgba(16,185,129,0.08)] transition-colors`}
-                      >
-                        <td className="py-3 px-4 font-semibold text-[var(--color-text)]">{row.name}</td>
-                        <td className="py-3 px-4 text-[var(--color-text-muted)]">{row.phone}</td>
-                        <td className="py-3 px-4 text-right font-medium text-[var(--color-secondary)]">{row.detail}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <ZebraTableCard
+            title={nutritionTableData.title}
+            headers={nutritionTableData.headers}
+            rows={nutritionTableData.rows}
+            countLabel="paciente(s)"
+            emptyIcon={<IconStethoscope size={32} className="mx-auto opacity-40" />}
+            emptyText="No hay registros que coincidan con la tarjeta o filtro seleccionado."
+            accentClass="bg-[rgba(16,185,129,0.1)] text-[var(--color-secondary)]"
+            hoverClass="hover:bg-[rgba(16,185,129,0.08)]"
+          />
         </div>
       </section>
 
@@ -1280,9 +1136,7 @@ export default function Statistics() {
 
       <GymCard title="Visualización de Gráficos" variant="default">
         <div className="space-y-6">
-          {/* Cabecera integrada: Tipo de Gráfico y Filtrado por Período lado a lado */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end pb-4 border-b border-[var(--color-border)]">
-            {/* Tipo de Gráfico (Izquierda) */}
             <div className="lg:col-span-4 space-y-2">
               <p className="text-sm font-semibold text-[var(--color-text)]">Tipo de Gráfico</p>
               <div className="flex flex-wrap gap-2">
@@ -1304,7 +1158,6 @@ export default function Statistics() {
               </div>
             </div>
 
-            {/* Filtrado por Período (Derecha) usando SimpleDateInput */}
             <div className="lg:col-span-8 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-[var(--color-text)]">Filtrado por Período</p>
@@ -1332,12 +1185,10 @@ export default function Statistics() {
             </div>
           </div>
 
-          {/* Selección de Métricas agrupadas lado a lado */}
           <div className="space-y-3">
             <p className="text-sm font-semibold text-[var(--color-text)]">Seleccionar Métrica a Graficar</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-              {/* Panel Gimnasio (Clientes) */}
               <div className="space-y-2.5 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">
                   <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)]" />
@@ -1362,7 +1213,6 @@ export default function Statistics() {
                 </div>
               </div>
 
-              {/* Panel Nutriología (Pacientes) */}
               <div className="space-y-2.5 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">
                   <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)]" />
@@ -1399,13 +1249,13 @@ export default function Statistics() {
           <GymButton variant="secondary" size="lg" onClick={exportAllStatisticsCSV}>
             <span className="flex items-center justify-center gap-2"><IconDownload size={20} /> Exportar Reporte</span>
           </GymButton>
-          <GymButton variant="primary" size="lg">
+          <GymButton variant="primary" size="lg" onClick={handleShareKPIs}>
             <span className="flex items-center justify-center gap-2"><IconShare size={20} /> Compartir KPI</span>
           </GymButton>
-          <GymButton variant="gold" size="lg">
+          <GymButton variant="gold" size="lg" onClick={() => navigate('/whatsapp')}>
             <span className="flex items-center justify-center gap-2"><IconSpeakerphone size={20} /> Promociones</span>
           </GymButton>
-          <GymButton variant="warning" size="lg">
+          <GymButton variant="warning" size="lg" onClick={() => navigate('/whatsapp')}>
             <span className="flex items-center justify-center gap-2"><IconMessage size={20} /> Contactar Ausentes</span>
           </GymButton>
         </div>

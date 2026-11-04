@@ -13,6 +13,14 @@ const runAutomationTasks = async () => {
   console.log('⏰ Executing WhatsApp Automation Engine...');
 
   try {
+    // 0. Actualizar siempre el estado de las suscripciones vencidas antes de evaluar reglas
+    await pool.query(`
+      UPDATE subscriptions
+      SET status = 'expired'
+      WHERE status = 'active'
+        AND end_date < CURRENT_DATE
+    `);
+
     const config = await getConfig();
     const waConfig = config.whatsapp || {};
     
@@ -73,62 +81,96 @@ const runAutomationTasks = async () => {
 
 /**
  * 1 y 2. Vencimientos en N días (3 días antes o mismo día)
+ * Evalúa por separado las mensualidades (subscriptions.end_date) y las anualidades (clients.enrollment_expires_at)
  */
 async function processSubscriptionsExpiringInDays(daysAhead, rules) {
   try {
-    const queryStr = `
-      SELECT 
-        s.id as subscription_id,
-        s.client_id,
-        s.end_date,
-        c.first_name,
-        c.last_name,
-        c.phone,
-        p.name as plan_name,
-        COALESCE(p.duration_days, 30) as duration_days
-      FROM subscriptions s
-      JOIN clients c ON s.client_id = c.id
-      LEFT JOIN plans p ON s.plan_id = p.id
-      WHERE s.status = 'active'
-        AND s.end_date = CURRENT_DATE + ($1 || ' days')::INTERVAL
-        AND c.is_active = true
-        AND c.phone IS NOT NULL AND c.phone != '';
-    `;
+    const monthlyRuleKey = daysAhead === 3 ? 'CLIENT_EXPIRING_3D_MONTHLY' : 'CLIENT_EXPIRED_TODAY_MONTHLY';
+    const annualRuleKey = daysAhead === 3 ? 'CLIENT_EXPIRING_3D_ANNUAL' : 'CLIENT_EXPIRED_TODAY_ANNUAL';
 
-    const res = await pool.query(queryStr, [daysAhead]);
-    for (const sub of res.rows) {
-      const isAnnual = sub.duration_days >= 300;
-      let notificationType = '';
-      let defaultMsg = '';
+    // A) Evaluar Mensualidades en tabla subscriptions
+    if (rules[monthlyRuleKey]?.enabled !== false) {
+      const monthlyQuery = `
+        SELECT 
+          s.id as subscription_id,
+          s.client_id,
+          s.end_date,
+          c.first_name,
+          c.last_name,
+          c.phone,
+          COALESCE(p.name, 'Mensualidad') as plan_name
+        FROM subscriptions s
+        JOIN clients c ON s.client_id = c.id
+        LEFT JOIN plans p ON s.plan_id = p.id
+        WHERE s.status = 'active'
+          AND s.end_date = CURRENT_DATE + ($1 || ' days')::INTERVAL
+          AND COALESCE(p.is_visit_based, false) = false
+          AND c.is_active = true
+          AND c.phone IS NOT NULL AND c.phone != '';
+      `;
 
-      if (daysAhead === 3) {
-        notificationType = isAnnual ? 'CLIENT_EXPIRING_3D_ANNUAL' : 'CLIENT_EXPIRING_3D_MONTHLY';
-        defaultMsg = isAnnual 
-          ? `Hola ${sub.first_name}! 🏆 Te recordamos que tu anualidad en Pimpon Gym vence en 3 días. ¡Gracias por tu preferencia! Pasa por recepción para renovar.`
-          : `Hola ${sub.first_name}! 🏋️ Te recordamos que tu membresía en Pimpon Gym vence en 3 días (${sub.end_date}). ¡Renueva a tiempo para no perder tu entrenamiento!`;
-      } else {
-        notificationType = isAnnual ? 'CLIENT_EXPIRED_TODAY_ANNUAL' : 'CLIENT_EXPIRED_TODAY_MONTHLY';
-        defaultMsg = isAnnual
-          ? `Hola ${sub.first_name}! 🎉 Hoy se cumple tu año de entrenamiento en Pimpon Gym. Pasa a recepción para renovar tu anualidad.`
+      const monthlyRes = await pool.query(monthlyQuery, [daysAhead]);
+      for (const sub of monthlyRes.rows) {
+        const defaultMsg = daysAhead === 3
+          ? `Hola ${sub.first_name}! 🏋️ Te recordamos que tu membresía en Pimpon Gym vence en 3 días (${new Date(sub.end_date).toLocaleDateString('es-MX')}). ¡Renueva a tiempo para no perder tu entrenamiento!`
           : `Hola ${sub.first_name}! ⚠️ Tu mensualidad en Pimpon Gym vence hoy. Acércate a recepción o contáctanos para renovar tu acceso.`;
-      }
 
-      // Evitar duplicados
-      const alreadySent = await notificationsRepo.hasNotificationBeenSent({
-        clientId: sub.client_id,
-        type: notificationType,
-        hoursThreshold: 20,
-      });
-
-      if (!alreadySent) {
-        await notificationsService.send({
-          client_id: sub.client_id,
-          phone: sub.phone,
-          recipient_name: `${sub.first_name} ${sub.last_name}`,
-          type: notificationType,
-          message: defaultMsg,
-          entity_type: 'gym',
+        const alreadySent = await notificationsRepo.hasNotificationBeenSent({
+          clientId: sub.client_id,
+          type: monthlyRuleKey,
+          hoursThreshold: 20,
         });
+
+        if (!alreadySent) {
+          await notificationsService.send({
+            client_id: sub.client_id,
+            phone: sub.phone,
+            recipient_name: `${sub.first_name} ${sub.last_name}`,
+            type: monthlyRuleKey,
+            message: defaultMsg,
+            entity_type: 'gym',
+          });
+        }
+      }
+    }
+
+    // B) Evaluar Anualidades en clients.enrollment_expires_at
+    if (rules[annualRuleKey]?.enabled !== false) {
+      const annualQuery = `
+        SELECT 
+          c.id as client_id,
+          c.first_name,
+          c.last_name,
+          c.phone,
+          c.enrollment_expires_at
+        FROM clients c
+        WHERE c.is_active = true
+          AND c.enrollment_expires_at = CURRENT_DATE + ($1 || ' days')::INTERVAL
+          AND c.phone IS NOT NULL AND c.phone != '';
+      `;
+
+      const annualRes = await pool.query(annualQuery, [daysAhead]);
+      for (const client of annualRes.rows) {
+        const defaultMsg = daysAhead === 3
+          ? `Hola ${client.first_name}! 🏆 Te recordamos que tu anualidad en Pimpon Gym vence en 3 días (${new Date(client.enrollment_expires_at).toLocaleDateString('es-MX')}). ¡Gracias por tu preferencia! Pasa por recepción para renovar.`
+          : `Hola ${client.first_name}! 🎉 Hoy se cumple tu año de entrenamiento en Pimpon Gym. Pasa a recepción para renovar tu anualidad.`;
+
+        const alreadySent = await notificationsRepo.hasNotificationBeenSent({
+          clientId: client.client_id,
+          type: annualRuleKey,
+          hoursThreshold: 20,
+        });
+
+        if (!alreadySent) {
+          await notificationsService.send({
+            client_id: client.client_id,
+            phone: client.phone,
+            recipient_name: `${client.first_name} ${client.last_name}`,
+            type: annualRuleKey,
+            message: defaultMsg,
+            entity_type: 'gym',
+          });
+        }
       }
     }
   } catch (err) {
@@ -151,7 +193,7 @@ async function processExpiredSubscriptionsPromo(daysAgo) {
       WHERE c.is_active = true
         AND c.phone IS NOT NULL AND c.phone != ''
         AND c.id NOT IN (
-          SELECT client_id FROM subscriptions WHERE status = 'active' OR end_date >= CURRENT_DATE
+          SELECT client_id FROM subscriptions WHERE status = 'active' AND end_date >= CURRENT_DATE
         )
         AND c.id IN (
           SELECT client_id FROM subscriptions WHERE end_date = CURRENT_DATE - ($1 || ' days')::INTERVAL
@@ -243,9 +285,12 @@ async function processInactivity15Days() {
       LEFT JOIN attendance a ON a.client_id = c.id
       WHERE c.is_active = true
         AND c.phone IS NOT NULL AND c.phone != ''
-        AND EXISTS (SELECT 1 FROM subscriptions s WHERE s.client_id = c.id AND s.status = 'active')
+        AND EXISTS (
+          SELECT 1 FROM subscriptions s
+          WHERE s.client_id = c.id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
+        )
       GROUP BY c.id, c.first_name, c.last_name, c.phone
-      HAVING MAX(a.checked_in_at) IS NULL OR MAX(a.checked_in_at) < NOW() - INTERVAL '15 days';
+      HAVING COALESCE(MAX(a.checked_in_at), c.created_at) < NOW() - INTERVAL '15 days';
     `;
 
     const res = await pool.query(queryStr);

@@ -21,6 +21,7 @@ const registerPayment = async (data, registeredBy) => {
     await dbClient.query('BEGIN');
     
     let transferWarning = null;
+    const isNutritionPayment = ['nutrition_consult', 'nutrition_followup'].includes(data.payment_type);
     
     // Resolver entidad (clients vs patients) para garantizar integridad referencial y cumplir las restricciones de la BD
     const targetId = data.client_id || data.patient_id;
@@ -29,7 +30,7 @@ const registerPayment = async (data, registeredBy) => {
       if (clientCheck.rows.length > 0) {
         data.client_id = clientCheck.rows[0].id;
         data.patient_id = null;
-        data.entity_type = 'gym';
+        data.entity_type = isNutritionPayment ? 'consultorio' : 'gym';
       } else {
         const patientCheck = await dbClient.query('SELECT id FROM patients WHERE id = $1', [targetId]);
         if (patientCheck.rows.length > 0) {
@@ -321,5 +322,3 @@ module.exports = {
   getCurrentTransferControl,
   getPaymentsHistory
 };
-
-

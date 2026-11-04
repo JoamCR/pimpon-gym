@@ -2,6 +2,7 @@ const service = require('./nutrition.service');
 const schema = require('./nutrition.schema');
 const { createError } = require('../../lib/appError');
 const pdfService = require('../../services/pdfService');
+const notificationsService = require('../notifications/notifications.service');
 const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.guard');
 
@@ -105,7 +106,6 @@ async function nutritionRoutes(fastify, options) {
         });
       }
 
-      // TODO: En el futuro esto vendrá del token de auth: request.user.id
       const nutritionistId = request.user?.id || null;
 
       const plan = await service.createPlan(
@@ -198,7 +198,7 @@ async function nutritionRoutes(fastify, options) {
 
   /**
    * POST /api/nutrition/exercise-plans/:id/send-whatsapp
-   * Envía el plan de ejercicio por WhatsApp
+   * Envía el plan de ejercicio por WhatsApp mediante Meta Cloud API (whatsappService)
    */
   fastify.post('/exercise-plans/:id/send-whatsapp', async (request, reply) => {
     const { id: planId } = request.params;
@@ -220,50 +220,46 @@ async function nutritionRoutes(fastify, options) {
       throw createError(400, 'El cliente no tiene número de teléfono registrado');
     }
 
-    // Generar PDF si no existe
-    let pdfBase64;
-    if (plan.pdf_url) {
-      // Cargar PDF existente desde disco
+    // Generar y persistir el PDF si aún no existe URL registrada
+    let pdfUrl = plan.pdf_url;
+    if (!pdfUrl) {
+      const { pdfBytes } = await pdfService.generateExercisePlan(client, plan);
       const fs = require('fs').promises;
       const path = require('path');
-      const pdfPath = path.join(__dirname, '../../../uploads/generated', `plan-${planId}.pdf`);
-      try {
-        const pdfBytes = await fs.readFile(pdfPath);
-        pdfBase64 = pdfBytes.toString('base64');
-      } catch (error) {
-        // Si no existe, generar uno nuevo
-        const { base64 } = await pdfService.generateExercisePlan(client, plan);
-        pdfBase64 = base64;
-      }
-    } else {
-      // Generar PDF nuevo
-      const { base64 } = await pdfService.generateExercisePlan(client, plan);
-      pdfBase64 = base64;
+      const outputPath = path.join(__dirname, '../../../uploads/generated', `plan-${planId}.pdf`);
+      await fs.mkdir(path.dirname(outputPath), { recursive: true });
+      await fs.writeFile(outputPath, pdfBytes);
+      pdfUrl = `/uploads/generated/plan-${planId}.pdf`;
+      await service.updatePlanPdfUrl(planId, pdfUrl);
     }
 
-    // Enviar por WhatsApp vía POST al servicio en puerto 3001
-    const axios = require('axios');
-    try {
-      const response = await axios.post('http://localhost:3001/send-pdf', {
-        phone: client.phone,
-        pdfBase64: pdfBase64,
-        filename: `plan-ejercicio-${client.first_name}-${client.last_name}.pdf`,
-        caption: `Plan de ejercicio para ${client.first_name} ${client.last_name} - ${plan.month_year}`
-      });
+    const baseUrl = process.env.PUBLIC_API_URL || `${request.protocol}://${request.hostname}`;
+    const fullMediaUrl = pdfUrl.startsWith('http') ? pdfUrl : `${baseUrl}${pdfUrl}`;
+    const caption = `Plan de ejercicio para ${client.first_name} ${client.last_name} - ${plan.month_year || ''}`.trim();
 
-      if (response.data.success) {
-        return reply.status(200).send({
-          data: {
-            message: 'PDF enviado por WhatsApp exitosamente',
-            phone: client.phone
-          }
-        });
-      } else {
-        throw createError(500, 'Error al enviar PDF por WhatsApp');
-      }
+    try {
+      await notificationsService.send({
+        client_id: client.id,
+        phone: client.phone,
+        recipient_name: `${client.first_name} ${client.last_name}`,
+        type: 'EXERCISE_PLAN_PDF',
+        message: caption,
+        media_url: fullMediaUrl,
+        media_type: 'document',
+        caption,
+        entity_type: 'consultorio',
+      }, request.user?.id || null);
+
+      return reply.status(200).send({
+        data: {
+          message: 'PDF enviado por WhatsApp exitosamente',
+          phone: client.phone,
+          pdf_url: pdfUrl,
+        }
+      });
     } catch (error) {
       console.error('Error enviando WhatsApp:', error.message);
-      throw createError(500, 'Error de conexión con el servicio de WhatsApp');
+      throw createError(error.statusCode || 500, error.message || 'Error al enviar el plan por WhatsApp');
     }
   });
 }

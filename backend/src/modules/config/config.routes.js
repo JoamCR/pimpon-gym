@@ -2,6 +2,7 @@ const service = require('./config.service');
 const schema = require('./config.schema');
 const { runAutomationTasks } = require('../../cron/automationCron');
 const { requireAuth } = require('../../middleware/auth.middleware');
+const { requireRole } = require('../../middleware/role.guard');
 
 async function configRoutes(fastify, options) {
   // Proteger todas las rutas de configuración con JWT
@@ -12,7 +13,7 @@ async function configRoutes(fastify, options) {
     return { data: config };
   });
 
-  fastify.put('/', async (request, reply) => {
+  fastify.put('/', { preHandler: [requireRole(['owner', 'admin'])] }, async (request, reply) => {
     const updated = await service.updateConfig(request.body || {});
     return { data: updated };
   });
@@ -22,7 +23,7 @@ async function configRoutes(fastify, options) {
     return { data: config.whatsapp || {} };
   });
 
-  fastify.put('/whatsapp', async (request, reply) => {
+  fastify.put('/whatsapp', { preHandler: [requireRole(['owner', 'admin'])] }, async (request, reply) => {
     const currentConfig = await service.getConfig();
     const newWaConfig = {
       ...(currentConfig.whatsapp || {}),
@@ -32,7 +33,7 @@ async function configRoutes(fastify, options) {
     return { data: updated.whatsapp };
   });
 
-  fastify.post('/whatsapp/trigger-cron', async (request, reply) => {
+  fastify.post('/whatsapp/trigger-cron', { preHandler: [requireRole(['owner', 'admin'])] }, async (request, reply) => {
     // Ejecutar el motor de crons manualmente bajo demanda para pruebas
     runAutomationTasks().catch(err => console.error('Error al ejecutar cron manual:', err));
     return { success: true, message: 'Ejecución de automatizaciones de WhatsApp iniciada en segundo plano.' };

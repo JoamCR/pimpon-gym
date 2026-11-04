@@ -1,0 +1,361 @@
+===============================================================================
+AUDITORÍA INTEGRAL DEL PROYECTO — PIMPON GYM & CONSULTORIO
+Fecha de auditoría: 3 de Noviembre de 2026
+===============================================================================
+
+ALCANCE DE ESTA AUDITORÍA:
+Se analizó el 100% de la arquitectura actual (Backend en Fastify/PostgreSQL,
+Frontend en React 19/Vite y el respaldo real más reciente de Supabase con
+404 clientes, 155 pacientes, 547 suscripciones, 1,032 pagos, 295 expedientes
+y 450 citas) sin modificar ningún archivo de código del proyecto.
+
+===============================================================================
+1. RESUMEN EJECUTIVO: ¿QUÉ TANTO SE DEBE CORREGIR Y MEJORAR?
+===============================================================================
+
+El proyecto tiene una base funcional sólida (~78% de madurez operativa): el
+diseño visual es limpio, las transacciones de cobro manejan BEGIN/COMMIT/ROLLBACK,
+existe bitácora de auditoría (audit_log) en pagos y la separación conceptual
+entre Gimnasio y Consultorio está bien planteada.
+
+Sin embargo, existen 4 áreas clave que requieren atención:
+
+1) ESTADÍSTICAS Y KPIs [Estado: CRÍTICO | Corrección requerida: ALTA]
+   - 11 bugs de cálculo, consultas SQL y etiquetado.
+   - Doble conteo de ingresos ($9,550 MXN actuales), tarjetas con títulos
+     invertidos y clientes sin asistencia que quedan invisibles en alertas.
+
+2) FIABILIDAD Y RETENCIÓN DE CLIENTES [Estado: MEDIO-ALTO | Corrección: MEDIA-ALTA]
+   - 177 suscripciones vencidas siguen con status = 'active' en la BD.
+   - 28.5% de clientes sin teléfono registrado y solo 65 asistencias en total.
+   - 50 personas duplicadas entre Gimnasio y Consultorio sin vincular.
+
+3) SEGURIDAD Y ARQUITECTURA BACKEND [Estado: MEDIO-ALTO | Corrección: MEDIA]
+   - Inyección SQL por interpolación de fechas en estadísticas.
+   - Rutas críticas sin validación de rol (users, expenses, config).
+   - Bloqueo del Webhook de Meta WhatsApp por el hook global de JWT.
+
+4) ARQUITECTURA Y RENDIMIENTO FRONTEND [Estado: MEDIO | Corrección: MEDIA-BAJA]
+   - 20 peticiones HTTP simultáneas (~35 queries SQL) al abrir Estadísticas.
+   - Componentes monolíticos (80 a 109 KB) y botones de acción sin conectar.
+
+
+===============================================================================
+2. ÁREAS DE MEJORA PARA AUMENTAR LA FIABILIDAD Y RETENCIÓN DE CLIENTES
+===============================================================================
+
+Al cruzar las reglas de negocio con los datos reales actuales de la base de
+datos, se detectaron las siguientes áreas de mejora directa para que los
+clientes perciban un servicio confiable, profesional y sin fricciones:
+
+-------------------------------------------------------------------------------
+2.1. Cierre de brechas de contacto y datos maestros (Prioridad Alta)
+-------------------------------------------------------------------------------
+* 115 de 404 clientes del gimnasio (28.5%) NO tienen teléfono registrado
+  (phone vacío o nulo). Esto deja a casi 1 de cada 3 clientes fuera de los
+  recordatorios de vencimiento, avisos de recibos y campañas de WhatsApp.
+* 0% de captura de RFC (0 de 404 clientes y 0 de 155 pacientes) y 81% sin
+  fecha de nacimiento/edad (solo 74 clientes tienen edad). Esto impide
+  automatizar felicitaciones de cumpleaños reales (processBirthdays) y
+  distorsiona las gráficas demográficas (más del 80% sale como "Sin edad").
+* 50 personas están duplicadas por teléfono (y 22 por nombre exacto) entre
+  las tablas `clients` y `patients`, pero SOLO 2 están vinculadas mediante
+  `client_id` / `patient_id`.
+  -> MEJORA RECOMENDADA: Al dar de alta o editar en recepción/consultorio,
+     detectar automáticamente si el teléfono o nombre ya existe en la otra
+     entidad y ofrecer "Vincular expediente existente" en un clic.
+
+-------------------------------------------------------------------------------
+2.2. Fiabilidad en control de acceso y seguimiento de asistencia (Prioridad Alta)
+-------------------------------------------------------------------------------
+* Existen 404 clientes y 547 suscripciones, pero SOLO 65 registros en la
+  tabla `attendance` en toda la historia de la base de datos.
+* Al no registrarse la entrada diaria (QR o check-in en recepción), el sistema
+  pierde visibilidad sobre quién está en riesgo de abandonar el gimnasio.
+* Además, cuando un cliente nuevo se inscribe en un plan mensual en
+  `backend/src/modules/clients/clients.service.js` (líneas 29-71), el campo
+  `consecutive_months` queda en 0 (solo sube a 1 cuando paga mediante
+  `payments.service.js`). Por eso 272 de 404 clientes tienen
+  `consecutive_months = 0` aunque hayan pagado su primer mes.
+
+-------------------------------------------------------------------------------
+2.3. Exactitud en recordatorios automáticos de WhatsApp (Evitar molestias)
+-------------------------------------------------------------------------------
+* En la base de datos hay 177 suscripciones cuya fecha `end_date` ya venció,
+  pero su columna `status` sigue siendo `'active'`.
+* Como no existe un proceso diario (cron) que cambie `status = 'expired'`
+  cuando `end_date < CURRENT_DATE`, el motor de automatización en
+  `backend/src/cron/automationCron.js` (línea 246) evalúa `WHERE s.status = 'active'`
+  (sin validar `end_date >= CURRENT_DATE`) y puede enviar mensajes de
+  "Notamos que hace 15 días no nos visitas" a ex-clientes cuya membresía
+  venció hace meses.
+* En `backend/src/cron/automationCron.js` (líneas 88-105), el cron busca
+  anualidades por vencer dentro de la tabla `subscriptions` filtrando
+  `COALESCE(p.duration_days, 30) >= 300`, pero las anualidades en Pimpon Gym
+  no se guardan como filas de 365 días en `subscriptions`, sino en el campo
+  `clients.enrollment_expires_at`. Como resultado, NUNCA se envían los
+  recordatorios automáticos de vencimiento de anualidad.
+
+-------------------------------------------------------------------------------
+2.4. Entregables de valor para el cliente (Planes PDF y Recibos Digitales)
+-------------------------------------------------------------------------------
+* La tabla `exercise_plans` tiene 0 registros en producción y el archivo
+  `backend/src/modules/nutrition/nutrition.routes.js` (línea 247) intenta
+  enviar el PDF llamando a `http://localhost:3001/send-pdf` (antiguo
+  microservicio local) en lugar de usar el nuevo `whatsappService.js`
+  (Meta Cloud API) implementado en el resto del sistema.
+* Comprobante automático de pago por WhatsApp: Enviar automáticamente un
+  mensaje de confirmación cada vez que el cliente paga su mensualidad,
+  inscripción o consulta con su nueva fecha de corte (`end_date`) aumentará
+  drásticamente la confianza del cliente y evitará dudas sobre vencimientos.
+
+
+===============================================================================
+3. ANÁLISIS Y AUDITORÍA PROFUNDA DE ESTADÍSTICAS
+===============================================================================
+
+Se revisaron todas las consultas de:
+- `backend/src/modules/statistics/statistics.repository.js`
+- `backend/src/modules/statistics/statistics.service.js`
+- `frontend/src/pages/Statistics.jsx`
+
+A continuación se listan las 11 inconsistencias matemáticas y de negocio:
+
+1) ASIGNACIÓN INCORRECTA DE `entity_type` AL COBRAR CONSULTA A CLIENTE GYM:
+   En `backend/src/modules/payments/payments.service.js` (líneas 28-33), si el
+   ID pertenece a la tabla `clients`, el código fuerza `data.entity_type = 'gym'`
+   incluso cuando `payment_type` es `'nutrition_consult'` o `'nutrition_followup'`.
+   En la base de datos actual existen 8 pagos ($9,550 MXN) con
+   `entity_type = 'gym'` y `payment_type = 'nutrition_consult'`.
+
+2) DOBLE CONTEO DE INGRESOS ENTRE GIMNASIO Y CONSULTORIO ($9,550 MXN):
+   - En `getMonthlyIncomeByMethod` (`statistics.repository.js`, línea 754,
+     Ingresos Gimnasio), la condición es:
+     `AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))`
+     Como `entity_type` es `'gym'`, suma esos $9,550 MXN como ingresos del Gimnasio.
+   - En `getNutritionIncomeReal` (`statistics.repository.js`, línea 1215,
+     Ingresos Consultorio), la condición es:
+     `AND (entity_type = 'consultorio' OR payment_type IN ('nutrition_consult', 'nutrition_followup'))`
+     Como `payment_type` es `'nutrition_consult'`, también suma esos mismos
+     $9,550 MXN como ingresos del Consultorio.
+   - En cambio, en Finanzas (`payments.repository.js`, línea 180), sí se
+     excluyen (`AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')`),
+     provocando que Finanzas y Estadísticas muestren totales distintos.
+
+3) MEZCLA DE INGRESOS GIMNASIO + CONSULTORIO EN GRÁFICAS GENERALES:
+   `getMonthlyIncome(year)` (líneas 7-25) y `getPaymentMethodsDistribution`
+   (líneas 397-439) en `statistics.repository.js` NO filtran por `entity_type`,
+   mezclando el dinero del gimnasio y del consultorio en una sola bolsa.
+
+4) TARJETA "ANUALIDAD VENCIDA" MUESTRA EN REALIDAD MENSUALIDADES VENCIDAS:
+   En `frontend/src/pages/Statistics.jsx` (líneas 989-995), la tarjeta se llama
+   "Anualidad Vencida" y consume `useExpiredClients()` (`/api/statistics/expired-clients`).
+   Pero `getExpiredClients()` (`statistics.repository.js`, líneas 181-196)
+   consulta `MAX(end_date) FROM subscriptions` (que son mensualidades/visitas),
+   ignorando por completo `clients.enrollment_expires_at` (que es la verdadera
+   anualidad). Además, incluye clientes de "Visita Única" cuya visita ya pasó.
+
+5) TARJETAS "CLIENTES AUSENTES" Y "CLIENTES EN ALERTA" CON SUBTÍTULOS CRUZADOS:
+   En `frontend/src/pages/Statistics.jsx` (líneas 973-987):
+   - La tarjeta "Clientes Ausentes" tiene el subtítulo "Anualidad sin mensualidad",
+     pero su endpoint `getAbsentClients()` (líneas 937-950) busca clientes con
+     mensualidad activa que llevan 15+ días sin asistir.
+   - La tarjeta "Clientes en Alerta" tiene el subtítulo "15+ días sin asistir",
+     pero su endpoint `getAlertClients()` (líneas 911-925) busca clientes con
+     7+ días sin asistir (además, los de 15+ días salen duplicados en ambas).
+
+6) BUG SQL QUE OCULTA A LOS CLIENTES QUE TIENEN 0 ASISTENCIAS:
+   Tanto `getAlertClients()` (línea 923) como `getAbsentClients()` (línea 949)
+   filtran con:
+   `AND (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) < (NOW() - INTERVAL '7 days')`
+   Si un cliente pagó su mensualidad pero NUNCA ha registrado asistencia,
+   `MAX(checked_in_at)` devuelve `NULL`. En SQL, `NULL < fecha` evalúa a `NULL`
+   (falso). Por lo tanto, los clientes con 0 asistencias jamás aparecen ni en
+   Alerta ni en Ausentes.
+
+7) `getClientsByPlan()` SIN FECHAS CUENTA TODOS LOS CLIENTES HISTÓRICOS:
+   En `statistics.repository.js` (líneas 84-97), cuando no se envían fechas,
+   hace `LEFT JOIN clients c ON c.plan_id = p.id LEFT JOIN subscriptions s ...`
+   y cuenta `COUNT(DISTINCT c.id)`. Como el `LEFT JOIN` a `clients` no exige
+   que la suscripción activa exista (`s.id IS NOT NULL`), cuenta a los 404
+   clientes históricos (incluyendo los 301 vencidos) en vez de solo los activos.
+
+8) INCONSISTENCIA EN CONVERSIONES GIMNASIO <-> NUTRICIÓN:
+   - `getAcquisitionOriginStats()` (líneas 1352-1367) calcula las tarjetas
+     usando `c.patient_id IS NOT NULL OR c.current_flow = 'gimnasio_y_nutricion'`
+     (da 2 personas).
+   - Pero al hacer clic en la tarjeta "Nutrición -> Gimnasio", la tabla cebra
+     usa `getNutritionPatientsToClientsConversion()` (líneas 970-984), que
+     cruza por nombre o teléfono (`LOWER(CONCAT(...)) OR p.phone = c.phone`)
+     y devuelve 50 personas. El número de la tarjeta (2) no coincide con la
+     tabla (50).
+   - Y al hacer clic en "Gimnasio -> Nutrición", `getGymToNutritionList()`
+     (líneas 1720-1735) consulta `FROM patients p WHERE p.client_id IS NOT NULL
+     OR p.current_flow = 'nutricion_y_gimnasio'` (que es el flujo inverso).
+
+9) GRÁFICA DE INGRESOS DE CONSULTORIO INVENTA $500 POR EVALUACIÓN:
+   En `frontend/src/pages/Statistics.jsx` (líneas 414-415), si
+   `nutritionIncomeByMethod` está vacío pero hay evaluaciones, grafica
+   `filteredNutritionEvaluations.length * 500`, mostrando un ingreso estimado
+   ficticio en lugar de $0.
+
+10) EXPORTACIÓN CSV CON COLUMNA EN CERO EN CONSULTORIO:
+    En `frontend/src/pages/Statistics.jsx` (línea 837), el CSV exporta
+    `b.count || 0`, pero el backend devuelve `b.transaction_count`, por lo que
+    el CSV siempre muestra 0 transacciones en los métodos de pago de consultorio.
+
+11) TARJETAS SUPERIORES IGNORAN EL FILTRO DE FECHAS ("DESDE / HASTA"):
+    En `Statistics.jsx` (líneas 940-1011), las listas filtradas por fecha
+    (`filteredGymOnlyClients`, `filteredAbsentClients`, etc.) solo alimentan al
+    graficador inferior, mientras que las 18 tarjetas KPI y las Tablas Cebra
+    laterales siguen mostrando los totales globales sin filtrar por rango.
+
+
+===============================================================================
+4. AUDITORÍA TÉCNICA DEL BACKEND (`backend/`)
+===============================================================================
+
+-------------------------------------------------------------------------------
+4.1. Vulnerabilidades de Seguridad y Control de Acceso (RBAC)
+-------------------------------------------------------------------------------
+1) INYECCIÓN SQL EN `statistics.repository.js`:
+   En `getVisitsDetailsList` (línea 1418) y `getNutritionAppointmentsDetailsList`
+   (línea 1513), los parámetros `from` y `to` se interpolan directamente en el
+   texto SQL:
+   `? "(visit_date >= '${from}'::date AND visit_date <= '${to}'::date) as is_range"`
+   Dado que en `statistics.schema.js` (líneas 11-12) `from` y `to` son
+   `z.string().optional()` sin validación de formato `YYYY-MM-DD`, deben
+   pasarse como parámetros preparados (`$3`, `$4`) y validarse con regex en Zod.
+
+2) FALTA DE `requireRole` EN RUTAS CRÍTICAS (`users`, `expenses`, `config`):
+   - `backend/src/modules/users/users.routes.js` (línea 7): Solo verifica
+     `requireAuth`. Cualquier rol autenticado (`receptionist` o `nutritionist`)
+     puede listar usuarios, crear un usuario `owner` o eliminar usuarios.
+   - `backend/src/modules/expenses/expenses.routes.js` (línea 10) y
+     `backend/src/modules/config/config.routes.js` (línea 8): No tienen
+     `requireRole`, permitiendo modificar configuraciones o borrar egresos con
+     cualquier token válido.
+
+3) WEBHOOK DE META WHATSAPP BLOQUEADO POR HOOK GLOBAL DE JWT:
+   En `backend/src/index.js` (líneas 87-101), el hook global `onRequest` exige
+   `request.jwtVerify()` para toda ruta que inicie con `/api/` excepto `/api/auth`.
+   Aunque `notifications.routes.js` (líneas 12-15) intenta excluir `/webhook`
+   en su hook local, el hook global de `index.js` se ejecuta antes y rechaza
+   con `401 Unauthorized` las llamadas de Meta a `/api/notifications/webhook`.
+
+4) CREDENCIALES EXPUESTAS EN ARCHIVO DE TEXTO:
+   El archivo `backend/backups/INSTRUCCIONES_RESPALDO.txt` (línea 11) contiene
+   la URL de conexión con contraseña del pooler de Supabase en texto plano.
+
+-------------------------------------------------------------------------------
+4.2. Arquitectura y Reglas de Código en Backend
+-------------------------------------------------------------------------------
+5) DUPLICIDAD DE MIDDLEWARES DE AUTENTICACIÓN:
+   Existen dos archivos casi idénticos: `backend/src/middleware/auth.js` (usa
+   `@fastify/jwt`) y `backend/src/middleware/auth.middleware.js` (usa
+   `jsonwebtoken` manual). Además, como `index.js` ya verifica el JWT
+   globalmente y cada ruta vuelve a ejecutar `requireAuth`, el token se
+   verifica 2 o hasta 3 veces por cada request.
+
+6) QUERIES SQL DENTRO DE `service.js` Y `routes.js`:
+   Existen consultas `pool.query(...)` directas en `clients.service.js`,
+   `payments.service.js`, `nutrition.service.js`, `notifications.service.js`
+   y `plans.routes.js`, que deberían residir en sus respectivos `.repository.js`.
+
+7) MIGRACIONES PESADAS EN CADA ARRANQUE (`schemaMigrations.js`):
+   En `backend/src/lib/schemaMigrations.js` (líneas 133-157), cada vez que
+   inicia el servidor se ejecuta un `UPDATE nutrition_records` masivo que
+   recalcula `is_paid` en toda la tabla.
+
+8) DESFASE DE ZONAS HORARIAS EN SQL (`CURRENT_DATE` vs `America/Mexico_City`):
+   Algunas consultas usan `(paid_at AT TIME ZONE 'America/Mexico_City')::date`
+   y otras usan `CURRENT_DATE` o `paid_at::date` en UTC. Después de las 6:00 PM
+   (hora de México, 00:00 UTC del día siguiente), `CURRENT_DATE` en servidores
+   UTC cambia de día, afectando cortes y asistencias nocturnas.
+
+
+===============================================================================
+5. AUDITORÍA TÉCNICA DEL FRONTEND (`frontend/`)
+===============================================================================
+
+1) CASCADA DE 20 PETICIONES SIMULTÁNEAS AL ABRIR `Statistics.jsx`:
+   En `frontend/src/pages/Statistics.jsx` (líneas 117-139), el componente
+   invoca 20 hooks de React Query al mismo tiempo al montar la página (y
+   `useComprehensiveStats` ejecuta 18 consultas SQL en paralelo en el backend).
+   Esto dispara ~35 consultas SQL simultáneas contra un pool configurado en
+   `max: 2` en producción (`database.js`, línea 16).
+
+2) ARCHIVOS MONOLÍTICOS DIFÍCILES DE MANTENER:
+   - `frontend/src/pages/Finanzas.jsx`: 109 KB
+   - `frontend/src/pages/Clients.jsx`: 81 KB
+   - `frontend/src/pages/Statistics.jsx`: 72 KB
+   - `frontend/src/pages/WhatsAppAutomation.jsx`: 50 KB
+   Se recomienda dividirlos en subcomponentes modulares.
+
+3) BOTONES SIN ACCIÓN (`onClick`) EN `Statistics.jsx`:
+   En `frontend/src/pages/Statistics.jsx` (líneas 1402-1410), los botones
+   "Compartir KPI", "Promociones" y "Contactar Ausentes", así como el botón
+   "Reintentar" en estado de error (línea 149), son visuales y no tienen
+   manejador `onClick`.
+
+4) PROTECCIÓN DE RUTAS POR ROL EN `App.jsx`:
+   Aunque `Layout.jsx` oculta en el menú lateral las páginas no permitidas según
+   `user.allowed_pages`, en `frontend/src/App.jsx` (líneas 54-76) todas las
+   rutas usan solo `<ProtectedRoute>` (que únicamente valida si inició sesión).
+   Si un usuario escribe manualmente `/seguridad`, `/finanzas` o `/statistics`
+   en el navegador, React Router permite entrar a la vista.
+
+5) DOBLE CLIENTE HTTP Y ARCHIVOS HUÉRFANOS EN RAÍZ:
+   En `frontend/src/lib/api.js` coexisten Axios (`api`) y `authFetch`. Además,
+   en la raíz del proyecto existen archivos sueltos (`c:\Proyectos\pimpon-gym\authStore.js`
+   y `replace_rfc.js`) que duplican o quedaron de pruebas anteriores.
+
+
+===============================================================================
+6. HOJA DE RUTA SUGERIDA PARA MAÑANA (ORDENADA POR PRIORIDAD)
+===============================================================================
+
+FASE 1 — SEGURIDAD Y BUGS CRÍTICOS DE BACKEND (1-2 días):
+  [ ] 1.1. Parametrizar `from` y `to` en `statistics.repository.js` y validar
+           con regex de fecha en `statistics.schema.js`.
+  [ ] 1.2. Agregar `requireRole` en `users.routes.js`, `expenses.routes.js` y
+           `config.routes.js`.
+  [ ] 1.3. Excluir `/api/notifications/webhook` en el hook global de `index.js`.
+  [ ] 1.4. Corregir `payments.service.js` para que todo pago de tipo
+           `nutrition_consult` o `nutrition_followup` guarde `entity_type = 'consultorio'`
+           (y normalizar los 8 pagos históricos en la BD).
+
+FASE 2 — CORRECCIÓN TOTAL DE ESTADÍSTICAS (2-3 días):
+  [ ] 2.1. Separar por `entity_type` todas las consultas de ingresos y métodos
+           de pago en `statistics.repository.js`.
+  [ ] 2.2. Corregir las consultas y subtítulos de:
+           - Clientes en Alerta (7-14 días sin asistir o 0 asistencias)
+           - Clientes Ausentes (15+ días sin asistir)
+           - Mensualidad Vencida (`subscriptions.end_date`) vs Anualidad Vencida
+             (`clients.enrollment_expires_at`).
+  [ ] 2.3. Corregir `getClientsByPlan()` para contar solo suscripciones activas.
+  [ ] 2.4. Unificar el criterio de conversión Gimnasio <-> Nutrición entre las
+           tarjetas KPI y las tablas cebra.
+  [ ] 2.5. Eliminar el ingreso estimado ficticio (`* 500`), corregir `b.transaction_count`
+           en la exportación CSV y conectar el filtro de fechas `Desde / Hasta`
+           a las tarjetas y tablas.
+
+FASE 3 — FIABILIDAD DE CLIENTES Y AUTOMATIZACIÓN WHATSAPP (2-3 días):
+  [ ] 3.1. Agregar tarea diaria en `automationCron.js` que actualice a
+           `status = 'expired'` todas las suscripciones con `end_date < CURRENT_DATE`.
+  [ ] 3.2. Corregir el query de anualidades por vencer en `automationCron.js` y
+           `notifications.service.js` para que lea `clients.enrollment_expires_at`.
+  [ ] 3.3. Inicializar `consecutive_months = 1` al crear un cliente nuevo con
+           plan mensual en `clients.service.js`.
+  [ ] 3.4. Vincular los 50 registros que coinciden por teléfono/nombre entre
+           `clients` y `patients`.
+
+FASE 4 — OPTIMIZACIÓN DE FRONTEND Y UX (1-2 días):
+  [ ] 4.1. Optimizar `Statistics.jsx` para cargar los listados detallados bajo
+           demanda (lazy query al seleccionar tarjeta) en lugar de disparar 20
+           peticiones al abrir la página.
+  [ ] 4.2. Validar `allowed_pages` y `role` dentro de `ProtectedRoute` en `App.jsx`.
+  [ ] 4.3. Conectar o limpiar los botones de acción rápida en `Statistics.jsx`
+           y eliminar archivos huérfanos en la raíz del proyecto.
+===============================================================================
+

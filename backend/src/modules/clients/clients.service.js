@@ -3,6 +3,8 @@ const { createError } = require('../../lib/appError');
 const { pool } = require('../../lib/database');
 const { parseLocalDate, formatLocalDate, addOneYearPreservingDayAndMonth } = require('../../lib/dateUtils');
 
+const normalizeName = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+
 /**
  * Obtiene la lista de clientes aplicando transformaciones necesarias
  */
@@ -62,8 +64,35 @@ const create = async (data, registeredBy) => {
       enrollmentExpiresAt = formatLocalDate(expiresObj);
     }
 
+    // Verificar si ya existe un perfil de la misma persona en Consultorio (patients)
+    let matchedPatientId = data.patient_id || null;
+    let initialOrigin = data.initial_origin || 'gimnasio';
+    let currentFlow = data.current_flow || 'gimnasio';
+
+    if (!matchedPatientId && data.first_name && data.last_name) {
+      const firstWord = normalizeName(data.first_name).split(' ')[0];
+      const lastWord = normalizeName(data.last_name).split(' ')[0];
+      const { rows: candidates } = await dbClient.query(
+        `SELECT id, first_name, last_name FROM patients WHERE client_id IS NULL`
+      );
+      const matched = candidates.find((p) => {
+        const pFirst = normalizeName(p.first_name).split(' ')[0];
+        const pLast = normalizeName(p.last_name).split(' ')[0];
+        return pFirst === firstWord && pLast === lastWord && pFirst.length >= 3 && pLast.length >= 3;
+      });
+      if (matched) {
+        matchedPatientId = matched.id;
+        initialOrigin = 'nutricion';
+        currentFlow = 'nutricion_y_gimnasio';
+      }
+    }
+
     const clientData = {
       ...data,
+      patient_id: matchedPatientId,
+      initial_origin: initialOrigin,
+      current_flow: currentFlow,
+      consecutive_months: plan.is_visit_based ? 0 : 1,
       enrollment_date: (plan.requires_enrollment || data.enrollment_amount !== undefined) ? enrollmentDate : (data.enrollment_date || null),
       enrollment_expires_at: enrollmentExpiresAt,
       created_by: registeredBy
@@ -72,6 +101,14 @@ const create = async (data, registeredBy) => {
     
     // 2.1 Asignar el UUID generado como código QR del cliente en la base de datos
     await dbClient.query('UPDATE clients SET qr_code = $1 WHERE id = $2', [newClient.id, newClient.id]);
+
+    // 2.2 Si se vinculó a un paciente existente, actualizar la referencia inversa
+    if (matchedPatientId) {
+      await dbClient.query(
+        `UPDATE patients SET client_id = $1, current_flow = 'nutricion_y_gimnasio' WHERE id = $2`,
+        [newClient.id, matchedPatientId]
+      );
+    }
     
     // 3. Crear la suscripción (usando la duración del plan)
     const subscriptionData = {
@@ -90,7 +127,7 @@ const create = async (data, registeredBy) => {
         payment_method: data.payment_method,
         payment_type: 'enrollment',
         registered_by: registeredBy,
-        entity_type: 'gym' // <-- AÑADIDO: Especificar la entidad para el pago
+        entity_type: 'gym'
       }, dbClient);
     }
     
@@ -103,7 +140,7 @@ const create = async (data, registeredBy) => {
       payment_method: data.payment_method,
       payment_type: mainPaymentType,
       registered_by: registeredBy,
-      entity_type: 'gym' // <-- AÑADIDO: Especificar la entidad para el pago
+      entity_type: 'gym'
     }, dbClient);
 
     // 5.1 Si el plan es por visita / visitante, registrar asistencia automática
@@ -316,4 +353,3 @@ module.exports = {
   getExpiringClients,
   getClientHistory
 };
-

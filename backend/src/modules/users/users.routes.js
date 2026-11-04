@@ -1,10 +1,12 @@
 const service = require('./users.service');
 const schema = require('./users.schema');
 const { requireAuth } = require('../../middleware/auth.middleware');
+const { requireRole } = require('../../middleware/role.guard');
 
 async function usersRoutes(fastify, options) {
-  // Aplicar middleware de autenticación a todas las rutas de usuarios
+  // Aplicar middleware de autenticación y rol (solo owner y admin) a todas las rutas de usuarios
   fastify.addHook('onRequest', requireAuth);
+  fastify.addHook('preHandler', requireRole(['owner', 'admin']));
 
   // GET /api/users - Listar usuarios
   fastify.get('/', async (request, reply) => {

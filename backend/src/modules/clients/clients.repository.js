@@ -14,7 +14,7 @@ const findAll = async (filters = {}) => {
       s.end_date
     FROM clients c
     LEFT JOIN plans p ON c.plan_id = p.id
-    LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active'
+    LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
     WHERE 1=1
   `;
   const params = [];
@@ -22,9 +22,9 @@ const findAll = async (filters = {}) => {
 
   if (filters.status) {
     if (filters.status === 'active') {
-      sql += ` AND s.status = 'active' AND s.end_date >= NOW()`;
+      sql += ` AND s.status = 'active' AND s.end_date >= CURRENT_DATE`;
     } else {
-      sql += ` AND (s.status != 'active' OR s.end_date < NOW() OR s.status IS NULL)`;
+      sql += ` AND (s.status != 'active' OR s.end_date < CURRENT_DATE OR s.status IS NULL)`;
     }
   }
 
@@ -59,7 +59,7 @@ const findById = async (id) => {
       s.end_date
     FROM clients c
     LEFT JOIN plans p ON c.plan_id = p.id
-    LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active'
+    LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
     WHERE c.id = $1
   `;
   const { rows } = await query(sql, [id]);
@@ -104,10 +104,10 @@ const create = async (data, dbClient) => {
       email, rfc, gender, enrollment_date, enrollment_expires_at,
       coach_fitness_level, coach_health_notes, coach_goal, created_by,
       birth_date, quick_weight_kg, quick_height_cm, quick_goal, quick_health_notes,
-      patient_id, initial_origin, current_flow
+      patient_id, initial_origin, current_flow, consecutive_months
     ) VALUES (
       gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-      $16, $17, $18, $19, $20, $21, $22
+      $16, $17, $18, $19, $20, $21, $22, $23
     ) RETURNING *
   `;
   const params = [
@@ -132,7 +132,8 @@ const create = async (data, dbClient) => {
     data.quick_health_notes || null,
     data.patient_id || null,
     data.initial_origin || 'gimnasio',
-    data.current_flow || 'gimnasio'
+    data.current_flow || 'gimnasio',
+    data.consecutive_months ?? 0
   ];
   
   const executor = dbClient || { query };
@@ -204,7 +205,7 @@ const findWithoutAttendanceThisMonth = async () => {
     SELECT c.*
     FROM clients c
     JOIN subscriptions s ON c.id = s.client_id
-    WHERE s.status = 'active' AND s.end_date >= NOW()
+    WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
     AND NOT EXISTS (
       SELECT 1 FROM attendance a 
       WHERE a.client_id = c.id 
@@ -335,4 +336,3 @@ module.exports = {
   updateTransferControl,
   findClientHistory
 };
-

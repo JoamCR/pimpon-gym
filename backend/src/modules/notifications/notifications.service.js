@@ -181,15 +181,12 @@ const getPendingTargets = async () => {
     // 2. Anualidades por Vencer (1 a 3 Días)
     const exp3dAnnualRes = await pool.query(`
       SELECT 
-        s.client_id, c.first_name, c.last_name, c.phone, s.end_date, COALESCE(p.name, 'Anualidad') as plan_name
-      FROM subscriptions s
-      JOIN clients c ON s.client_id = c.id
-      LEFT JOIN plans p ON s.plan_id = p.id
-      WHERE s.status = 'active'
-        AND s.end_date >= CURRENT_DATE + INTERVAL '1 day'
-        AND s.end_date <= CURRENT_DATE + INTERVAL '3 days'
-        AND COALESCE(p.duration_days, 30) >= 300
-        AND c.is_active = true AND c.phone IS NOT NULL AND c.phone != '';
+        c.id as client_id, c.first_name, c.last_name, c.phone, c.enrollment_expires_at as end_date, 'Anualidad' as plan_name
+      FROM clients c
+      WHERE c.is_active = true
+        AND c.enrollment_expires_at >= CURRENT_DATE + INTERVAL '1 day'
+        AND c.enrollment_expires_at <= CURRENT_DATE + INTERVAL '3 days'
+        AND c.phone IS NOT NULL AND c.phone != '';
     `);
 
     groups.push({
@@ -248,14 +245,11 @@ const getPendingTargets = async () => {
     // 4. Anualidades que Vencen Hoy
     const expTodayAnnualRes = await pool.query(`
       SELECT 
-        s.client_id, c.first_name, c.last_name, c.phone, s.end_date, COALESCE(p.name, 'Anualidad') as plan_name
-      FROM subscriptions s
-      JOIN clients c ON s.client_id = c.id
-      LEFT JOIN plans p ON s.plan_id = p.id
-      WHERE s.status = 'active'
-        AND s.end_date = CURRENT_DATE
-        AND COALESCE(p.duration_days, 30) >= 300
-        AND c.is_active = true AND c.phone IS NOT NULL AND c.phone != '';
+        c.id as client_id, c.first_name, c.last_name, c.phone, c.enrollment_expires_at as end_date, 'Anualidad' as plan_name
+      FROM clients c
+      WHERE c.is_active = true
+        AND c.enrollment_expires_at = CURRENT_DATE
+        AND c.phone IS NOT NULL AND c.phone != '';
     `);
 
     groups.push({
@@ -285,7 +279,7 @@ const getPendingTargets = async () => {
       JOIN subscriptions s ON s.client_id = c.id
       LEFT JOIN plans p ON s.plan_id = p.id
       WHERE c.is_active = true AND c.phone IS NOT NULL AND c.phone != ''
-        AND COALESCE(p.duration_days, 30) < 300
+        AND COALESCE(p.is_visit_based, false) = false
         AND c.id NOT IN (SELECT client_id FROM subscriptions WHERE status = 'active' AND end_date >= CURRENT_DATE)
         AND s.end_date < CURRENT_DATE
       ORDER BY c.id, s.end_date DESC;
@@ -313,15 +307,11 @@ const getPendingTargets = async () => {
 
     // 6. Anualidades Vencidas (Pasadas no renovadas)
     const expiredPastAnnualRes = await pool.query(`
-      SELECT DISTINCT ON (c.id) s.client_id, c.first_name, c.last_name, c.phone, s.end_date, COALESCE(p.name, 'Anualidad') as plan_name
+      SELECT c.id as client_id, c.first_name, c.last_name, c.phone, c.enrollment_expires_at as end_date, 'Anualidad' as plan_name
       FROM clients c
-      JOIN subscriptions s ON s.client_id = c.id
-      LEFT JOIN plans p ON s.plan_id = p.id
       WHERE c.is_active = true AND c.phone IS NOT NULL AND c.phone != ''
-        AND COALESCE(p.duration_days, 30) >= 300
-        AND c.id NOT IN (SELECT client_id FROM subscriptions WHERE status = 'active' AND end_date >= CURRENT_DATE)
-        AND s.end_date < CURRENT_DATE
-      ORDER BY c.id, s.end_date DESC;
+        AND c.enrollment_expires_at < CURRENT_DATE
+      ORDER BY c.enrollment_expires_at DESC;
     `);
 
     groups.push({
@@ -350,9 +340,9 @@ const getPendingTargets = async () => {
       FROM clients c
       LEFT JOIN attendance a ON a.client_id = c.id
       WHERE c.is_active = true AND c.phone IS NOT NULL AND c.phone != ''
-        AND EXISTS (SELECT 1 FROM subscriptions s WHERE s.client_id = c.id AND s.status = 'active')
-      GROUP BY c.id, c.first_name, c.last_name, c.phone
-      HAVING MAX(a.checked_in_at) IS NULL OR MAX(a.checked_in_at) < NOW() - INTERVAL '15 days';
+        AND EXISTS (SELECT 1 FROM subscriptions s WHERE s.client_id = c.id AND s.status = 'active' AND s.end_date >= CURRENT_DATE)
+      GROUP BY c.id, c.first_name, c.last_name, c.phone, c.created_at
+      HAVING COALESCE(MAX(a.checked_in_at), c.created_at) < NOW() - INTERVAL '15 days';
     `);
 
     groups.push({

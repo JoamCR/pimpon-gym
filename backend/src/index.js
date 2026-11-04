@@ -83,11 +83,15 @@ const start = async () => {
     await fastify.register(helmet);
     await fastify.register(jwt, { secret: env.JWT_SECRET });
 
-    // SEGURIDAD: Hook global — Proteger TODAS las rutas /api/* excepto /api/auth/*
+    // SEGURIDAD: Hook global — Proteger TODAS las rutas /api/* excepto /api/auth/* y el webhook de Meta WhatsApp
     fastify.addHook('onRequest', async (request, reply) => {
       const url = request.url;
-      // Rutas públicas: health check y autenticación
-      if (url === '/health' || url.startsWith('/api/auth')) {
+      // Rutas públicas: health check, autenticación y webhook de WhatsApp Cloud API
+      if (
+        url === '/health' ||
+        url.startsWith('/api/auth') ||
+        url.startsWith('/api/notifications/webhook')
+      ) {
         return;
       }
       // Todas las demás rutas /api/* requieren JWT

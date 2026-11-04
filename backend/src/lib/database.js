@@ -11,6 +11,8 @@ if (process.env.DATABASE_URL) {
 
   const poolConfig = {
     connectionString: process.env.DATABASE_URL,
+    // Asegurar zona horaria local de México en cada sesión PostgreSQL sin disparar queries concurrentes en on('connect')
+    options: '-c timezone=America/Mexico_City',
     // 1. Limitar el pool por instancia Serverless
     // En Vercel Serverless, 1 o 2 conexiones por Lambda es lo óptimo.
     max: isProduction ? 2 : 10,

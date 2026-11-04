@@ -2,17 +2,19 @@ const { pool } = require('../../lib/database');
 const { createError } = require('../../lib/appError');
 
 /**
- * 1. getMonthlyIncome(year): ingresos por mes agrupados por método de pago
+ * 1. getMonthlyIncome(year): ingresos del gimnasio por mes agrupados por método de pago
  */
 const getMonthlyIncome = async (year) => {
   const sql = `
     SELECT 
-      EXTRACT(MONTH FROM paid_at) as month, 
+      EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City'))::INT as month, 
       payment_method, 
       SUM(amount) as total 
     FROM payments 
-    WHERE EXTRACT(YEAR FROM paid_at) = $1 
-      AND is_voided = false 
+    WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1 
+      AND is_voided = false
+      AND (entity_type = 'gym' OR entity_type IS NULL)
+      AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
     GROUP BY month, payment_method
     ORDER BY month ASC
   `;
@@ -47,7 +49,7 @@ const getActiveClientsReal = async () => {
 };
 
 /**
- * 3. getClientsByPlan(): distribución de clientes por plan, con conteo
+ * 3. getClientsByPlan(): distribución de clientes activos por plan
  */
 const getClientsByPlan = async (year, month, from, to) => {
   let sql;
@@ -62,6 +64,7 @@ const getClientsByPlan = async (year, month, from, to) => {
       JOIN subscriptions s ON s.plan_id = p.id
         AND s.start_date <= $2::date
         AND s.end_date >= $1::date
+      JOIN clients c ON c.id = s.client_id AND c.is_active = true
       GROUP BY p.id, p.name
       ORDER BY client_count DESC
     `;
@@ -74,23 +77,24 @@ const getClientsByPlan = async (year, month, from, to) => {
         COUNT(DISTINCT s.client_id) as client_count
       FROM plans p
       JOIN subscriptions s ON s.plan_id = p.id
-        AND s.start_date <= (make_date($1::int, $2::int, 1) + interval '1 month - 1 day')::date
-        AND s.end_date >= make_date($1::int, $2::int, 1)
+        AND s.status = 'active'
+        AND s.end_date >= CURRENT_DATE
+      JOIN clients c ON c.id = s.client_id AND c.is_active = true
       GROUP BY p.id, p.name
       ORDER BY client_count DESC
     `;
-    params = [year, month];
+    params = [];
   } else {
     sql = `
       SELECT 
         p.id, 
         p.name, 
-        COUNT(DISTINCT c.id) as client_count
+        COUNT(DISTINCT s.client_id) as client_count
       FROM plans p
-      LEFT JOIN clients c ON c.plan_id = p.id 
-      LEFT JOIN subscriptions s ON c.id = s.client_id 
+      LEFT JOIN subscriptions s ON s.plan_id = p.id 
         AND s.status = 'active' 
         AND s.end_date >= CURRENT_DATE
+      LEFT JOIN clients c ON c.id = s.client_id AND c.is_active = true
       GROUP BY p.id, p.name
       ORDER BY client_count DESC
     `;
@@ -104,7 +108,7 @@ const getClientsByPlan = async (year, month, from, to) => {
 };
 
 /**
- * 4. getAgeDistribution(): distribución de clientes activos por rango de edad
+ * 4. getAgeDistributionFor(): distribución de clientes/pacientes activos por rango de edad
  */
 const getAgeDistributionFor = async (entity) => {
   if (entity !== 'clients' && entity !== 'patients') {
@@ -157,8 +161,8 @@ const getSexDistributionFor = async (entity) => {
   const sql = `
     SELECT 
       CASE
-        WHEN LOWER(gender) IN ('male','m','hombre','h') THEN 'Hombre'
-        WHEN LOWER(gender) IN ('female','f','mujer','f') THEN 'Mujer'
+        WHEN LOWER(gender) IN ('male','m','hombre','h','masculino') THEN 'Hombre'
+        WHEN LOWER(gender) IN ('female','f','mujer','femenino') THEN 'Mujer'
         ELSE 'Otro / No especificado'
       END as sex,
       COUNT(*) as count
@@ -176,34 +180,38 @@ const getSexDistributionFor = async (entity) => {
 };
 
 /**
- * 6. getExpiredClients(): lista de clientes con suscripción vencida sin renovar
+ * 6. getExpiredClients(): lista de clientes con anualidad (inscripción) vencida sin renovar
  */
 const getExpiredClients = async () => {
   const sql = `
-    WITH LastSubs AS (
-      SELECT client_id, MAX(end_date) as last_end_date
-      FROM subscriptions
-      GROUP BY client_id
-    )
     SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name,
-      ls.last_end_date, ls.last_end_date as end_date, c.created_at
+      c.id,
+      c.first_name,
+      c.last_name,
+      c.phone,
+      p.name as plan_name,
+      c.enrollment_expires_at as last_end_date,
+      c.enrollment_expires_at as end_date,
+      c.enrollment_expires_at,
+      c.created_at
     FROM clients c
     JOIN plans p ON c.plan_id = p.id
-    JOIN LastSubs ls ON c.id = ls.client_id
-    WHERE ls.last_end_date < CURRENT_DATE
-    ORDER BY ls.last_end_date DESC
+    WHERE c.is_active = true
+      AND p.is_visit_based = false
+      AND c.enrollment_expires_at IS NOT NULL
+      AND c.enrollment_expires_at < CURRENT_DATE
+    ORDER BY c.enrollment_expires_at DESC
   `;
   try {
     const result = await pool.query(sql);
     return result.rows;
   } catch (err) {
-    throw createError(500, 'Error obteniendo clientes con suscripción vencida');
+    throw createError(500, 'Error obteniendo clientes con anualidad vencida');
   }
 };
 
 /**
- * 5. getEnrollmentCutoff(month, year): inscripciones anuales del mes dado
+ * 7. getEnrollmentCutoff(month, year): inscripciones anuales del mes dado
  */
 const getEnrollmentCutoff = async (month, year) => {
   const sql = `
@@ -212,8 +220,8 @@ const getEnrollmentCutoff = async (month, year) => {
     FROM payments p
     JOIN clients c ON p.client_id = c.id
     WHERE p.payment_type = 'enrollment' 
-      AND EXTRACT(MONTH FROM p.paid_at) = $1
-      AND EXTRACT(YEAR FROM p.paid_at) = $2
+      AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+      AND EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
       AND p.is_voided = false
   `;
   try {
@@ -225,7 +233,7 @@ const getEnrollmentCutoff = async (month, year) => {
 };
 
 /**
- * 6. getClientsWithoutAttendance(month, year): clientes con inscripción activa
+ * 8. getClientsWithoutAttendance(month, year): clientes con inscripción activa
  *    que no tienen ningún registro en attendance en el mes dado
  */
 const getClientsWithoutAttendance = async (month, year) => {
@@ -255,7 +263,7 @@ const getClientsWithoutAttendance = async (month, year) => {
 };
 
 /**
- * 7. getConsistentClients(minMonths): clientes con consecutive_months >= minMonths
+ * 9. getConsistentClients(minMonths): clientes con consecutive_months >= minMonths
  */
 const getConsistentClients = async (minMonths) => {
   const sql = `
@@ -277,18 +285,18 @@ const getConsistentClients = async (minMonths) => {
 };
 
 /**
- * 8. getCashCutoffHistory(from, to): cortes de caja agrupados por fecha
+ * 10. getCashCutoffHistory(from, to): cortes de caja agrupados por fecha
  */
 const getCashCutoffHistory = async (fromDate, toDate) => {
   const sql = `
     SELECT 
-      paid_at::date as cutoff_date, 
+      (paid_at AT TIME ZONE 'America/Mexico_City')::date as cutoff_date, 
       payment_method, 
       SUM(amount) as total,
       COUNT(id) as transaction_count
     FROM payments 
-    WHERE paid_at >= $1::timestamp 
-      AND paid_at < ($2::timestamp + interval '1 day')
+    WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
+      AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
       AND is_voided = false 
     GROUP BY cutoff_date, payment_method
     ORDER BY cutoff_date DESC
@@ -302,7 +310,7 @@ const getCashCutoffHistory = async (fromDate, toDate) => {
 };
 
 /**
- * 9. getRetentionRate(): tasa de retención (clientes con 6+ meses consecutivos respecto al total)
+ * 11. getRetentionRate(): tasa de retención (clientes con 6+ meses consecutivos respecto al total)
  */
 const getRetentionRate = async () => {
   const sql = `
@@ -325,7 +333,7 @@ const getRetentionRate = async () => {
 };
 
 /**
- * 10. getAttendanceHeatmap(year, month): asistencias por día de la semana y hora
+ * 12. getAttendanceHeatmap(year, month): asistencias por día de la semana y hora
  */
 const getAttendanceHeatmap = async (year, month) => {
   const sql = `
@@ -349,7 +357,7 @@ const getAttendanceHeatmap = async (year, month) => {
 };
 
 /**
- * 11. getDailyAttendance(year, month): asistencias por día (visitantes)
+ * 13. getDailyAttendance(year, month): asistencias por día (visitantes)
  */
 const getDailyAttendance = async (year, month, from, to) => {
   let sql;
@@ -392,7 +400,7 @@ const getDailyAttendance = async (year, month, from, to) => {
 };
 
 /**
- * 13. getPaymentMethodsDistribution(year, month): % efectivo vs transferencia
+ * 14. getPaymentMethodsDistribution(year, month): % efectivo vs transferencia (Gimnasio)
  */
 const getPaymentMethodsDistribution = async (year, month, from, to) => {
   let sql;
@@ -408,6 +416,8 @@ const getPaymentMethodsDistribution = async (year, month, from, to) => {
       WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
         AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
         AND is_voided = false
+        AND (entity_type = 'gym' OR entity_type IS NULL)
+        AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
       GROUP BY payment_method
       ORDER BY total DESC
     `;
@@ -425,6 +435,8 @@ const getPaymentMethodsDistribution = async (year, month, from, to) => {
       WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
         AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
         AND is_voided = false
+        AND (entity_type = 'gym' OR entity_type IS NULL)
+        AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
       GROUP BY payment_method
       ORDER BY total DESC
     `;
@@ -439,7 +451,7 @@ const getPaymentMethodsDistribution = async (year, month, from, to) => {
 };
 
 /**
- * 14. getAverageTicketPerClient(): ticket promedio (ingresos / clientes activos)
+ * 15. getAverageTicketPerClient(): ticket promedio (ingresos gimnasio / clientes pagadores)
  */
 const getAverageTicketPerClient = async (year, month) => {
   const sql = `
@@ -449,10 +461,11 @@ const getAverageTicketPerClient = async (year, month) => {
       COUNT(DISTINCT client_id) as unique_payers,
       COUNT(*) as total_transactions
     FROM payments
-    WHERE EXTRACT(YEAR FROM paid_at) = $1
-      AND EXTRACT(MONTH FROM paid_at) = $2
+    WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+      AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
       AND is_voided = false
-      AND entity_type = 'gym'
+      AND (entity_type = 'gym' OR entity_type IS NULL)
+      AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
   `;
   try {
     const result = await pool.query(sql, [year, month]);
@@ -463,7 +476,7 @@ const getAverageTicketPerClient = async (year, month) => {
 };
 
 /**
- * 15. getRecurringVsNewIncome(year, month): ingresos recurrentes vs nuevos
+ * 16. getRecurringVsNewIncome(year, month): ingresos recurrentes vs nuevos
  */
 const getRecurringVsNewIncome = async (year, month) => {
   const sql = `
@@ -474,8 +487,8 @@ const getRecurringVsNewIncome = async (year, month) => {
         SUM(CASE WHEN p.payment_type = 'enrollment' THEN p.amount ELSE 0 END) as enrollment_total,
         SUM(CASE WHEN p.payment_type IN ('monthly', 'enrollment') THEN p.amount ELSE 0 END) as total_income
       FROM payments p
-      WHERE EXTRACT(YEAR FROM p.paid_at) = $1
-        AND EXTRACT(MONTH FROM p.paid_at) = $2
+      WHERE EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
+        AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
         AND p.is_voided = false
       GROUP BY p.client_id
     )
@@ -495,7 +508,7 @@ const getRecurringVsNewIncome = async (year, month) => {
 };
 
 /**
- * 16. getProjectedDebt(daysOut): dinero en riesgo (clientes venciendo en X días)
+ * 17. getProjectedDebt(daysOut): dinero en riesgo (clientes venciendo en X días)
  */
 const getProjectedDebt = async (daysOut) => {
   const sql = `
@@ -521,20 +534,20 @@ const getProjectedDebt = async (daysOut) => {
 };
 
 /**
- * 17. getNutritionConversionRate(): % de clientes gym con consulta de nutrición
+ * 18. getNutritionConversionRate(): % de clientes gym con consulta de nutrición
  */
 const getNutritionConversionRate = async () => {
   const sql = `
     SELECT 
       COUNT(DISTINCT c.id) as total_gym_clients,
-      COUNT(DISTINCT CASE WHEN nr.id IS NOT NULL THEN c.id END) as with_nutrition,
+      COUNT(DISTINCT CASE WHEN nr.id IS NOT NULL OR c.patient_id IS NOT NULL THEN c.id END) as with_nutrition,
       ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN nr.id IS NOT NULL THEN c.id END) / 
+        100.0 * COUNT(DISTINCT CASE WHEN nr.id IS NOT NULL OR c.patient_id IS NOT NULL THEN c.id END) / 
         NULLIF(COUNT(DISTINCT c.id), 0), 2
       ) as conversion_rate
     FROM clients c
     JOIN subscriptions s ON c.id = s.client_id
-    LEFT JOIN nutrition_records nr ON c.id = nr.client_id AND nr.entity_type = 'gym'
+    LEFT JOIN nutrition_records nr ON c.id = nr.client_id OR c.patient_id = nr.patient_id
     WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
   `;
   try {
@@ -546,7 +559,7 @@ const getNutritionConversionRate = async () => {
 };
 
 /**
- * 18. getSixMonthEligible(): clientes con 6+ meses pagados que pueden ser incentivados
+ * 19. getSixMonthEligible(): clientes con 6+ meses pagados que pueden ser incentivados
  */
 const getSixMonthEligible = async () => {
   const sql = `
@@ -571,7 +584,7 @@ const getSixMonthEligible = async () => {
 };
 
 /**
- * 19. getNutritionStats(): estadísticas del consultorio de nutriología
+ * 20. getNutritionStats(): estadísticas del consultorio de nutriología
  */
 const getNutritionStats = async (year, month, from, to) => {
   let sql;
@@ -655,7 +668,7 @@ const getNutritionFreeConsults = async (year, month) => {
 };
 
 /**
- * getNutritionPaidConsults(): pacientes con consultas pagadas en Nutriología
+ * getNutritionPaidConsults(): pacientes o clientes vinculados con consultas pagadas en Nutriología
  */
 const getNutritionPaidConsults = async (year, month) => {
   const y = year || new Date().getFullYear();
@@ -663,20 +676,21 @@ const getNutritionPaidConsults = async (year, month) => {
 
   const sql = `
     SELECT
-      pat.id,
-      pat.first_name,
-      pat.last_name,
-      pat.phone,
+      COALESCE(pat.id, c.id) as id,
+      COALESCE(pat.first_name, c.first_name, 'Paciente') as first_name,
+      COALESCE(pat.last_name, c.last_name, '') as last_name,
+      COALESCE(pat.phone, c.phone, 'Sin teléfono') as phone,
       COUNT(*) as consult_count,
       SUM(p.amount) as total_paid,
       MAX(p.paid_at) as last_payment_at
     FROM payments p
-    JOIN patients pat ON p.patient_id = pat.id
+    LEFT JOIN patients pat ON p.patient_id = pat.id
+    LEFT JOIN clients c ON p.client_id = c.id
     WHERE (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
       AND p.is_voided = false
       AND EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
       AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
-    GROUP BY pat.id, pat.first_name, pat.last_name, pat.phone
+    GROUP BY COALESCE(pat.id, c.id), COALESCE(pat.first_name, c.first_name, 'Paciente'), COALESCE(pat.last_name, c.last_name, ''), COALESCE(pat.phone, c.phone, 'Sin teléfono')
     ORDER BY total_paid DESC, last_payment_at DESC
   `;
   try {
@@ -736,7 +750,7 @@ const getNutritionRetention = async () => {
 };
 
 /**
- * 20. getMonthlyIncomeByMethod(year, month): ingresos totales del mes desglosado por método de pago
+ * 20. getMonthlyIncomeByMethod(year, month): ingresos totales del gimnasio desglosado por método de pago
  */
 const getMonthlyIncomeByMethod = async (year, month, from, to) => {
   let sql;
@@ -751,7 +765,8 @@ const getMonthlyIncomeByMethod = async (year, month, from, to) => {
       WHERE (paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
         AND (paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
         AND is_voided = false
-        AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+        AND (entity_type = 'gym' OR entity_type IS NULL)
+        AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
       GROUP BY payment_method
       ORDER BY total DESC
     `;
@@ -768,7 +783,8 @@ const getMonthlyIncomeByMethod = async (year, month, from, to) => {
       WHERE EXTRACT(YEAR FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $1
         AND EXTRACT(MONTH FROM (paid_at AT TIME ZONE 'America/Mexico_City')) = $2
         AND is_voided = false
-        AND (entity_type = 'gym' OR (entity_type IS NULL AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+        AND (entity_type = 'gym' OR entity_type IS NULL)
+        AND payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
       GROUP BY payment_method
       ORDER BY total DESC
     `;
@@ -813,7 +829,7 @@ const getRetainedClients = async () => {
 };
 
 /**
- * 22. getMonthlyIncomeDetails(year, month): pagos del gimnasio por cliente
+ * 22. getMonthlyIncomeDetails(year, month): pagos exclusivos del gimnasio por cliente
  */
 const getMonthlyIncomeDetails = async (year, month, from, to) => {
   let sql;
@@ -840,7 +856,8 @@ const getMonthlyIncomeDetails = async (year, month, from, to) => {
       WHERE (p.paid_at AT TIME ZONE 'America/Mexico_City')::date >= $1::date
         AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date <= $2::date
         AND p.is_voided = false
-        AND (p.entity_type = 'gym' OR (p.entity_type IS NULL AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+        AND (p.entity_type = 'gym' OR p.entity_type IS NULL)
+        AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
       ORDER BY p.paid_at DESC
     `;
     params = [from, to];
@@ -852,7 +869,8 @@ const getMonthlyIncomeDetails = async (year, month, from, to) => {
       WHERE EXTRACT(YEAR FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $1
         AND EXTRACT(MONTH FROM (p.paid_at AT TIME ZONE 'America/Mexico_City')) = $2
         AND p.is_voided = false
-        AND (p.entity_type = 'gym' OR (p.entity_type IS NULL AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')))
+        AND (p.entity_type = 'gym' OR p.entity_type IS NULL)
+        AND p.payment_type NOT IN ('nutrition_consult', 'nutrition_followup')
       ORDER BY p.paid_at DESC
     `;
     params = [y, m];
@@ -866,33 +884,27 @@ const getMonthlyIncomeDetails = async (year, month, from, to) => {
 };
 
 /**
- * 23. getNutritionConversionPaid(): clientes gym que han pagado por segunda consulta (conversión real)
+ * 23. getNutritionConversionPaid(): clientes gym que han pagado por consulta de nutrición
  */
 const getNutritionConversionPaid = async () => {
   const sql = `
     WITH gym_clients AS (
-      SELECT DISTINCT c.id
+      SELECT DISTINCT c.id, c.patient_id
       FROM clients c
       JOIN subscriptions s ON c.id = s.client_id
       WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
     ),
-    gym_clients_with_nutrition AS (
-      SELECT DISTINCT nr.client_id
-      FROM nutrition_records nr
-      WHERE nr.client_id IS NOT NULL
-    ),
-    paid_gym_clients AS (
-      SELECT DISTINCT p.client_id
+    paid_nutrition_targets AS (
+      SELECT DISTINCT COALESCE(p.client_id, p.patient_id) as target_id
       FROM payments p
-      WHERE p.payment_type IN ('nutrition_consult', 'nutrition_followup')
+      WHERE (p.entity_type = 'consultorio' OR p.payment_type IN ('nutrition_consult', 'nutrition_followup'))
         AND p.is_voided = false
-        AND p.client_id IS NOT NULL
     )
     SELECT
       COUNT(DISTINCT gc.id) as total_gym_clients,
-      COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) as with_paid_nutrition,
+      COUNT(DISTINCT CASE WHEN gc.id IN (SELECT target_id FROM paid_nutrition_targets) OR gc.patient_id IN (SELECT target_id FROM paid_nutrition_targets) THEN gc.id END) as with_paid_nutrition,
       ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN gc.id IN (SELECT client_id FROM paid_gym_clients) THEN gc.id END) / 
+        100.0 * COUNT(DISTINCT CASE WHEN gc.id IN (SELECT target_id FROM paid_nutrition_targets) OR gc.patient_id IN (SELECT target_id FROM paid_nutrition_targets) THEN gc.id END) / 
         NULLIF(COUNT(DISTINCT gc.id), 0), 2
       ) as conversion_rate
     FROM gym_clients gc
@@ -906,22 +918,41 @@ const getNutritionConversionPaid = async () => {
 };
 
 /**
- * 23. getAlertClients(): clientes que están pagados pero sin asistencia en 7 días (en alerta)
+ * 24. getAlertClients(): clientes activos con 7 a 14 días sin asistir (incluye clientes sin asistencias previas)
  */
 const getAlertClients = async () => {
   const sql = `
-    SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at,
-      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance,
-      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance_date,
-      EXTRACT(DAY FROM (NOW() - (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id)))::INT as days_without_attendance
-    FROM clients c
-    JOIN plans p ON c.plan_id = p.id
-    JOIN subscriptions s ON c.id = s.client_id
-    WHERE s.status = 'active' 
-      AND s.end_date >= CURRENT_DATE
-      AND (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) < (NOW() - INTERVAL '7 days')
-    ORDER BY days_without_attendance DESC
+    WITH active_subs AS (
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        p.name as plan_name,
+        c.created_at,
+        (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance
+      FROM clients c
+      JOIN plans p ON c.plan_id = p.id
+      JOIN subscriptions s ON c.id = s.client_id
+      WHERE c.is_active = true
+        AND p.is_visit_based = false
+        AND s.status = 'active'
+        AND s.end_date >= CURRENT_DATE
+    )
+    SELECT
+      id,
+      first_name,
+      last_name,
+      phone,
+      plan_name,
+      created_at,
+      last_attendance,
+      COALESCE(last_attendance, created_at) as last_attendance_date,
+      GREATEST(EXTRACT(DAY FROM (NOW() - COALESCE(last_attendance, created_at)))::INT, 0) as days_without_attendance
+    FROM active_subs
+    WHERE COALESCE(last_attendance, created_at) < (NOW() - INTERVAL '7 days')
+      AND COALESCE(last_attendance, created_at) >= (NOW() - INTERVAL '15 days')
+    ORDER BY days_without_attendance DESC, first_name ASC
   `;
   try {
     const result = await pool.query(sql);
@@ -932,22 +963,40 @@ const getAlertClients = async () => {
 };
 
 /**
- * getAbsentClients(): clientes pagados pero sin asistencia en 15+ días
+ * 25. getAbsentClients(): clientes activos con 15+ días sin asistir (incluye clientes sin asistencias previas)
  */
 const getAbsentClients = async () => {
   const sql = `
-    SELECT 
-      c.id, c.first_name, c.last_name, c.phone, p.name as plan_name, c.created_at,
-      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance,
-      (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance_date,
-      EXTRACT(DAY FROM (NOW() - (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id)))::INT as days_without_attendance
-    FROM clients c
-    JOIN plans p ON c.plan_id = p.id
-    JOIN subscriptions s ON c.id = s.client_id
-    WHERE s.status = 'active' 
-      AND s.end_date >= CURRENT_DATE
-      AND (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) < (NOW() - INTERVAL '15 days')
-    ORDER BY days_without_attendance DESC
+    WITH active_subs AS (
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        p.name as plan_name,
+        c.created_at,
+        (SELECT MAX(checked_in_at) FROM attendance WHERE client_id = c.id) as last_attendance
+      FROM clients c
+      JOIN plans p ON c.plan_id = p.id
+      JOIN subscriptions s ON c.id = s.client_id
+      WHERE c.is_active = true
+        AND p.is_visit_based = false
+        AND s.status = 'active'
+        AND s.end_date >= CURRENT_DATE
+    )
+    SELECT
+      id,
+      first_name,
+      last_name,
+      phone,
+      plan_name,
+      created_at,
+      last_attendance,
+      COALESCE(last_attendance, created_at) as last_attendance_date,
+      GREATEST(EXTRACT(DAY FROM (NOW() - COALESCE(last_attendance, created_at)))::INT, 0) as days_without_attendance
+    FROM active_subs
+    WHERE COALESCE(last_attendance, created_at) < (NOW() - INTERVAL '15 days')
+    ORDER BY days_without_attendance DESC, first_name ASC
   `;
   try {
     const result = await pool.query(sql);
@@ -958,29 +1007,32 @@ const getAbsentClients = async () => {
 };
 
 /**
- * 24. getNutritionFreeToConversionClients(): deshabilitado dado que ya no existen consultas gratuitas
+ * 26. getNutritionFreeToConversionClients(): deshabilitado dado que ya no existen consultas gratuitas
  */
 const getNutritionFreeToConversionClients = async () => {
   return [];
 };
 
 /**
- * 25. getNutritionPatientsToClientsConversion(): pacientes que se convirtieron en clientes del gimnasio
+ * 27. getNutritionPatientsToClientsConversion(): pacientes de nutrición que se convirtieron en clientes del gimnasio
  */
 const getNutritionPatientsToClientsConversion = async () => {
   const sql = `
     SELECT 
-      p.id, p.first_name, p.last_name, p.phone,
+      p.id,
+      p.first_name,
+      p.last_name,
+      p.phone,
       c.id as client_id,
       c.created_at,
       c.created_at as conversion_date,
-      COUNT(nr.id) as total_consultations
+      COUNT(DISTINCT nr.id)::INT as total_consultations
     FROM patients p
-    LEFT JOIN clients c ON LOWER(CONCAT(p.first_name, ' ', p.last_name)) = LOWER(CONCAT(c.first_name, ' ', c.last_name)) 
-      OR p.phone = c.phone
-    LEFT JOIN nutrition_records nr ON p.id = nr.patient_id
-    WHERE c.id IS NOT NULL
+    JOIN clients c ON p.client_id = c.id
+    LEFT JOIN nutrition_records nr ON nr.patient_id = p.id OR nr.client_id = c.id
+    WHERE p.current_flow = 'nutricion_y_gimnasio' OR p.initial_origin = 'nutricion'
     GROUP BY p.id, p.first_name, p.last_name, p.phone, c.id, c.created_at
+    ORDER BY c.created_at DESC
   `;
   try {
     const result = await pool.query(sql);
@@ -991,7 +1043,7 @@ const getNutritionPatientsToClientsConversion = async () => {
 };
 
 /**
- * 26. getNutritionRetentionByThreeMonths(): pacientes con 3+ consultas (retención)
+ * 28. getNutritionRetentionByThreeMonths(): pacientes con 3+ consultas (retención)
  */
 const getNutritionRetentionByThreeMonths = async (year, month, from, to) => {
   let sql;
@@ -1090,7 +1142,7 @@ const getNutritionRetentionByThreeMonths = async (year, month, from, to) => {
 };
 
 /**
- * 27. getNutritionConsultationDurations(): conteo de pacientes por duración de consultas (1, 2, 3+ meses)
+ * 29. getNutritionConsultationDurations(): conteo de pacientes por duración de consultas (1, 2, 3+ meses)
  */
 const getNutritionConsultationDurations = async (year, month, from, to) => {
   let sql;
@@ -1195,7 +1247,7 @@ const getNutritionConsultationDurations = async (year, month, from, to) => {
 };
 
 /**
- * 28. getNutritionIncomeReal(year, month): ingresos reales de las consultas del consultorio
+ * 30. getNutritionIncomeReal(year, month): ingresos reales de las consultas del consultorio
  */
 const getNutritionIncomeReal = async (year, month, from, to) => {
   let sqlByMethod;
@@ -1297,7 +1349,7 @@ const getNutritionIncomeReal = async (year, month, from, to) => {
 };
 
 /**
- * 28. getNutritionEvaluationsList(year, month): listado de evaluaciones realizadas en el mes
+ * 31. getNutritionEvaluationsList(year, month): listado de evaluaciones realizadas en el mes
  */
 const getNutritionEvaluationsList = async (year, month, from, to) => {
   let sql;
@@ -1347,21 +1399,21 @@ const getNutritionEvaluationsList = async (year, month, from, to) => {
 };
 
 /**
- * 28. getAcquisitionOriginStats(): estadísticas del canal de origen y flujos de migración
+ * 32. getAcquisitionOriginStats(): estadísticas del canal de origen y flujos de migración
  */
 const getAcquisitionOriginStats = async () => {
   const sql = `
     WITH gym_stats AS (
       SELECT 
-        COUNT(DISTINCT c.id) FILTER (WHERE c.patient_id IS NULL AND (c.current_flow = 'gimnasio' OR c.current_flow IS NULL)) as gimnasio_only,
-        COUNT(DISTINCT c.id) FILTER (WHERE c.patient_id IS NOT NULL OR c.current_flow = 'gimnasio_y_nutricion') as gimnasio_to_nutricion,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.patient_id IS NULL) as gimnasio_only,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.patient_id IS NOT NULL AND (c.current_flow = 'gimnasio_y_nutricion' OR c.initial_origin = 'gimnasio')) as gimnasio_to_nutricion,
         COUNT(DISTINCT c.id) as total_clients
       FROM clients c
     ),
     nut_stats AS (
       SELECT 
-        COUNT(DISTINCT p.id) FILTER (WHERE p.client_id IS NULL AND (p.current_flow = 'nutricion' OR p.current_flow IS NULL)) as nutricion_only,
-        COUNT(DISTINCT p.id) FILTER (WHERE p.client_id IS NOT NULL OR p.current_flow = 'nutricion_y_gimnasio') as nutricion_to_gimnasio,
+        COUNT(DISTINCT p.id) FILTER (WHERE p.client_id IS NULL) as nutricion_only,
+        COUNT(DISTINCT p.id) FILTER (WHERE p.client_id IS NOT NULL AND (p.current_flow = 'nutricion_y_gimnasio' OR p.initial_origin = 'nutricion')) as nutricion_to_gimnasio,
         COUNT(DISTINCT p.id) as total_patients
       FROM patients p
     )
@@ -1404,7 +1456,7 @@ const getAcquisitionOriginStats = async () => {
 };
 
 /**
- * 36. getVisitsDetailsList(year, month): listado detallado de visitas de hoy, mes y año
+ * 33. getVisitsDetailsList(year, month, from, to): listado detallado de visitas parametrizado contra SQL Injection
  */
 const getVisitsDetailsList = async (year, month, from, to) => {
   let y = year;
@@ -1414,9 +1466,8 @@ const getVisitsDetailsList = async (year, month, from, to) => {
   y = y || new Date().getFullYear();
   m = m || (new Date().getMonth() + 1);
 
-  const rangeCondition = (from && to)
-    ? `(visit_date >= '${from}'::date AND visit_date <= '${to}'::date) as is_range`
-    : `(EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = ${y} AND EXTRACT(MONTH FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = ${m}) as is_range`;
+  const fromParam = from || null;
+  const toParam = to || null;
 
   const sql = `
     WITH all_visits AS (
@@ -1449,6 +1500,7 @@ const getVisitsDetailsList = async (year, month, from, to) => {
       FROM payments p
       LEFT JOIN clients c ON p.client_id = c.id
       WHERE p.payment_type = 'visit'
+        AND p.is_voided = false
         AND NOT EXISTS (
           SELECT 1 FROM attendance a 
           WHERE a.client_id = p.client_id 
@@ -1459,18 +1511,24 @@ const getVisitsDetailsList = async (year, month, from, to) => {
       (visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
       (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $2) as is_month,
       (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year,
-      ${rangeCondition}
+      CASE
+        WHEN $3::date IS NOT NULL AND $4::date IS NOT NULL THEN (visit_date >= $3::date AND visit_date <= $4::date)
+        WHEN $3::date IS NOT NULL THEN (visit_date >= $3::date)
+        WHEN $4::date IS NOT NULL THEN (visit_date <= $4::date)
+        ELSE (EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $2)
+      END as is_range
     FROM all_visits
     WHERE EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1
        OR visit_date >= CURRENT_DATE - INTERVAL '365 days'
+       OR ($3::date IS NOT NULL AND visit_date >= $3::date)
     ORDER BY visit_time DESC;
   `;
   try {
-    const result = await pool.query(sql, [y, m]);
+    const result = await pool.query(sql, [y, m, fromParam, toParam]);
     const rows = result.rows || [];
     return {
       today: rows.filter(r => r.is_today),
-      month: (from && to) ? rows.filter(r => r.is_range) : rows.filter(r => r.is_month),
+      month: (from || to) ? rows.filter(r => r.is_range) : rows.filter(r => r.is_month),
       year: rows.filter(r => r.is_year),
       range: rows.filter(r => r.is_range)
     };
@@ -1481,7 +1539,7 @@ const getVisitsDetailsList = async (year, month, from, to) => {
 };
 
 /**
- * getVisitStats(year, month): visitas del día, mes y año
+ * 34. getVisitStats(year, month): visitas del día, mes y año
  */
 const getVisitStats = async (year, month, from, to) => {
   try {
@@ -1498,8 +1556,7 @@ const getVisitStats = async (year, month, from, to) => {
 };
 
 /**
- * 37. getNutritionAppointmentsDetailsList(year, month): listado detallado de citas de hoy, mes y año
- * Unifica las consultas registradas en agenda, expedientes (nutrition_records) y pagos.
+ * 35. getNutritionAppointmentsDetailsList(year, month, from, to): listado detallado de citas parametrizado contra SQL Injection
  */
 const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
   let y = year;
@@ -1509,9 +1566,8 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
   y = y || new Date().getFullYear();
   m = m || (new Date().getMonth() + 1);
 
-  const rangeCondition = (from && to)
-    ? `(appointment_date >= '${from}'::date AND appointment_date <= '${to}'::date) as is_range`
-    : `(EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = ${y} AND EXTRACT(MONTH FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = ${m}) as is_range`;
+  const fromParam = from || null;
+  const toParam = to || null;
 
   const sql = `
     WITH unified_citas AS (
@@ -1537,9 +1593,9 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
       -- 2. Consultas en expedientes clínicos que no estén ya en la agenda
       SELECT 
         nr.id::text as id,
-        COALESCE(p.first_name, 'Sin nombre') as first_name,
-        COALESCE(p.last_name, '') as last_name,
-        COALESCE(p.phone, 'Sin teléfono') as phone,
+        COALESCE(p.first_name, c.first_name, 'Sin nombre') as first_name,
+        COALESCE(p.last_name, c.last_name, '') as last_name,
+        COALESCE(p.phone, c.phone, 'Sin teléfono') as phone,
         COALESCE(nr.evaluation_date, nr.created_at) as appointment_time,
         COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) as appointment_date,
         'realizada' as status,
@@ -1547,6 +1603,7 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
         'Expediente' as source
       FROM nutrition_records nr
       LEFT JOIN patients p ON nr.patient_id = p.id
+      LEFT JOIN clients c ON nr.client_id = c.id
       WHERE NOT EXISTS (
         SELECT 1 FROM agenda a 
         WHERE (a.patient_id = nr.patient_id OR (a.client_id IS NOT NULL AND a.client_id = nr.client_id))
@@ -1586,18 +1643,24 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
       (appointment_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
       (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $2) as is_month,
       (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1) as is_year,
-      ${rangeCondition}
+      CASE
+        WHEN $3::date IS NOT NULL AND $4::date IS NOT NULL THEN (appointment_date >= $3::date AND appointment_date <= $4::date)
+        WHEN $3::date IS NOT NULL THEN (appointment_date >= $3::date)
+        WHEN $4::date IS NOT NULL THEN (appointment_date <= $4::date)
+        ELSE (EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1 AND EXTRACT(MONTH FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $2)
+      END as is_range
     FROM unified_citas
     WHERE EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1
        OR appointment_date >= CURRENT_DATE - INTERVAL '365 days'
+       OR ($3::date IS NOT NULL AND appointment_date >= $3::date)
     ORDER BY appointment_time DESC;
   `;
   try {
-    const result = await pool.query(sql, [y, m]);
+    const result = await pool.query(sql, [y, m, fromParam, toParam]);
     const rows = result.rows || [];
     return {
       today: rows.filter(r => r.is_today),
-      month: (from && to) ? rows.filter(r => r.is_range) : rows.filter(r => r.is_month),
+      month: (from || to) ? rows.filter(r => r.is_range) : rows.filter(r => r.is_month),
       year: rows.filter(r => r.is_year),
       range: rows.filter(r => r.is_range)
     };
@@ -1608,7 +1671,7 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
 };
 
 /**
- * getNutritionAppointmentStats(year, month): citas del día, mes y año
+ * 36. getNutritionAppointmentStats(year, month): citas del día, mes y año
  */
 const getNutritionAppointmentStats = async (year, month, from, to) => {
   try {
@@ -1625,7 +1688,7 @@ const getNutritionAppointmentStats = async (year, month, from, to) => {
 };
 
 /**
- * 38. getAbsentPatients(): pacientes sin consulta en 30 días o más
+ * 37. getAbsentPatients(): pacientes sin consulta en 30 días o más
  */
 const getAbsentPatients = async () => {
   const sql = `
@@ -1658,7 +1721,7 @@ const getAbsentPatients = async () => {
 };
 
 /**
- * 39. getGymOnlyClientsList(): lista de clientes que ingresaron solo a gimnasio
+ * 38. getGymOnlyClientsList(): lista de clientes que ingresaron solo a gimnasio
  */
 const getGymOnlyClientsList = async () => {
   const sql = `
@@ -1667,14 +1730,14 @@ const getGymOnlyClientsList = async () => {
       c.gender,
       CASE 
         WHEN LOWER(c.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
-        WHEN LOWER(c.gender) IN ('female','f','mujer','f','femenino') THEN 'Femenino'
+        WHEN LOWER(c.gender) IN ('female','f','mujer','femenino') THEN 'Femenino'
         ELSE 'Sin dato'
       END as sex,
       c.age,
       c.birth_date
     FROM clients c
     LEFT JOIN plans p ON c.plan_id = p.id
-    WHERE c.patient_id IS NULL AND (c.current_flow = 'gimnasio' OR c.current_flow IS NULL)
+    WHERE c.patient_id IS NULL
     ORDER BY c.created_at DESC
   `;
   try {
@@ -1687,7 +1750,7 @@ const getGymOnlyClientsList = async () => {
 };
 
 /**
- * 40. getNutritionOnlyPatientsList(): lista de pacientes que ingresaron solo a nutrición
+ * 39. getNutritionOnlyPatientsList(): lista de pacientes que ingresaron solo a nutrición
  */
 const getNutritionOnlyPatientsList = async () => {
   const sql = `
@@ -1696,13 +1759,13 @@ const getNutritionOnlyPatientsList = async () => {
       p.gender,
       CASE 
         WHEN LOWER(p.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
-        WHEN LOWER(p.gender) IN ('female','f','mujer','f','femenino') THEN 'Femenino'
+        WHEN LOWER(p.gender) IN ('female','f','mujer','femenino') THEN 'Femenino'
         ELSE 'Sin dato'
       END as sex,
       p.age,
       p.birth_date
     FROM patients p
-    WHERE p.client_id IS NULL AND (p.current_flow = 'nutricion' OR p.current_flow IS NULL)
+    WHERE p.client_id IS NULL
     ORDER BY p.created_at DESC
   `;
   try {
@@ -1715,22 +1778,29 @@ const getNutritionOnlyPatientsList = async () => {
 };
 
 /**
- * 41. getGymToNutritionList(): clientes de gimnasio que pasaron a nutrición
+ * 40. getGymToNutritionList(): clientes de gimnasio que pasaron a nutrición
  */
 const getGymToNutritionList = async () => {
   const sql = `
     SELECT 
-      p.id, p.first_name, p.last_name, p.phone, p.created_at,
-      p.gender,
+      c.id,
+      p.id as patient_id,
+      c.first_name,
+      c.last_name,
+      COALESCE(c.phone, p.phone) as phone,
+      p.created_at,
+      p.created_at as conversion_date,
+      c.gender,
       CASE 
-        WHEN LOWER(p.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
-        WHEN LOWER(p.gender) IN ('female','f','mujer','f','femenino') THEN 'Femenino'
+        WHEN LOWER(c.gender) IN ('male','m','hombre','h','masculino') THEN 'Masculino'
+        WHEN LOWER(c.gender) IN ('female','f','mujer','femenino') THEN 'Femenino'
         ELSE 'Sin dato'
       END as sex,
-      p.age,
-      p.birth_date
-    FROM patients p
-    WHERE p.client_id IS NOT NULL OR p.current_flow = 'nutricion_y_gimnasio'
+      c.age,
+      c.birth_date
+    FROM clients c
+    JOIN patients p ON c.patient_id = p.id
+    WHERE c.current_flow = 'gimnasio_y_nutricion' OR c.initial_origin = 'gimnasio'
     ORDER BY p.created_at DESC
   `;
   try {
@@ -1788,4 +1858,3 @@ module.exports = {
   getGymToNutritionList,
   getNutritionEvaluationsList
 };
-

@@ -1,13 +1,15 @@
 const service = require('./expenses.service');
 const schema = require('./expenses.schema');
 const { requireAuth } = require('../../middleware/auth.middleware');
+const { requireRole } = require('../../middleware/role.guard');
 
 /**
  * Rutas del módulo de Egresos
  */
 async function expenseRoutes(fastify, options) {
-  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT
+  // SEGURIDAD: Defensa en profundidad — Requiere autenticación JWT y rol autorizado
   fastify.addHook('onRequest', requireAuth);
+  fastify.addHook('preHandler', requireRole(['owner', 'admin', 'receptionist']));
 
   // POST /api/expenses -> Crear un nuevo egreso
   fastify.post('/', async (request, reply) => {
@@ -54,8 +56,8 @@ async function expenseRoutes(fastify, options) {
     return reply.send({ data: updated });
   });
 
-  // DELETE /api/expenses/:id -> Eliminar un egreso
-  fastify.delete('/:id', async (request, reply) => {
+  // DELETE /api/expenses/:id -> Eliminar un egreso (restringido a owner y admin)
+  fastify.delete('/:id', { preHandler: [requireRole(['owner', 'admin'])] }, async (request, reply) => {
     const { id } = request.params;
     const userId = request.user?.id || null;
     const deleted = await service.deleteExpense(id, userId);

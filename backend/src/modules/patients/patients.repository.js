@@ -31,9 +31,9 @@ const findAll = async (filters = {}) => {
         c.enrollment_date as gym_enrollment_date,
         c.enrollment_expires_at as gym_enrollment_expires_at
       FROM patients pat
-      LEFT JOIN clients c ON (pat.client_id = c.id OR pat.id = c.patient_id OR (pat.phone IS NOT NULL AND pat.phone != '' AND pat.phone = c.phone))
+      LEFT JOIN clients c ON (pat.client_id = c.id OR pat.id = c.patient_id)
       LEFT JOIN plans p ON c.plan_id = p.id
-      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active'
+      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
 
       UNION ALL
 
@@ -66,9 +66,9 @@ const findAll = async (filters = {}) => {
         c.enrollment_expires_at as gym_enrollment_expires_at
       FROM clients c
       LEFT JOIN plans p ON c.plan_id = p.id
-      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active'
+      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
       WHERE c.patient_id IS NULL AND NOT EXISTS (
-        SELECT 1 FROM patients p2 WHERE p2.client_id = c.id OR (c.phone IS NOT NULL AND c.phone != '' AND p2.phone = c.phone)
+        SELECT 1 FROM patients p2 WHERE p2.client_id = c.id
       )
     )
     SELECT * FROM all_records WHERE 1=1
@@ -124,9 +124,9 @@ const findById = async (id) => {
         c.enrollment_date as gym_enrollment_date,
         c.enrollment_expires_at as gym_enrollment_expires_at
       FROM patients pat
-      LEFT JOIN clients c ON (pat.client_id = c.id OR pat.id = c.patient_id OR (pat.phone IS NOT NULL AND pat.phone != '' AND pat.phone = c.phone))
+      LEFT JOIN clients c ON (pat.client_id = c.id OR pat.id = c.patient_id)
       LEFT JOIN plans p ON c.plan_id = p.id
-      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active'
+      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
 
       UNION ALL
 
@@ -159,7 +159,7 @@ const findById = async (id) => {
         c.enrollment_expires_at as gym_enrollment_expires_at
       FROM clients c
       LEFT JOIN plans p ON c.plan_id = p.id
-      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active'
+      LEFT JOIN subscriptions s ON c.id = s.client_id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
     )
     SELECT * FROM all_records WHERE id = $1 LIMIT 1
   `;
@@ -278,4 +278,3 @@ module.exports = {
   update,
   remove
 };
-

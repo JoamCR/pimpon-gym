@@ -4,6 +4,8 @@ const { createError } = require('../../lib/appError');
 const { pool } = require('../../lib/database');
 const { parseLocalDate, formatLocalDate, addOneYearPreservingDayAndMonth } = require('../../lib/dateUtils');
 
+const normalizeName = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+
 const getAll = async (filters) => {
   return await repository.findAll(filters);
 };
@@ -17,13 +19,45 @@ const getById = async (id) => {
 };
 
 const create = async (data, registeredBy) => {
+  let matchedClientId = data.client_id || null;
+  let initialOrigin = data.initial_origin || 'nutricion';
+  let currentFlow = data.current_flow || 'nutricion';
+
+  if (!matchedClientId && data.first_name && data.last_name) {
+    const firstWord = normalizeName(data.first_name).split(' ')[0];
+    const lastWord = normalizeName(data.last_name).split(' ')[0];
+    const { rows: candidates } = await pool.query(
+      `SELECT id, first_name, last_name FROM clients WHERE patient_id IS NULL`
+    );
+    const matched = candidates.find((c) => {
+      const cFirst = normalizeName(c.first_name).split(' ')[0];
+      const cLast = normalizeName(c.last_name).split(' ')[0];
+      return cFirst === firstWord && cLast === lastWord && cFirst.length >= 3 && cLast.length >= 3;
+    });
+    if (matched) {
+      matchedClientId = matched.id;
+      initialOrigin = 'gimnasio';
+      currentFlow = 'gimnasio_y_nutricion';
+    }
+  }
+
   const patientData = { 
-    ...data, 
+    ...data,
+    client_id: matchedClientId,
     created_by: registeredBy,
-    initial_origin: data.initial_origin || 'nutricion',
-    current_flow: data.current_flow || 'nutricion'
+    initial_origin: initialOrigin,
+    current_flow: currentFlow
   };
-  return await repository.create(patientData);
+  const created = await repository.create(patientData);
+
+  if (matchedClientId && created?.id) {
+    await pool.query(
+      `UPDATE clients SET patient_id = $1, current_flow = 'gimnasio_y_nutricion' WHERE id = $2`,
+      [created.id, matchedClientId]
+    );
+  }
+
+  return created;
 };
 
 const update = async (id, data) => {
@@ -211,4 +245,3 @@ module.exports = {
   enrollPatientToGym,
   remove
 };
-
