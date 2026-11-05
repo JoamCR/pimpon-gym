@@ -1,6 +1,6 @@
 const { z } = require('zod');
 
-const isoOrDatePattern = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
+const isoOrDatePattern = /^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]+)?$/;
 
 const optionalDateStr = z.preprocess(
   (val) => (val === '' || val === null || val === undefined ? undefined : String(val).trim()),
