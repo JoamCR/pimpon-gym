@@ -5,19 +5,42 @@ import { useAuthStore } from './stores/authStore';
 import { Login } from './pages/Login';
 import Layout from './components/ui/Layout';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Clients = lazy(() => import('./pages/Clients'));
-const Patients = lazy(() => import('./pages/Patients'));
-const PatientDetails = lazy(() => import('./pages/PatientDetails'));
-const Attendance = lazy(() => import('./pages/Attendance'));
-const Nutrition = lazy(() => import('./pages/Nutrition'));
-const Statistics = lazy(() => import('./pages/Statistics'));
-const Finanzas = lazy(() => import('./pages/Finanzas'));
-const Config = lazy(() => import('./pages/Config'));
-const Seguridad = lazy(() => import('./pages/Seguridad'));
-const Agenda = lazy(() => import('./pages/Agenda'));
-const AgendaToday = lazy(() => import('./pages/AgendaToday'));
-const WhatsAppAutomation = lazy(() => import('./pages/WhatsAppAutomation'));
+// Helper para cargar rutas lazy con reintento automático y recarga limpia si hubo un nuevo despliegue en Vercel
+const lazyWithRetry = (importFn, chunkName) =>
+  lazy(async () => {
+    try {
+      return await importFn();
+    } catch (firstErr) {
+      // Reintentar una vez tras 600ms por si fue un micro-corte de red móvil
+      try {
+        await new Promise((r) => setTimeout(r, 600));
+        return await importFn();
+      } catch (secondErr) {
+        const key = `pimpon_reload_${chunkName}`;
+        const lastReload = Number(sessionStorage.getItem(key) || 0);
+        if (Date.now() - lastReload > 15000) {
+          sessionStorage.setItem(key, String(Date.now()));
+          window.location.reload();
+          return new Promise(() => {});
+        }
+        throw secondErr;
+      }
+    }
+  });
+
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'), 'Dashboard');
+const Clients = lazyWithRetry(() => import('./pages/Clients'), 'Clients');
+const Patients = lazyWithRetry(() => import('./pages/Patients'), 'Patients');
+const PatientDetails = lazyWithRetry(() => import('./pages/PatientDetails'), 'PatientDetails');
+const Attendance = lazyWithRetry(() => import('./pages/Attendance'), 'Attendance');
+const Nutrition = lazyWithRetry(() => import('./pages/Nutrition'), 'Nutrition');
+const Statistics = lazyWithRetry(() => import('./pages/Statistics'), 'Statistics');
+const Finanzas = lazyWithRetry(() => import('./pages/Finanzas'), 'Finanzas');
+const Config = lazyWithRetry(() => import('./pages/Config'), 'Config');
+const Seguridad = lazyWithRetry(() => import('./pages/Seguridad'), 'Seguridad');
+const Agenda = lazyWithRetry(() => import('./pages/Agenda'), 'Agenda');
+const AgendaToday = lazyWithRetry(() => import('./pages/AgendaToday'), 'AgendaToday');
+const WhatsAppAutomation = lazyWithRetry(() => import('./pages/WhatsAppAutomation'), 'WhatsAppAutomation');
 
 function getAllowedPagesForUser(user) {
   if (!user) return [];

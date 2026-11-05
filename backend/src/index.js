@@ -113,10 +113,7 @@ const start = async () => {
       };
     });
 
-    // Ejecutar migraciones automáticas de esquema
-    await runSchemaMigrations();
-
-    // Registrar módulos
+    // Registrar módulos inmediatamente sin bloquear el arranque del servidor
     await fastify.register(require('./modules/auth/auth.routes'), { prefix: '/api/auth' });
     await fastify.register(require('./modules/clients/clients.routes'), { prefix: '/api/clients' });
     await fastify.register(require('./modules/patients/patients.routes'), { prefix: '/api/patients' });
@@ -132,15 +129,18 @@ const start = async () => {
     await fastify.register(require('./modules/expenses/expenses.routes'), { prefix: '/api/expenses' });
     await fastify.register(require('./modules/users/users.routes'), { prefix: '/api/users' });
 
-    // Registrar motor de crons de automatización de WhatsApp
-    const { initCron } = require('./cron/automationCron');
-    initCron();
-
-    // Iniciar servidor en el puerto indicado
+    // Iniciar servidor en el puerto indicado inmediatamente
     const port = parseInt(env.PORT, 10);
     await fastify.listen({ port, host: '0.0.0.0' });
 
     console.log(`🚀 Pimpon API corriendo en puerto ${port}`);
+
+    // Ejecutar migraciones automáticas y cron en segundo plano sin bloquear peticiones entrantes
+    runSchemaMigrations().catch((err) => {
+      console.warn('Advertencia ejecutando migraciones en segundo plano:', err.message);
+    });
+    const { initCron } = require('./cron/automationCron');
+    initCron();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

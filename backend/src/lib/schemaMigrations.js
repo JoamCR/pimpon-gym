@@ -311,7 +311,7 @@ const runSchemaMigrations = async () => {
     CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_phone ON whatsapp_messages(phone);
     CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_created_at ON whatsapp_messages(created_at DESC);
     `,
-    // Migración: Garantizar que payments cumpla con chk_payments_entity_type y payments_entity_link_check de Supabase
+    // Migración: Garantizar que payments cumpla con chk_payments_entity_type y payments_entity_link_check de Supabase sin bloquear la tabla si ya existe
     `
     DO $$
     BEGIN
@@ -323,17 +323,15 @@ const runSchemaMigrations = async () => {
       SET entity_type = 'consultorio'
       WHERE patient_id IS NOT NULL AND client_id IS NULL AND entity_type != 'consultorio';
 
-      IF EXISTS (
+      IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'payments_entity_link_check'
       ) THEN
-        ALTER TABLE payments DROP CONSTRAINT payments_entity_link_check;
+        ALTER TABLE payments
+          ADD CONSTRAINT payments_entity_link_check CHECK (
+            (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
+            (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
+          );
       END IF;
-
-      ALTER TABLE payments
-        ADD CONSTRAINT payments_entity_link_check CHECK (
-          (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
-          (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
-        );
     END $$;
     `,
     // Migración: Actualizar suscripciones vencidas que seguían con status = 'active'
@@ -429,20 +427,21 @@ const runSchemaMigrations = async () => {
           CASE WHEN c.created_at <= p.created_at THEN 'gimnasio_y_nutricion' ELSE 'nutricion_y_gimnasio' END
         INTO orig, flow
         FROM clients c, patients p
-        WHERE c.id = pair.c_id AND p.id = pair.p_id;
+        WHERE c.id = pair.c_id AND p.id = pair.p_id
+          AND (c.patient_id IS NULL OR p.client_id IS NULL);
 
         IF orig IS NOT NULL THEN
           UPDATE clients
           SET patient_id = pair.p_id,
               initial_origin = orig,
               current_flow = flow
-          WHERE id = pair.c_id;
+          WHERE id = pair.c_id AND patient_id IS NULL;
 
           UPDATE patients
           SET client_id = pair.c_id,
               initial_origin = orig,
               current_flow = flow
-          WHERE id = pair.p_id;
+          WHERE id = pair.p_id AND client_id IS NULL;
         END IF;
       END LOOP;
     END $$;

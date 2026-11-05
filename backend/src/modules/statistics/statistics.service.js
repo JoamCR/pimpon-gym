@@ -210,123 +210,60 @@ const getNutritionStats = async (year, month, from, to) => {
   }
 };
 
+// Caché en memoria de corta duración (30s) y deduplicación de peticiones en vuelo
+// Evita saturar el pool de Supabase cuando múltiples dispositivos abren Estadísticas al mismo tiempo
+const STATS_CACHE_TTL_MS = 30 * 1000;
+const comprehensiveStatsCache = new Map();
+const inFlightStatsRequests = new Map();
+
+const runInBatches = async (taskFns, batchSize = 4) => {
+  const results = new Array(taskFns.length);
+  for (let i = 0; i < taskFns.length; i += batchSize) {
+    const batch = taskFns.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map((fn) => fn()));
+    for (let j = 0; j < batchResults.length; j++) {
+      results[i + j] = batchResults[j];
+    }
+  }
+  return results;
+};
+
 const getComprehensiveStats = async (year, month, from, to) => {
   try {
     const y = year || (from ? parseInt(from.slice(0, 4), 10) : new Date().getFullYear());
     const m = month || (from ? parseInt(from.slice(5, 7), 10) : (new Date().getMonth() + 1));
+    const cacheKey = `${y}-${m}-${from || ''}-${to || ''}`;
 
-    const [
-      retentionData,
-      paymentMethods,
-      avgTicket,
-      recurringVsNew,
-      nutritionConversion,
-      sixMonthEligible,
-      nutritionStats,
-      ageDistributionClients,
-      sexDistributionClients,
-      ageDistributionPatients,
-      sexDistributionPatients,
-      nutritionRetention,
-      dailyAttendance,
-      clientsByPlan,
-      activeClients,
-      monthlyIncome,
-      acquisitionOrigin,
-      visitsDetails,
-      nutritionApptDetails,
-      monthlyIncomeData,
-      absentClients,
-      alertClients,
-      expiredClients,
-      patientsToClients,
-      retention3Months,
-      consultationDurations,
-      nutritionIncomeReal,
-      monthlyIncomeDetails,
-      nutritionPaidConsults,
-      retentionClients,
-      absentPatients,
-      gymOnlyClients,
-      nutritionOnlyPatients,
-      gymToNutritionPatients,
-      nutritionEvaluationsList
-    ] = await Promise.all([
-      repository.getRetentionRate(),
-      repository.getPaymentMethodsDistribution(y, m, from, to),
-      repository.getAverageTicketPerClient(y, m),
-      repository.getRecurringVsNewIncome(y, m),
-      repository.getNutritionConversionRate(),
-      repository.getSixMonthEligible(),
-      repository.getNutritionStats(y, m, from, to),
-      repository.getAgeDistributionFor('clients'),
-      repository.getSexDistributionFor('clients'),
-      repository.getAgeDistributionFor('patients'),
-      repository.getSexDistributionFor('patients'),
-      repository.getNutritionRetention(),
-      repository.getDailyAttendance(y, m, from, to),
-      repository.getClientsByPlan(y, m, from, to),
-      repository.getActiveClientsReal(),
-      repository.getMonthlyIncome(y),
-      repository.getAcquisitionOriginStats(),
-      repository.getVisitsDetailsList(y, m, from, to),
-      repository.getNutritionAppointmentsDetailsList(y, m, from, to),
-      repository.getMonthlyIncomeByMethod(y, m, from, to),
-      repository.getAbsentClients(),
-      repository.getAlertClients(),
-      repository.getExpiredClients(),
-      repository.getNutritionPatientsToClientsConversion(),
-      repository.getNutritionRetentionByThreeMonths(y, m, from, to),
-      repository.getNutritionConsultationDurations(y, m, from, to),
-      repository.getNutritionIncomeReal(y, m, from, to),
-      repository.getMonthlyIncomeDetails(y, m, from, to),
-      repository.getNutritionPaidConsults(y, m),
-      repository.getRetainedClients(),
-      repository.getAbsentPatients(),
-      repository.getGymOnlyClientsList(),
-      repository.getNutritionOnlyPatientsList(),
-      repository.getGymToNutritionList(),
-      repository.getNutritionEvaluationsList(y, m, from, to)
-    ]);
+    const cached = comprehensiveStatsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < STATS_CACHE_TTL_MS) {
+      return cached.data;
+    }
 
-    const visitStats = {
-      today: visitsDetails?.today?.length || 0,
-      month: visitsDetails?.month?.length || 0,
-      year: visitsDetails?.year?.length || 0
-    };
+    if (inFlightStatsRequests.has(cacheKey)) {
+      return await inFlightStatsRequests.get(cacheKey);
+    }
 
-    const appointmentStats = {
-      today: nutritionApptDetails?.today?.length || 0,
-      month: nutritionApptDetails?.month?.length || 0,
-      year: nutritionApptDetails?.year?.length || 0
-    };
-
-    return {
-      kpis: {
-        retention: retentionData,
-        avgTicket: avgTicket,
-        recurringVsNew: recurringVsNew,
-        nutritionConversion: nutritionConversion,
-        nutritionStats: nutritionStats,
-        activeClients: activeClients,
-        sixMonthEligible: sixMonthEligible?.length || 0,
-        acquisitionOrigin: acquisitionOrigin,
-        visitStats: visitStats,
-        appointmentStats: appointmentStats
-      },
-      charts: {
+    const fetchPromise = (async () => {
+      const [
+        retentionData,
         paymentMethods,
-        clientsByPlan,
-        dailyAttendance,
-        monthlyIncome,
+        avgTicket,
+        recurringVsNew,
+        nutritionConversion,
+        sixMonthEligible,
+        nutritionStats,
         ageDistributionClients,
         sexDistributionClients,
         ageDistributionPatients,
         sexDistributionPatients,
         nutritionRetention,
-        acquisitionOrigin
-      },
-      lists: {
+        dailyAttendance,
+        clientsByPlan,
+        activeClients,
+        monthlyIncome,
+        acquisitionOrigin,
+        visitsDetails,
+        nutritionApptDetails,
         monthlyIncomeData,
         absentClients,
         alertClients,
@@ -338,17 +275,120 @@ const getComprehensiveStats = async (year, month, from, to) => {
         monthlyIncomeDetails,
         nutritionPaidConsults,
         retentionClients,
-        acquisitionOriginData: acquisitionOrigin,
-        appointmentStats,
         absentPatients,
         gymOnlyClients,
         nutritionOnlyPatients,
         gymToNutritionPatients,
-        nutritionEvaluationsList,
-        visitsDetails,
-        nutritionApptDetails
-      }
-    };
+        nutritionEvaluationsList
+      ] = await runInBatches([
+        () => repository.getRetentionRate(),
+        () => repository.getPaymentMethodsDistribution(y, m, from, to),
+        () => repository.getAverageTicketPerClient(y, m),
+        () => repository.getRecurringVsNewIncome(y, m),
+        () => repository.getNutritionConversionRate(),
+        () => repository.getSixMonthEligible(),
+        () => repository.getNutritionStats(y, m, from, to),
+        () => repository.getAgeDistributionFor('clients'),
+        () => repository.getSexDistributionFor('clients'),
+        () => repository.getAgeDistributionFor('patients'),
+        () => repository.getSexDistributionFor('patients'),
+        () => repository.getNutritionRetention(),
+        () => repository.getDailyAttendance(y, m, from, to),
+        () => repository.getClientsByPlan(y, m, from, to),
+        () => repository.getActiveClientsReal(),
+        () => repository.getMonthlyIncome(y),
+        () => repository.getAcquisitionOriginStats(),
+        () => repository.getVisitsDetailsList(y, m, from, to),
+        () => repository.getNutritionAppointmentsDetailsList(y, m, from, to),
+        () => repository.getMonthlyIncomeByMethod(y, m, from, to),
+        () => repository.getAbsentClients(),
+        () => repository.getAlertClients(),
+        () => repository.getExpiredClients(),
+        () => repository.getNutritionPatientsToClientsConversion(),
+        () => repository.getNutritionRetentionByThreeMonths(y, m, from, to),
+        () => repository.getNutritionConsultationDurations(y, m, from, to),
+        () => repository.getNutritionIncomeReal(y, m, from, to),
+        () => repository.getMonthlyIncomeDetails(y, m, from, to),
+        () => repository.getNutritionPaidConsults(y, m),
+        () => repository.getRetainedClients(),
+        () => repository.getAbsentPatients(),
+        () => repository.getGymOnlyClientsList(),
+        () => repository.getNutritionOnlyPatientsList(),
+        () => repository.getGymToNutritionList(),
+        () => repository.getNutritionEvaluationsList(y, m, from, to)
+      ], 4);
+
+      const visitStats = {
+        today: visitsDetails?.today?.length || 0,
+        month: visitsDetails?.month?.length || 0,
+        year: visitsDetails?.year?.length || 0
+      };
+
+      const appointmentStats = {
+        today: nutritionApptDetails?.today?.length || 0,
+        month: nutritionApptDetails?.month?.length || 0,
+        year: nutritionApptDetails?.year?.length || 0
+      };
+
+      const payload = {
+        kpis: {
+          retention: retentionData,
+          avgTicket: avgTicket,
+          recurringVsNew: recurringVsNew,
+          nutritionConversion: nutritionConversion,
+          nutritionStats: nutritionStats,
+          activeClients: activeClients,
+          sixMonthEligible: sixMonthEligible?.length || 0,
+          acquisitionOrigin: acquisitionOrigin,
+          visitStats: visitStats,
+          appointmentStats: appointmentStats
+        },
+        charts: {
+          paymentMethods,
+          clientsByPlan,
+          dailyAttendance,
+          monthlyIncome,
+          ageDistributionClients,
+          sexDistributionClients,
+          ageDistributionPatients,
+          sexDistributionPatients,
+          nutritionRetention,
+          acquisitionOrigin
+        },
+        lists: {
+          monthlyIncomeData,
+          absentClients,
+          alertClients,
+          expiredClients,
+          patientsToClients,
+          retention3Months,
+          consultationDurations,
+          nutritionIncomeReal,
+          monthlyIncomeDetails,
+          nutritionPaidConsults,
+          retentionClients,
+          acquisitionOriginData: acquisitionOrigin,
+          appointmentStats,
+          absentPatients,
+          gymOnlyClients,
+          nutritionOnlyPatients,
+          gymToNutritionPatients,
+          nutritionEvaluationsList,
+          visitsDetails,
+          nutritionApptDetails
+        }
+      };
+
+      comprehensiveStatsCache.set(cacheKey, { timestamp: Date.now(), data: payload });
+      return payload;
+    })();
+
+    inFlightStatsRequests.set(cacheKey, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      inFlightStatsRequests.delete(cacheKey);
+    }
   } catch (error) {
     if (error.isOperational) throw error;
     throw createError(500, 'Error al obtener estadísticas comprehensivas');

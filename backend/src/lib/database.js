@@ -8,28 +8,30 @@ if (process.env.DATABASE_URL) {
   isConfigured = true;
 
   const isProduction = process.env.NODE_ENV === 'production';
+  const defaultMax = isProduction ? 8 : 10;
+  const maxConnections = parseInt(process.env.DB_POOL_MAX || String(defaultMax), 10) || defaultMax;
 
   const poolConfig = {
     connectionString: process.env.DATABASE_URL,
     // Asegurar zona horaria local de México en cada sesión PostgreSQL sin disparar queries concurrentes en on('connect')
     options: '-c timezone=America/Mexico_City',
-    // 1. Limitar el pool por instancia Serverless
-    // En Vercel Serverless, 1 o 2 conexiones por Lambda es lo óptimo.
-    max: isProduction ? 2 : 10,
-    // 2. Liberar conexiones inactivas rápidamente (10 segundos)
-    idleTimeoutMillis: 10000,
-    // 3. Timeout corto para reaccionar rápido si la DB se satura
-    connectionTimeoutMillis: 5000,
+    // 1. Permitir suficientes conexiones simultáneas para que varios dispositivos operen sin bloquearse entre sí
+    max: maxConnections,
+    // 2. Liberar conexiones inactivas ordenadamente (15 segundos)
+    idleTimeoutMillis: 15000,
+    // 3. Margen amplio (20s) para que ninguna petición de recepción/consultorio falle si hay reportes pesados corriendo
+    connectionTimeoutMillis: 20000,
+    keepAlive: true,
   };
 
-  if (isProduction) {
+  if (isProduction || process.env.DATABASE_URL.includes('supabase.com')) {
     poolConfig.ssl = { rejectUnauthorized: false };
   }
 
   pool = new Pool(poolConfig);
 
   pool.on('error', (err) => {
-    console.error('Error en pool de conexiones de base de datos:', err);
+    console.error('Error en pool de conexiones de base de datos:', err.message);
   });
 } else {
   console.warn('DATABASE_URL no configurado. La aplicación seguirá funcionando en modo sin-BD con datos por defecto.');
@@ -44,13 +46,30 @@ if (!pool) {
 }
 
 /**
- * Helper unificado para realizar consultas a la base de datos.
+ * Helper unificado para realizar consultas a la base de datos con reintento automático ante micro-cortes de red.
  */
 const query = async (text, params) => {
   try {
-    const res = await pool.query(text, params);
-    return res;
+    return await pool.query(text, params);
   } catch (err) {
+    const isTransientConnectionError =
+      err.code === 'ECONNRESET' ||
+      err.code === 'ETIMEDOUT' ||
+      err.code === '57P01' ||
+      (err.message && (
+        err.message.includes('Connection terminated') ||
+        err.message.includes('timeout exceeded when trying to connect')
+      ));
+
+    if (isTransientConnectionError) {
+      try {
+        return await pool.query(text, params);
+      } catch (retryErr) {
+        console.error('Error de ejecución SQL tras reintento:', retryErr.message);
+        throw createError(500, 'Error interno de base de datos.');
+      }
+    }
+
     console.error('Error de ejecución SQL:', err.message);
     throw createError(500, 'Error interno de base de datos.');
   }
