@@ -334,12 +334,12 @@ const runSchemaMigrations = async () => {
       END IF;
     END $$;
     `,
-    // Migración: Actualizar suscripciones vencidas que seguían con status = 'active'
+    // Migración: Actualizar suscripciones vencidas que seguían con status = 'active' (usando zona horaria de México)
     `
     UPDATE subscriptions
     SET status = 'expired'
     WHERE status = 'active'
-      AND end_date < CURRENT_DATE;
+      AND end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date;
     `,
     // Migración: Inicializar consecutive_months = 1 para clientes que ya pagaron mensualidad pero quedaron en 0 al inscribirse
     `

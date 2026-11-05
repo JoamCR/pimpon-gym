@@ -36,7 +36,7 @@ const getActiveClientsReal = async () => {
     JOIN subscriptions s ON c.id = s.client_id
     JOIN plans p ON c.plan_id = p.id
     WHERE s.status = 'active' 
-      AND s.end_date >= CURRENT_DATE
+      AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
       AND c.is_active = true
       AND p.is_visit_based = false
   `;
@@ -78,7 +78,7 @@ const getClientsByPlan = async (year, month, from, to) => {
       FROM plans p
       JOIN subscriptions s ON s.plan_id = p.id
         AND s.status = 'active'
-        AND s.end_date >= CURRENT_DATE
+        AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
       JOIN clients c ON c.id = s.client_id AND c.is_active = true
       GROUP BY p.id, p.name
       ORDER BY client_count DESC
@@ -93,7 +93,7 @@ const getClientsByPlan = async (year, month, from, to) => {
       FROM plans p
       LEFT JOIN subscriptions s ON s.plan_id = p.id 
         AND s.status = 'active' 
-        AND s.end_date >= CURRENT_DATE
+        AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
       LEFT JOIN clients c ON c.id = s.client_id AND c.is_active = true
       GROUP BY p.id, p.name
       ORDER BY client_count DESC
@@ -199,7 +199,7 @@ const getExpiredClients = async () => {
     WHERE c.is_active = true
       AND p.is_visit_based = false
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at < CURRENT_DATE
+      AND c.enrollment_expires_at < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
     ORDER BY c.enrollment_expires_at DESC
   `;
   try {
@@ -245,7 +245,7 @@ const getClientsWithoutAttendance = async (month, year) => {
     JOIN plans p ON c.plan_id = p.id
     JOIN subscriptions s ON c.id = s.client_id
     WHERE s.status = 'active' 
-      AND s.end_date >= CURRENT_DATE
+      AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
       AND NOT EXISTS (
         SELECT 1 
         FROM attendance a 
@@ -274,7 +274,7 @@ const getConsistentClients = async (minMonths) => {
     JOIN subscriptions s ON c.id = s.client_id
     WHERE c.consecutive_months >= $1
       AND s.status = 'active'
-      AND s.end_date >= CURRENT_DATE
+      AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
   `;
   try {
     const result = await pool.query(sql, [minMonths]);
@@ -520,8 +520,8 @@ const getProjectedDebt = async (daysOut) => {
     JOIN plans p ON c.plan_id = p.id
     JOIN subscriptions s ON c.id = s.client_id
     WHERE s.status = 'active'
-      AND s.end_date > CURRENT_DATE
-      AND s.end_date <= (CURRENT_DATE + INTERVAL '1 day' * $1)
+      AND s.end_date > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
+      AND s.end_date <= ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date + INTERVAL '1 day' * $1)
     GROUP BY s.end_date
     ORDER BY s.end_date ASC
   `;
@@ -548,7 +548,7 @@ const getNutritionConversionRate = async () => {
     FROM clients c
     JOIN subscriptions s ON c.id = s.client_id
     LEFT JOIN nutrition_records nr ON c.id = nr.client_id OR c.patient_id = nr.patient_id
-    WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
+    WHERE s.status = 'active' AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
   `;
   try {
     const result = await pool.query(sql);
@@ -572,7 +572,7 @@ const getSixMonthEligible = async () => {
     JOIN subscriptions s ON c.id = s.client_id
     WHERE c.consecutive_months >= 6
       AND s.status = 'active'
-      AND s.end_date >= CURRENT_DATE
+      AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
     ORDER BY c.consecutive_months DESC
   `;
   try {
@@ -892,7 +892,7 @@ const getNutritionConversionPaid = async () => {
       SELECT DISTINCT c.id, c.patient_id
       FROM clients c
       JOIN subscriptions s ON c.id = s.client_id
-      WHERE s.status = 'active' AND s.end_date >= CURRENT_DATE
+      WHERE s.status = 'active' AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
     ),
     paid_nutrition_targets AS (
       SELECT DISTINCT COALESCE(p.client_id, p.patient_id) as target_id
@@ -937,7 +937,7 @@ const getAlertClients = async () => {
       WHERE c.is_active = true
         AND p.is_visit_based = false
         AND s.status = 'active'
-        AND s.end_date >= CURRENT_DATE
+        AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
     )
     SELECT
       id,
@@ -982,7 +982,7 @@ const getAbsentClients = async () => {
       WHERE c.is_active = true
         AND p.is_visit_based = false
         AND s.status = 'active'
-        AND s.end_date >= CURRENT_DATE
+        AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
     )
     SELECT
       id,
@@ -1519,7 +1519,7 @@ const getVisitsDetailsList = async (year, month, from, to) => {
       END as is_range
     FROM all_visits
     WHERE EXTRACT(YEAR FROM (visit_time AT TIME ZONE 'America/Mexico_City')) = $1
-       OR visit_date >= CURRENT_DATE - INTERVAL '365 days'
+       OR visit_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - INTERVAL '365 days'
        OR ($3::date IS NOT NULL AND visit_date >= $3::date)
     ORDER BY visit_time DESC;
   `;
@@ -1600,7 +1600,7 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
       END as is_range
     FROM unified_citas
     WHERE EXTRACT(YEAR FROM (appointment_time AT TIME ZONE 'America/Mexico_City')) = $1
-       OR appointment_date >= CURRENT_DATE - INTERVAL '365 days'
+       OR appointment_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - INTERVAL '365 days'
        OR ($3::date IS NOT NULL AND appointment_date >= $3::date)
     ORDER BY appointment_time DESC;
   `;
@@ -1650,14 +1650,14 @@ const getAbsentPatients = async () => {
       MAX(nr.evaluation_date) as last_consultation_date,
       CASE 
         WHEN MAX(nr.evaluation_date) IS NULL THEN 'Sin consultas'
-        ELSE (CURRENT_DATE - MAX(nr.evaluation_date)::date)::text || ' días sin consultar'
+        ELSE ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - MAX(nr.evaluation_date)::date)::text || ' días sin consultar'
       END as status_text,
-      COALESCE((CURRENT_DATE - MAX(nr.evaluation_date)::date), 999) as days_without_consult
+      COALESCE(((CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - MAX(nr.evaluation_date)::date), 999) as days_without_consult
     FROM patients p
     LEFT JOIN nutrition_records nr ON nr.patient_id = p.id
     WHERE p.is_active = true
     GROUP BY p.id, p.first_name, p.last_name, p.phone, p.created_at
-    HAVING MAX(nr.evaluation_date) IS NULL OR (CURRENT_DATE - MAX(nr.evaluation_date)::date) >= 30
+    HAVING MAX(nr.evaluation_date) IS NULL OR ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - MAX(nr.evaluation_date)::date) >= 30
     ORDER BY days_without_consult DESC
   `;
   try {

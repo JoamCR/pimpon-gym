@@ -18,7 +18,7 @@ const runAutomationTasks = async () => {
       UPDATE subscriptions
       SET status = 'expired'
       WHERE status = 'active'
-        AND end_date < CURRENT_DATE
+        AND end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
     `);
 
     const config = await getConfig();
@@ -103,7 +103,7 @@ async function processSubscriptionsExpiringInDays(daysAhead, rules) {
         JOIN clients c ON s.client_id = c.id
         LEFT JOIN plans p ON s.plan_id = p.id
         WHERE s.status = 'active'
-          AND s.end_date = CURRENT_DATE + ($1 || ' days')::INTERVAL
+          AND s.end_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date + ($1 || ' days')::INTERVAL
           AND COALESCE(p.is_visit_based, false) = false
           AND c.is_active = true
           AND c.phone IS NOT NULL AND c.phone != '';
@@ -145,7 +145,7 @@ async function processSubscriptionsExpiringInDays(daysAhead, rules) {
           c.enrollment_expires_at
         FROM clients c
         WHERE c.is_active = true
-          AND c.enrollment_expires_at = CURRENT_DATE + ($1 || ' days')::INTERVAL
+          AND c.enrollment_expires_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date + ($1 || ' days')::INTERVAL
           AND c.phone IS NOT NULL AND c.phone != '';
       `;
 
@@ -193,10 +193,10 @@ async function processExpiredSubscriptionsPromo(daysAgo) {
       WHERE c.is_active = true
         AND c.phone IS NOT NULL AND c.phone != ''
         AND c.id NOT IN (
-          SELECT client_id FROM subscriptions WHERE status = 'active' AND end_date >= CURRENT_DATE
+          SELECT client_id FROM subscriptions WHERE status = 'active' AND end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
         )
         AND c.id IN (
-          SELECT client_id FROM subscriptions WHERE end_date = CURRENT_DATE - ($1 || ' days')::INTERVAL
+          SELECT client_id FROM subscriptions WHERE end_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - ($1 || ' days')::INTERVAL
         );
     `;
 
@@ -287,7 +287,7 @@ async function processInactivity15Days() {
         AND c.phone IS NOT NULL AND c.phone != ''
         AND EXISTS (
           SELECT 1 FROM subscriptions s
-          WHERE s.client_id = c.id AND s.status = 'active' AND s.end_date >= CURRENT_DATE
+          WHERE s.client_id = c.id AND s.status = 'active' AND s.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
         )
       GROUP BY c.id, c.first_name, c.last_name, c.phone
       HAVING COALESCE(MAX(a.checked_in_at), c.created_at) < NOW() - INTERVAL '15 days';
@@ -332,8 +332,8 @@ async function processBirthdays(targetType) {
       FROM ${tableName}
       WHERE is_active = true
         AND birth_date IS NOT NULL
-        AND EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(DAY FROM birth_date) = EXTRACT(DAY FROM CURRENT_DATE)
+        AND EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date)
+        AND EXTRACT(DAY FROM birth_date) = EXTRACT(DAY FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date)
         AND phone IS NOT NULL AND phone != '';
     `;
 
@@ -386,7 +386,7 @@ async function processAppointments(daysAhead) {
       FROM agenda a
       LEFT JOIN patients p ON a.patient_id = p.id
       LEFT JOIN clients c ON a.client_id = c.id
-      WHERE a.start_at::date = CURRENT_DATE + ($1 || ' days')::INTERVAL
+      WHERE a.start_at::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date + ($1 || ' days')::INTERVAL
         AND a.status NOT IN ('cancelada', 'ausente', 'realizada')
         AND COALESCE(p.phone, c.phone, a.phone) IS NOT NULL;
     `;

@@ -6,6 +6,8 @@ const { createError } = require('../../lib/appError');
  * REGLA: Todas las queries SQL van aquí, NUNCA en service.js
  */
 
+const MX_TODAY = `(CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date`;
+
 /**
  * Obtiene clientes cuya suscripción vence entre hoy+1 y hoy+3 días
  */
@@ -21,7 +23,7 @@ const findExpiringIn3Days = async () => {
         p.name as plan_name,
         s.end_date,
         s.status,
-        EXTRACT(DAY FROM s.end_date::timestamp - CURRENT_DATE::timestamp) as days_left
+        EXTRACT(DAY FROM s.end_date::timestamp - ${MX_TODAY}::timestamp) as days_left
       FROM subscriptions s
       JOIN clients c ON s.client_id = c.id
       JOIN plans p ON s.plan_id = p.id
@@ -29,8 +31,8 @@ const findExpiringIn3Days = async () => {
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'active'
-      AND end_date::date > CURRENT_DATE
-      AND end_date::date <= (CURRENT_DATE + INTERVAL '3 days')::date
+      AND end_date::date > ${MX_TODAY}
+      AND end_date::date <= (${MX_TODAY} + INTERVAL '3 days')::date
     ORDER BY end_date ASC;
   `;
   
@@ -67,7 +69,7 @@ const findExpiringToday = async () => {
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'active'
-      AND end_date::date = CURRENT_DATE
+      AND end_date::date = ${MX_TODAY}
     ORDER BY end_date ASC;
   `;
   
@@ -92,7 +94,7 @@ const getTransferControlCurrentMonth = async () => {
       monthly_limit,
       updated_at
     FROM transfer_control
-    WHERE DATE_TRUNC('month', month) = DATE_TRUNC('month', CURRENT_DATE)
+    WHERE DATE_TRUNC('month', month) = DATE_TRUNC('month', ${MX_TODAY})
     LIMIT 1;
   `;
   
@@ -131,7 +133,7 @@ const countActiveClients = async () => {
     JOIN clients c ON s.client_id = c.id
     JOIN plans p ON s.plan_id = p.id
     WHERE s.status = 'active'
-      AND s.end_date >= CURRENT_DATE
+      AND s.end_date >= ${MX_TODAY}
       AND c.is_active = true
       AND p.is_visit_based = false;
   `;
@@ -160,7 +162,7 @@ const getTodayAttendanceLastFour = async () => {
       a.method
     FROM attendance a
     JOIN clients c ON a.client_id = c.id
-    WHERE a.checked_in_at::date = CURRENT_DATE
+    WHERE (a.checked_in_at AT TIME ZONE 'America/Mexico_City')::date = ${MX_TODAY}
     ORDER BY a.checked_in_at DESC
     LIMIT 4;
   `;
@@ -196,7 +198,7 @@ const findActiveClients = async () => {
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
     WHERE status = 'active'
-      AND end_date >= CURRENT_DATE
+      AND end_date >= ${MX_TODAY}
     ORDER BY end_date ASC;
   `;
   
@@ -230,9 +232,9 @@ const findExpiredClients = async () => {
       WHERE c.is_active = true AND p.is_visit_based = false
       ORDER BY c.id, s.end_date DESC
     ) latest_subs
-    WHERE (status = 'expired' OR (status = 'active' AND end_date < CURRENT_DATE))
-      AND end_date < CURRENT_DATE
-      AND DATE_TRUNC('month', end_date) = DATE_TRUNC('month', CURRENT_DATE)
+    WHERE (status = 'expired' OR (status = 'active' AND end_date < ${MX_TODAY}))
+      AND end_date < ${MX_TODAY}
+      AND DATE_TRUNC('month', end_date) = DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY end_date DESC;
   `;
   
@@ -252,7 +254,7 @@ const countTodayAttendance = async () => {
   const query = `
     SELECT COUNT(*) as count
     FROM attendance
-    WHERE checked_in_at::date = CURRENT_DATE;
+    WHERE (checked_in_at AT TIME ZONE 'America/Mexico_City')::date = ${MX_TODAY};
   `;
   
   try {
@@ -279,7 +281,7 @@ const getTodayAttendanceAll = async () => {
       a.method
     FROM attendance a
     JOIN clients c ON a.client_id = c.id
-    WHERE a.checked_in_at::date = CURRENT_DATE
+    WHERE (a.checked_in_at AT TIME ZONE 'America/Mexico_City')::date = ${MX_TODAY}
     ORDER BY a.checked_in_at DESC;
   `;
   
@@ -322,7 +324,7 @@ const countTodayVisitors = async () => {
     FROM payments p
     JOIN clients c ON p.client_id = c.id
     WHERE p.payment_type = 'visit' 
-      AND p.paid_at::date = CURRENT_DATE
+      AND (p.paid_at AT TIME ZONE 'America/Mexico_City')::date = ${MX_TODAY}
     ORDER BY p.paid_at DESC
   `;
   try {
@@ -356,7 +358,7 @@ const countRenewalsThisMonth = async () => {
     ))
     LEFT JOIN plans pl ON pl.id = COALESCE(s.plan_id, c.plan_id)
     WHERE p.payment_type = 'monthly' 
-      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND DATE_TRUNC('month', (p.paid_at AT TIME ZONE 'America/Mexico_City')) = DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY p.paid_at DESC
   `;
   try {
@@ -394,8 +396,8 @@ const countCancellationsThisMonth = async () => {
       AND (
         status = 'cancelled'
         OR (
-          end_date < CURRENT_DATE
-          AND DATE_TRUNC('month', end_date) = DATE_TRUNC('month', CURRENT_DATE)
+          end_date < ${MX_TODAY}
+          AND DATE_TRUNC('month', end_date) = DATE_TRUNC('month', ${MX_TODAY})
         )
       )
     ORDER BY end_date DESC;
@@ -418,7 +420,7 @@ const countNewClientsThisMonth = async () => {
       c.id, c.first_name, c.last_name, c.phone, c.email, p.name as plan_name, c.created_at
     FROM clients c
     LEFT JOIN plans p ON c.plan_id = p.id
-    WHERE DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+    WHERE DATE_TRUNC('month', (c.created_at AT TIME ZONE 'America/Mexico_City')) = DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY c.created_at DESC
   `;
   try {
@@ -442,7 +444,7 @@ const findAnnualCancellations = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at < CURRENT_DATE
+      AND c.enrollment_expires_at < ${MX_TODAY}
     ORDER BY c.enrollment_expires_at DESC;
   `;
   try {
@@ -466,8 +468,8 @@ const findAnnualExpiringIn3Months = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at >= CURRENT_DATE
-      AND c.enrollment_expires_at <= (CURRENT_DATE + INTERVAL '3 months')::date
+      AND c.enrollment_expires_at >= ${MX_TODAY}
+      AND c.enrollment_expires_at <= (${MX_TODAY} + INTERVAL '3 months')::date
     ORDER BY c.enrollment_expires_at ASC;
   `;
   try {
@@ -491,7 +493,7 @@ const findActiveAnnual = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at >= CURRENT_DATE
+      AND c.enrollment_expires_at >= ${MX_TODAY}
     ORDER BY c.enrollment_expires_at ASC;
   `;
   try {
@@ -515,8 +517,8 @@ const findAnnualExpiringIn3Days = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at > CURRENT_DATE
-      AND c.enrollment_expires_at <= (CURRENT_DATE + INTERVAL '3 days')::date
+      AND c.enrollment_expires_at > ${MX_TODAY}
+      AND c.enrollment_expires_at <= (${MX_TODAY} + INTERVAL '3 days')::date
     ORDER BY c.enrollment_expires_at ASC;
   `;
   try {
@@ -540,7 +542,7 @@ const findAnnualExpiringToday = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at::date = CURRENT_DATE
+      AND c.enrollment_expires_at::date = ${MX_TODAY}
     ORDER BY c.enrollment_expires_at ASC;
   `;
   try {
@@ -564,8 +566,8 @@ const findAnnualExpiredThisMonth = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at < CURRENT_DATE
-      AND DATE_TRUNC('month', c.enrollment_expires_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND c.enrollment_expires_at < ${MX_TODAY}
+      AND DATE_TRUNC('month', c.enrollment_expires_at) = DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY c.enrollment_expires_at DESC;
   `;
   try {
@@ -588,8 +590,8 @@ const findNewAnnualThisMonth = async () => {
     JOIN clients c ON p.client_id = c.id
     LEFT JOIN plans pl ON c.plan_id = pl.id
     WHERE p.payment_type = 'enrollment' 
-      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
-      AND DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND DATE_TRUNC('month', (p.paid_at AT TIME ZONE 'America/Mexico_City')) = DATE_TRUNC('month', ${MX_TODAY})
+      AND DATE_TRUNC('month', (c.created_at AT TIME ZONE 'America/Mexico_City')) = DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY p.paid_at DESC;
   `;
   try {
@@ -612,8 +614,8 @@ const findAnnualRenewalsThisMonth = async () => {
     JOIN clients c ON p.client_id = c.id
     LEFT JOIN plans pl ON c.plan_id = pl.id
     WHERE p.payment_type = 'enrollment' 
-      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
-      AND DATE_TRUNC('month', c.created_at) < DATE_TRUNC('month', CURRENT_DATE)
+      AND DATE_TRUNC('month', (p.paid_at AT TIME ZONE 'America/Mexico_City')) = DATE_TRUNC('month', ${MX_TODAY})
+      AND DATE_TRUNC('month', (c.created_at AT TIME ZONE 'America/Mexico_City')) < DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY p.paid_at DESC;
   `;
   try {
@@ -637,7 +639,7 @@ const findAllAnnualExpired = async () => {
     WHERE c.is_active = true
       AND p.requires_enrollment = true
       AND c.enrollment_expires_at IS NOT NULL
-      AND c.enrollment_expires_at < CURRENT_DATE
+      AND c.enrollment_expires_at < ${MX_TODAY}
     ORDER BY c.enrollment_expires_at DESC;
   `;
   try {
@@ -659,7 +661,7 @@ const countMonthVisitors = async () => {
     FROM payments p
     JOIN clients c ON p.client_id = c.id
     WHERE p.payment_type = 'visit' 
-      AND DATE_TRUNC('month', p.paid_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND DATE_TRUNC('month', (p.paid_at AT TIME ZONE 'America/Mexico_City')) = DATE_TRUNC('month', ${MX_TODAY})
     ORDER BY p.paid_at DESC;
   `;
   try {

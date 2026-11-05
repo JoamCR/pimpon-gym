@@ -37,7 +37,9 @@ const ProgressBar = ({ used, limit, percentage }) => {
 const ClientRow = ({ client, onAction, actionLabel, actionVariant, actionIcon, customDetail }) => {
   let dateText = '';
   if (client.end_date) {
-    dateText = new Date(client.end_date).toLocaleDateString('es-MX');
+    const rawDate = String(client.end_date).slice(0, 10);
+    const [y, m, d] = rawDate.split('-');
+    dateText = y && m && d ? `${parseInt(d, 10)}/${parseInt(m, 10)}/${y}` : new Date(client.end_date).toLocaleDateString('es-MX');
   }
   const displayDetail = customDetail || (dateText ? `Vence: ${dateText}` : '');
 
