@@ -316,7 +316,7 @@ const getComprehensiveStats = async (year, month, from, to) => {
         () => repository.getNutritionOnlyPatientsList(),
         () => repository.getGymToNutritionList(),
         () => repository.getNutritionEvaluationsList(y, m, from, to)
-      ], 4);
+      ], 2);
 
       const visitStats = {
         today: visitsDetails?.today?.length || 0,

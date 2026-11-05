@@ -135,10 +135,13 @@ const start = async () => {
 
     console.log(`🚀 Pimpon API corriendo en puerto ${port}`);
 
-    // Ejecutar migraciones automáticas y cron en segundo plano sin bloquear peticiones entrantes
-    runSchemaMigrations().catch((err) => {
-      console.warn('Advertencia ejecutando migraciones en segundo plano:', err.message);
-    });
+    // En desarrollo local ejecutamos migraciones de esquema al arrancar;
+    // en Vercel Serverless evitamos correr bloques DDL pesados en cada cold start para no agotar conexiones de Supabase
+    if (!process.env.VERCEL && env.NODE_ENV !== 'production') {
+      runSchemaMigrations().catch((err) => {
+        console.warn('Advertencia ejecutando migraciones en segundo plano:', err.message);
+      });
+    }
     const { initCron } = require('./cron/automationCron');
     initCron();
   } catch (err) {

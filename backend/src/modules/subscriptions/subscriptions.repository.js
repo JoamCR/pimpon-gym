@@ -673,7 +673,39 @@ const countMonthVisitors = async () => {
   }
 };
 
+/**
+ * Sincroniza el status de suscripciones según la fecha actual de México (corrige vencidas y restaura las que hayan sido marcadas por UTC antes de medianoche local)
+ */
+const syncSubscriptionStatuses = async () => {
+  const sql = `
+    UPDATE subscriptions s
+    SET status = CASE
+      WHEN s.end_date < ${MX_TODAY}
+        OR EXISTS (SELECT 1 FROM subscriptions s2 WHERE s2.client_id = s.client_id AND s2.end_date > s.end_date)
+      THEN 'expired'
+      ELSE 'active'
+    END
+    WHERE (
+      s.status = 'active'
+      AND (
+        s.end_date < ${MX_TODAY}
+        OR EXISTS (SELECT 1 FROM subscriptions s2 WHERE s2.client_id = s.client_id AND s2.end_date > s.end_date)
+      )
+    ) OR (
+      s.status = 'expired'
+      AND s.end_date >= ${MX_TODAY}
+      AND NOT EXISTS (SELECT 1 FROM subscriptions s2 WHERE s2.client_id = s.client_id AND s2.end_date > s.end_date)
+    );
+  `;
+  try {
+    await pool.query(sql);
+  } catch (err) {
+    console.error('Error en syncSubscriptionStatuses:', err.message);
+  }
+};
+
 module.exports = {
+  syncSubscriptionStatuses,
   findExpiringIn3Days,
   findExpiringToday,
   getTransferControlCurrentMonth,
