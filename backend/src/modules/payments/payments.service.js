@@ -21,16 +21,16 @@ const registerPayment = async (data, registeredBy) => {
     await dbClient.query('BEGIN');
     
     let transferWarning = null;
-    const isNutritionPayment = ['nutrition_consult', 'nutrition_followup'].includes(data.payment_type);
     
-    // Resolver entidad (clients vs patients) para garantizar integridad referencial y cumplir las restricciones de la BD
+    // Resolver entidad (clients vs patients) para garantizar integridad referencial y cumplir chk_payments_entity_type en Supabase:
+    // (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
     const targetId = data.client_id || data.patient_id;
     if (targetId) {
       const clientCheck = await dbClient.query('SELECT id FROM clients WHERE id = $1', [targetId]);
       if (clientCheck.rows.length > 0) {
         data.client_id = clientCheck.rows[0].id;
         data.patient_id = null;
-        data.entity_type = isNutritionPayment ? 'consultorio' : 'gym';
+        data.entity_type = 'gym';
       } else {
         const patientCheck = await dbClient.query('SELECT id FROM patients WHERE id = $1', [targetId]);
         if (patientCheck.rows.length > 0) {

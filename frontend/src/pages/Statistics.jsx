@@ -161,8 +161,24 @@ export default function Statistics() {
     value: parseInt(d.client_count) || 0
   })).filter(d => d.value > 0);
 
+  // Helper para extraer fecha YYYY-MM-DD en zona horaria local de México (evita que pagos/visitas después de las 6 PM se pasen al día siguiente por UTC)
+  const toMexicoDateStr = (dateVal) => {
+    if (!dateVal) return '';
+    const str = String(dateVal).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (/^\d{4}-\d{2}-\d{2}T00:00:00/.test(str)) return str.slice(0, 10);
+    const parsed = new Date(dateVal);
+    if (isNaN(parsed.getTime())) return str.slice(0, 10);
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(parsed);
+  };
+
   const attendanceData = (charts.dailyAttendance || []).slice(0, 30).map(d => ({
-    date: d.date ? d.date.split('T')[0] : d.date,
+    date: d.date ? toMexicoDateStr(d.date) : d.date,
     visitantes: parseInt(d.daily_count) || 0,
     clientes_unicos: parseInt(d.unique_clients) || 0
   }));
@@ -200,7 +216,7 @@ export default function Statistics() {
     if (isInvalidRange) return false;
     if (!startDate && !endDate) return true;
     if (!dateStr) return false;
-    const formatted = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : String(dateStr).slice(0, 10);
+    const formatted = toMexicoDateStr(dateStr);
     if (startDate && formatted < startDate) return false;
     if (endDate && formatted > endDate) return false;
     return true;

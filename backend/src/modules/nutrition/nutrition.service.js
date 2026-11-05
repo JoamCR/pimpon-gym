@@ -92,11 +92,14 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
       throw createError(404, 'Paciente o cliente no encontrado');
     }
 
+    // Cumplir estrictamente con nutrition_records_entity_link_check en Supabase:
+    // (entity_type = 'gym' AND client_id IS NOT NULL AND patient_id IS NULL) OR
+    // (entity_type = 'consultorio' AND patient_id IS NOT NULL AND client_id IS NULL)
     const evaluationData = {
       ...data,
       entity_type: resolvedEntityType,
-      client_id: resolvedClientId,
-      patient_id: resolvedPatientId,
+      client_id: resolvedEntityType === 'gym' ? resolvedClientId : null,
+      patient_id: resolvedEntityType === 'consultorio' ? resolvedPatientId : null,
       is_free_consult: false
     };
     
@@ -106,7 +109,7 @@ const createEvaluation = async (clientId, data, nutritionistId) => {
       dbClient
     );
 
-    // Actualizar el peso y estatura más reciente en las tablas de clients/patients
+    // Actualizar el peso y estatura más reciente en ambas tablas si están vinculadas
     if (data.weight_kg !== undefined || data.height_cm !== undefined) {
       const setClauses = [];
       const queryParams = [];
