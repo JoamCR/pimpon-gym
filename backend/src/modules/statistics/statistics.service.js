@@ -210,9 +210,9 @@ const getNutritionStats = async (year, month, from, to) => {
   }
 };
 
-// Caché en memoria de corta duración (30s) y deduplicación de peticiones en vuelo
+// Caché en memoria de corta duración (5s) y deduplicación de peticiones en vuelo
 // Evita saturar el pool de Supabase cuando múltiples dispositivos abren Estadísticas al mismo tiempo
-const STATS_CACHE_TTL_MS = 30 * 1000;
+const STATS_CACHE_TTL_MS = 5 * 1000;
 const comprehensiveStatsCache = new Map();
 const inFlightStatsRequests = new Map();
 

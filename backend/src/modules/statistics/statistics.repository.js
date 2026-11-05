@@ -1571,7 +1571,7 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
 
   const sql = `
     WITH unified_citas AS (
-      -- 1. Citas de la agenda
+      -- Citas agendadas en el calendario (Agenda)
       SELECT 
         a.id::text as id,
         COALESCE(p.first_name, c.first_name, a.title, 'Sin nombre') as first_name,
@@ -1585,59 +1585,8 @@ const getNutritionAppointmentsDetailsList = async (year, month, from, to) => {
       FROM agenda a
       LEFT JOIN patients p ON a.patient_id = p.id
       LEFT JOIN clients c ON a.client_id = c.id
-      WHERE (a.event_type = 'cita' OR a.patient_id IS NOT NULL)
-        AND a.status NOT IN ('cancelada')
-
-      UNION ALL
-
-      -- 2. Consultas en expedientes clínicos que no estén ya en la agenda
-      SELECT 
-        nr.id::text as id,
-        COALESCE(p.first_name, c.first_name, 'Sin nombre') as first_name,
-        COALESCE(p.last_name, c.last_name, '') as last_name,
-        COALESCE(p.phone, c.phone, 'Sin teléfono') as phone,
-        COALESCE(nr.evaluation_date, nr.created_at) as appointment_time,
-        COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) as appointment_date,
-        'realizada' as status,
-        'Evaluación Clínica' as service_title,
-        'Expediente' as source
-      FROM nutrition_records nr
-      LEFT JOIN patients p ON nr.patient_id = p.id
-      LEFT JOIN clients c ON nr.client_id = c.id
-      WHERE NOT EXISTS (
-        SELECT 1 FROM agenda a 
-        WHERE (a.patient_id = nr.patient_id OR (a.client_id IS NOT NULL AND a.client_id = nr.client_id))
-          AND (a.start_at AT TIME ZONE 'America/Mexico_City')::date = COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date)
-      )
-
-      UNION ALL
-
-      -- 3. Pagos de consultas que no estén ya en agenda ni en expedientes
-      SELECT 
-        pay.id::text as id,
-        COALESCE(p.first_name, c.first_name, 'Sin nombre') as first_name,
-        COALESCE(p.last_name, c.last_name, '') as last_name,
-        COALESCE(p.phone, c.phone, 'Sin teléfono') as phone,
-        pay.paid_at as appointment_time,
-        (pay.paid_at AT TIME ZONE 'America/Mexico_City')::date as appointment_date,
-        'pagada' as status,
-        'Consulta Pagada' as service_title,
-        'Pago' as source
-      FROM payments pay
-      LEFT JOIN patients p ON pay.patient_id = p.id
-      LEFT JOIN clients c ON pay.client_id = c.id
-      WHERE pay.is_voided = false 
-        AND (pay.entity_type = 'consultorio' OR pay.payment_type IN ('nutrition_consult', 'nutrition_followup'))
-        AND NOT EXISTS (
-          SELECT 1 FROM agenda a 
-          WHERE (a.patient_id = pay.patient_id OR (a.client_id IS NOT NULL AND a.client_id = pay.client_id))
-            AND (a.start_at AT TIME ZONE 'America/Mexico_City')::date = (pay.paid_at AT TIME ZONE 'America/Mexico_City')::date
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM nutrition_records nr 
-          WHERE (nr.patient_id = pay.patient_id OR (nr.client_id IS NOT NULL AND nr.client_id = pay.client_id))
-            AND COALESCE(nr.evaluation_date::date, (nr.created_at AT TIME ZONE 'America/Mexico_City')::date) = (pay.paid_at AT TIME ZONE 'America/Mexico_City')::date
-        )
+      WHERE (a.event_type = 'cita' OR a.patient_id IS NOT NULL OR a.client_id IS NOT NULL)
+        AND COALESCE(a.status, 'programada') NOT IN ('cancelada')
     )
     SELECT *,
       (appointment_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date) as is_today,
