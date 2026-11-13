@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { IconCash, IconCalendarEvent, IconX, IconPencil, IconTrash, IconCheck, IconLoader2, IconPlus, IconEye, IconArrowDown, IconArrowUp, IconScale, IconChevronDown, IconChevronUp, IconDownload } from '@tabler/icons-react';
+import { IconCash, IconCalendarEvent, IconX, IconPencil, IconTrash, IconCheck, IconLoader2, IconPlus, IconEye, IconArrowDown, IconArrowUp, IconScale, IconChevronDown, IconChevronUp, IconDownload, IconSearch } from '@tabler/icons-react';
 import { format, startOfMonth, eachDayOfInterval, subDays } from 'date-fns';
 import { GymCard } from '../components/ui/GymCard';
 import { GymModal } from '../components/ui/GymModal';
@@ -50,6 +50,8 @@ export default function Finanzas() {
   // Filtros y modal de detalle para el Histórico de Cortes de Días Pasados
   const [cutoffFromDate, setCutoffFromDate] = useState('');
   const [cutoffToDate, setCutoffToDate] = useState('');
+  const [appliedCutoffFromDate, setAppliedCutoffFromDate] = useState('');
+  const [appliedCutoffToDate, setAppliedCutoffToDate] = useState('');
   const [selectedDayCutoff, setSelectedDayCutoff] = useState(null);
 
   // Estado para la edición de importe
@@ -188,15 +190,27 @@ export default function Finanzas() {
 
     let list = Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
 
-    if (cutoffFromDate) {
-      list = list.filter((d) => d.date >= cutoffFromDate);
+    if (appliedCutoffFromDate) {
+      list = list.filter((d) => d.date >= appliedCutoffFromDate);
     }
-    if (cutoffToDate) {
-      list = list.filter((d) => d.date <= cutoffToDate);
+    if (appliedCutoffToDate) {
+      list = list.filter((d) => d.date <= appliedCutoffToDate);
     }
 
     return list;
-  }, [allHistoricalPayments, allHistoricalExpenses, todayStr, cutoffFromDate, cutoffToDate]);
+  }, [allHistoricalPayments, allHistoricalExpenses, todayStr, appliedCutoffFromDate, appliedCutoffToDate]);
+
+  const handleSearchCutoffs = () => {
+    setAppliedCutoffFromDate(cutoffFromDate);
+    setAppliedCutoffToDate(cutoffToDate);
+  };
+
+  const handleClearCutoffFilters = () => {
+    setCutoffFromDate('');
+    setCutoffToDate('');
+    setAppliedCutoffFromDate('');
+    setAppliedCutoffToDate('');
+  };
 
   const displayedPastCutoffs = showAllPastCutoffs ? pastDailyCutoffs : pastDailyCutoffs.slice(0, 10);
   const pastCutoffsTotals = useMemo(() => {
@@ -1266,36 +1280,28 @@ export default function Finanzas() {
         variant="default"
         onHeaderClick={pastDailyCutoffs.length > 10 ? () => setShowAllPastCutoffs((prev) => !prev) : undefined}
         headerAction={
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          pastDailyCutoffs.length > 10 ? (
             <button
-              onClick={handleDownloadHistoricalCutoffs}
-              disabled={pastDailyCutoffs.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-[var(--color-secondary)] text-black hover:opacity-90 transition disabled:opacity-40 cursor-pointer"
-              title="Descargar tabla con el histórico de cortes diarios (CSV / Excel)"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAllPastCutoffs((prev) => !prev);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+              title={showAllPastCutoffs ? 'Mostrar 10 días' : 'Mostrar todos los días'}
             >
-              <IconDownload size={15} />
-              <span>Descargar Histórico</span>
+              {showAllPastCutoffs ? (
+                <>
+                  <span>Ver menos</span>
+                  <IconChevronUp size={14} />
+                </>
+              ) : (
+                <>
+                  <span>Ver más ({pastDailyCutoffs.length})</span>
+                  <IconChevronDown size={14} />
+                </>
+              )}
             </button>
-            {pastDailyCutoffs.length > 10 && (
-              <button
-                onClick={() => setShowAllPastCutoffs((prev) => !prev)}
-                className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-white/10 hover:bg-white/20 text-white transition"
-                title={showAllPastCutoffs ? 'Mostrar 10 días' : 'Mostrar todos los días'}
-              >
-                {showAllPastCutoffs ? (
-                  <>
-                    <span>Ver menos</span>
-                    <IconChevronUp size={14} />
-                  </>
-                ) : (
-                  <>
-                    <span>Ver más ({pastDailyCutoffs.length})</span>
-                    <IconChevronDown size={14} />
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+          ) : null
         }
       >
         <div className="space-y-6">
@@ -1316,6 +1322,9 @@ export default function Finanzas() {
                   value={cutoffFromDate}
                   max={todayStr}
                   onChange={(e) => setCutoffFromDate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearchCutoffs();
+                  }}
                   className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-secondary)]"
                 />
               </div>
@@ -1328,18 +1337,26 @@ export default function Finanzas() {
                   value={cutoffToDate}
                   max={todayStr}
                   onChange={(e) => setCutoffToDate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearchCutoffs();
+                  }}
                   className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-card-alt)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-secondary)]"
                 />
               </div>
-              {(cutoffFromDate || cutoffToDate) && (
+              <GymButton
+                variant="primary"
+                size="sm"
+                icon={<IconSearch size={16} />}
+                onClick={handleSearchCutoffs}
+              >
+                Buscar
+              </GymButton>
+              {(cutoffFromDate || cutoffToDate || appliedCutoffFromDate || appliedCutoffToDate) && (
                 <GymButton
                   variant="secondary"
                   size="sm"
                   icon={<IconX size={15} />}
-                  onClick={() => {
-                    setCutoffFromDate('');
-                    setCutoffToDate('');
-                  }}
+                  onClick={handleClearCutoffFilters}
                 >
                   Limpiar
                 </GymButton>
@@ -1351,7 +1368,7 @@ export default function Finanzas() {
                 onClick={handleDownloadHistoricalCutoffs}
                 disabled={pastDailyCutoffs.length === 0}
               >
-                Descargar Histórico (Excel / CSV)
+                Descargar
               </GymButton>
             </div>
           </div>
